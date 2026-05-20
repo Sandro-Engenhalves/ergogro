@@ -564,6 +564,8 @@ const ModuloPesquisaAdmin = (() => {
         buscarCampanha(c.id),
       ]);
       el.innerHTML = _htmlRelatorio(relatorio, campanha || c);
+      /* Pequeno delay garante que o canvas já está no DOM */
+      setTimeout(() => _desenharRadar('ps-radar-chart', relatorio.consolidado), 80);
     } catch (e) {
       el.innerHTML = `
         <div class="container">
@@ -709,6 +711,20 @@ const ModuloPesquisaAdmin = (() => {
                 </div>
               </div>
             ` : ''}
+          </div>
+        </div>
+
+        <!-- Gráfico radar COPSOQ-III -->
+        <div class="relatorio-secao">
+          <h3>Perfil Psicossocial — COPSOQ-III</h3>
+          <div style="text-align:center">
+            <canvas id="ps-radar-chart" width="380" height="380"
+              style="max-width:100%;height:auto;border-radius:var(--raio)"></canvas>
+          </div>
+          <div style="display:flex;justify-content:center;gap:var(--s5);margin-top:var(--s3);flex-wrap:wrap">
+            <span style="font-size:var(--txt-xs);color:#3fb950">● Favorável ≥ 67</span>
+            <span style="font-size:var(--txt-xs);color:#d29922">● Intermediário 34–66</span>
+            <span style="font-size:var(--txt-xs);color:#f85149">● Desfavorável ≤ 33</span>
           </div>
         </div>
 
@@ -980,6 +996,130 @@ const ModuloPesquisaAdmin = (() => {
         </div>
       </div>
     `;
+  }
+
+  /* ── Gráfico Radar COPSOQ-III (Canvas puro) ─────────────── */
+  function _desenharRadar(canvasId, dimensoes) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas || !canvas.getContext) return;
+
+    const ctx  = canvas.getContext('2d');
+    const W    = canvas.width;
+    const H    = canvas.height;
+    const cx   = W / 2;
+    const cy   = H / 2;
+    const R    = Math.min(W, H) * 0.30;   /* raio do radar */
+    const N    = dimensoes.length;
+    const step = (2 * Math.PI) / N;
+    const ini  = -Math.PI / 2;            /* começa pelo topo */
+
+    /* Ponto em coordenadas polares */
+    const pt = (i, r) => ({
+      x: cx + r * Math.cos(ini + i * step),
+      y: cy + r * Math.sin(ini + i * step),
+    });
+
+    ctx.clearRect(0, 0, W, H);
+
+    /* Fundo escuro */
+    ctx.fillStyle = '#161b22';
+    ctx.fillRect(0, 0, W, H);
+
+    /* Anéis de referência: 33, 67, 100 */
+    [[100,'#30363d',null],[67,'#30363d','rgba(210,153,34,0.07)'],[33,'#30363d','rgba(248,81,73,0.08)']].forEach(([lv, stroke, fill]) => {
+      ctx.beginPath();
+      for (let i = 0; i < N; i++) {
+        const p = pt(i, (lv / 100) * R);
+        i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y);
+      }
+      ctx.closePath();
+      if (fill) { ctx.fillStyle = fill; ctx.fill(); }
+      ctx.strokeStyle = stroke;
+      ctx.lineWidth = 0.8;
+      ctx.stroke();
+    });
+
+    /* Rótulos dos anéis */
+    [[33,'#f85149'],[67,'#d29922']].forEach(([lv, cor]) => {
+      const p = pt(0, (lv / 100) * R);
+      ctx.fillStyle = cor;
+      ctx.font = '9px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(lv, p.x + 10, p.y + 3);
+    });
+
+    /* Eixos */
+    for (let i = 0; i < N; i++) {
+      const p = pt(i, R);
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.lineTo(p.x, p.y);
+      ctx.strokeStyle = '#30363d';
+      ctx.lineWidth = 0.8;
+      ctx.stroke();
+    }
+
+    /* Polígono dos dados */
+    ctx.beginPath();
+    dimensoes.forEach((d, i) => {
+      const p = pt(i, ((d.media ?? 0) / 100) * R);
+      i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y);
+    });
+    ctx.closePath();
+    ctx.fillStyle = 'rgba(31,111,235,0.22)';
+    ctx.fill();
+    ctx.strokeStyle = '#388bfd';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    /* Pontos coloridos por nível */
+    dimensoes.forEach((d, i) => {
+      if (d.media == null) return;
+      const p   = pt(i, (d.media / 100) * R);
+      const cor = d.media >= 67 ? '#3fb950' : d.media >= 34 ? '#d29922' : '#f85149';
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 5, 0, 2 * Math.PI);
+      ctx.fillStyle = cor;
+      ctx.fill();
+      ctx.strokeStyle = '#161b22';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+    });
+
+    /* Rótulos externos */
+    const ABREV = ['Demandas', 'Organização', 'Liderança', 'Interface', 'Valores', 'Saúde'];
+    const labelR = R + 52;
+
+    dimensoes.forEach((d, i) => {
+      const angle = ini + i * step;
+      const lx = cx + labelR * Math.cos(angle);
+      const ly = cy + labelR * Math.sin(angle);
+      const cor = d.media == null ? '#8b949e' : d.media >= 67 ? '#3fb950' : d.media >= 34 ? '#d29922' : '#f85149';
+
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#c9d1d9';
+      ctx.font = '11px sans-serif';
+      ctx.fillText(ABREV[i] || d.nome.split(' ')[0], lx, ly - 8);
+
+      ctx.fillStyle = cor;
+      ctx.font = 'bold 13px sans-serif';
+      ctx.fillText(d.media != null ? d.media : '—', lx, ly + 8);
+    });
+
+    /* Score central */
+    const scores = dimensoes.map(d => d.media).filter(s => s != null);
+    if (scores.length > 0) {
+      const avg = Math.round(scores.reduce((a, b) => a + b, 0) / scores.length);
+      const cor = avg >= 67 ? '#3fb950' : avg >= 34 ? '#d29922' : '#f85149';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillStyle = cor;
+      ctx.font = 'bold 20px sans-serif';
+      ctx.fillText(avg, cx, cy - 10);
+      ctx.fillStyle = '#8b949e';
+      ctx.font = '10px sans-serif';
+      ctx.fillText('geral', cx, cy + 8);
+    }
   }
 
   /* ── Análise técnica: auto-save e save manual ───────────── */
