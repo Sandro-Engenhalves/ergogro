@@ -13,8 +13,19 @@
    rules_version = '2';
    service cloud.firestore {
      match /databases/{database}/documents {
-       match /ergogro_campanhas/{id} { allow read, write: if true; }
-       match /ergogro_respostas/{id} { allow read, write: if true; }
+       // Pesquisa psicossocial anônima
+       match /ergogro_campanhas/{id}      { allow read, write: if true; }
+       match /ergogro_respostas/{id}      { allow read, write: if true; }
+       // Estrutura de laudos (migração v4.2 — firebase-storage.js)
+       match /ergogro_empresas/{id}       { allow read, write: if true; }
+       match /ergogro_projetos/{id}       { allow read, write: if true; }
+       match /ergogro_setores/{id}        { allow read, write: if true; }
+       match /ergogro_funcoes/{id}        { allow read, write: if true; }
+       match /ergogro_setores_master/{id} { allow read, write: if true; }
+       match /ergogro_funcoes_master/{id} { allow read, write: if true; }
+       match /ergogro_avaliacoes/{id}     { allow read, write: if true; }
+       match /ergogro_planos/{id}         { allow read, write: if true; }
+       match /ergogro_psicossocial/{id}   { allow read, write: if true; }
      }
    }
    ─────────────────────────────────────────────────────────

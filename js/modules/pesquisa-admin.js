@@ -685,8 +685,8 @@ const ModuloPesquisaAdmin = (() => {
       <!-- ══ CSS DE IMPRESSÃO PADRÃO ENGENHALVES ══ -->
       <style>
         @media print {
-          /* Configuração da página A4 */
-          @page { size: A4 portrait; margin: 0; }
+          /* Configuração da página A4 — margens reservam espaço para header/footer em toda página */
+          @page { size: A4 portrait; margin: 18mm 12mm 14mm; }
 
           /* Oculta elementos de tela */
           #app-header, #nav-principal, .subnav-abas,
@@ -707,8 +707,8 @@ const ModuloPesquisaAdmin = (() => {
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            min-height: 175mm;
-            padding: 16mm 20mm;
+            min-height: 258mm; /* A4 297mm - margem topo 18mm - margem rodapé 14mm - ~7mm folga */
+            padding: 8mm 8mm;
             text-align: center;
             page-break-after: always;
             background: #fff;
@@ -810,8 +810,9 @@ const ModuloPesquisaAdmin = (() => {
           }
 
           /* ── Área de conteúdo ──────────────────── */
+          /* Margens já definidas em @page — apenas espaço interno */
           .rpt-conteudo {
-            margin: 18mm 12mm 14mm !important;
+            margin: 0 !important;
             padding: 0 !important;
           }
 
@@ -883,8 +884,44 @@ const ModuloPesquisaAdmin = (() => {
           canvas { max-width: 260px !important; height: auto !important; }
 
           /* ── Quebras de página ──────────────────── */
-          .relatorio-secao { page-break-inside: avoid; margin-bottom: 8pt; }
-          .rpt-capa { page-break-after: always; }
+
+          /* Seções grandes podem precisar de quebra — não evitar no container */
+          .relatorio-secao {
+            margin-bottom: 10pt;
+          }
+
+          /* Cabeçalho nunca fica sozinho no fundo da página */
+          .relatorio-secao h3 {
+            page-break-after: avoid !important;
+            break-after: avoid !important;
+          }
+
+          /* Cards individuais não quebram no meio */
+          .card {
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+          }
+
+          /* Linhas de tabela não quebram */
+          tr {
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+          }
+
+          /* Itens de lista não quebram */
+          li {
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+          }
+
+          /* Bloco de assinatura sempre na mesma página */
+          .so-imprimir table {
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+          }
+
+          /* Capa sempre termina com quebra de página */
+          .rpt-capa { page-break-after: always; break-after: always; }
 
           /* Ocultar na tela */
           .rpt-capa, .rpt-header, .rpt-footer { display: none; }
