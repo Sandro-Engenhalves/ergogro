@@ -566,6 +566,8 @@ const ModuloPesquisaAdmin = (() => {
       el.innerHTML = _htmlRelatorio(relatorio, campanha || c);
       /* Pequeno delay garante que o canvas já está no DOM */
       setTimeout(() => _desenharRadar('ps-radar-chart', relatorio.consolidado), 200);
+      /* Ctrl+P também sincroniza antes de imprimir */
+      window.addEventListener('beforeprint', _sincronizarParaImpressao);
     } catch (e) {
       el.innerHTML = `
         <div class="container">
@@ -1169,7 +1171,7 @@ const ModuloPesquisaAdmin = (() => {
 
         <!-- Ações -->
         <div class="nao-imprimir" style="display:flex;gap:var(--s3);flex-wrap:wrap;margin-bottom:var(--s5)">
-          <button class="btn btn-primario" onclick="window.print()">🖨️ Imprimir / PDF</button>
+          <button class="btn btn-primario" onclick="ModuloPesquisaAdmin.imprimir()">🖨️ Imprimir / PDF</button>
           <button class="btn btn-secundario" onclick="ModuloPesquisaAdmin.trocarSecao('monitor')">📊 Monitoramento</button>
         </div>
 
@@ -1379,8 +1381,8 @@ const ModuloPesquisaAdmin = (() => {
                 oninput="ModuloPesquisaAdmin.agendarAutoSave()"
                 value="${it.contextoComplemento || ''}">
             </div>
-            <!-- Impressão: só o selecionado -->
-            <div class="so-imprimir">
+            <!-- Impressão: só o selecionado (sincronizado em imprimir()) -->
+            <div class="so-imprimir" id="ps-print-contexto">
               <p style="font-size:9pt;padding:4pt 0">${_contextoTxt}</p>
               ${it.contextoComplemento ? `<p style="font-size:8pt;color:#555">${it.contextoComplemento}</p>` : ''}
             </div>
@@ -1426,8 +1428,8 @@ const ModuloPesquisaAdmin = (() => {
                 `;
               }).join('')}
             </div>
-            <!-- Impressão: só os selecionados -->
-            <div class="so-imprimir">
+            <!-- Impressão: só os selecionados (sincronizado em imprimir()) -->
+            <div class="so-imprimir" id="ps-print-fatores">
               ${_fatoresPrint.length > 0
                 ? _fatoresPrint.map(f => `
                     <div style="display:flex;justify-content:space-between;align-items:center;padding:3pt 0;border-bottom:1px solid #eee;font-size:9pt">
@@ -1475,8 +1477,8 @@ const ModuloPesquisaAdmin = (() => {
                 >${it.recomendacoesCustom || ''}</textarea>
               </div>
             </div>
-            <!-- Impressão: só as selecionadas -->
-            <div class="so-imprimir">
+            <!-- Impressão: só as selecionadas (sincronizado em imprimir()) -->
+            <div class="so-imprimir" id="ps-print-recs">
               ${_temRecsImpressao
                 ? Object.entries(_recsPrint).map(([dimId, textos]) => {
                     const dim = PerguntasPsicossociais.DIMENSOES.find(d => d.id === dimId);
@@ -1623,6 +1625,76 @@ const ModuloPesquisaAdmin = (() => {
         </div>
       </div><!-- fim .rpt-conteudo -->
     `;
+  }
+
+  /* ══════════════════════════════════════════════════════════
+     IMPRESSÃO — sincroniza DOM → so-imprimir antes de imprimir
+  ══════════════════════════════════════════════════════════ */
+
+  function _sincronizarParaImpressao() {
+    /* 7.1 Contexto */
+    const ctxDiv = document.getElementById('ps-print-contexto');
+    if (ctxDiv) {
+      const radio = document.querySelector('input[name="ps-it-contexto"]:checked');
+      const ctxTxt = radio ? (CONTEXTOS.find(c => c.id === radio.value)?.texto || '') : '';
+      const complemento = (document.getElementById('ps-it-contexto-complemento')?.value || '').trim();
+      ctxDiv.innerHTML = ctxTxt
+        ? `<p style="font-size:9pt;padding:4pt 0">${ctxTxt}</p>${complemento ? `<p style="font-size:8pt;color:#555">${complemento}</p>` : ''}`
+        : '<p style="font-size:9pt;color:#555;font-style:italic">Contexto não selecionado.</p>';
+    }
+
+    /* 7.3 Fatores de risco */
+    const fatDiv = document.getElementById('ps-print-fatores');
+    if (fatDiv) {
+      const checados = [...document.querySelectorAll('input[name="ps-it-risco"]:checked')];
+      if (checados.length > 0) {
+        fatDiv.innerHTML = checados.map(el => {
+          const dim = PerguntasPsicossociais.DIMENSOES.find(d => d.id === el.value);
+          const badgeEl = el.closest('label')?.querySelector('.badge');
+          const badgeTxt = badgeEl?.textContent?.trim() || '';
+          return dim
+            ? `<div style="display:flex;justify-content:space-between;align-items:center;padding:3pt 0;border-bottom:1px solid #eee;font-size:9pt">
+                 <span>• ${dim.nome}</span>
+                 <span style="font-size:8pt;color:#444">${badgeTxt}</span>
+               </div>`
+            : '';
+        }).join('');
+      } else {
+        fatDiv.innerHTML = '<p style="font-size:9pt;color:#555;font-style:italic">Nenhum fator de risco identificado.</p>';
+      }
+    }
+
+    /* 7.4 Recomendações */
+    const recDiv = document.getElementById('ps-print-recs');
+    if (recDiv) {
+      const checadas = [...document.querySelectorAll('input[name="ps-it-rec"]:checked')];
+      const custom   = (document.getElementById('ps-it-rec-custom')?.value || '').trim();
+      if (checadas.length > 0 || custom) {
+        const porDim = {};
+        checadas.forEach(el => {
+          Object.entries(RECOMENDACOES).forEach(([dimId, recs]) => {
+            const rec = recs.find(r => r.id === el.value);
+            if (rec) { if (!porDim[dimId]) porDim[dimId] = []; porDim[dimId].push(rec.texto); }
+          });
+        });
+        let html = Object.entries(porDim).map(([dimId, textos]) => {
+          const dim = PerguntasPsicossociais.DIMENSOES.find(d => d.id === dimId);
+          return `<div style="margin-bottom:8pt">
+            <div style="font-size:8pt;font-weight:700;color:#1a3c6b;text-transform:uppercase;letter-spacing:.3pt;margin-bottom:3pt">${dim?.nome || dimId}</div>
+            ${textos.map(t => `<div style="padding:2pt 0 2pt 10pt;border-left:2px solid #1a3c6b;font-size:9pt;margin-bottom:2pt">${t}</div>`).join('')}
+          </div>`;
+        }).join('');
+        if (custom) html += `<div style="margin-top:6pt;font-size:9pt"><em>Recomendação adicional:</em> ${custom}</div>`;
+        recDiv.innerHTML = html;
+      } else {
+        recDiv.innerHTML = '<p style="font-size:9pt;color:#555;font-style:italic">Nenhuma recomendação selecionada.</p>';
+      }
+    }
+  }
+
+  function imprimir() {
+    _sincronizarParaImpressao();
+    window.print();
   }
 
   /* ══════════════════════════════════════════════════════════
@@ -1913,5 +1985,6 @@ const ModuloPesquisaAdmin = (() => {
     toggleAET,
     gerarInterpretacao,
     salvarInterpretacaoTecnica,
+    imprimir,
   };
 })();
