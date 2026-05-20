@@ -79,12 +79,23 @@ const StorageCloud = (() => {
      UTILITÁRIOS INTERNOS
   ────────────────────────────────────────────────────────── */
 
-  /* Retorna instância do Firestore.
-     Lança erro se Firebase não estiver pronto — capturado
-     pelos callers que nunca deixam o erro chegar à UI.       */
+  /* Retorna instância do Firestore com inicialização lazy.
+     Se Firebase ainda não foi inicializado (ex.: chamada durante
+     Storage.migrar() no boot), tenta inicializar agora.
+     Lança erro apenas se realmente não houver como prosseguir. */
   function _getDb() {
-    if (typeof firebase === 'undefined' || !firebase.apps || !firebase.apps.length) {
+    if (typeof firebase === 'undefined') {
       throw new Error('Firebase SDK não disponível');
+    }
+    /* Inicialização lazy — garante que o app Firebase existe */
+    if (!firebase.apps || !firebase.apps.length) {
+      if (typeof inicializarFirebase === 'function') {
+        if (!inicializarFirebase()) {
+          throw new Error('Firebase não inicializou — verifique FIREBASE_CONFIG');
+        }
+      } else {
+        throw new Error('Firebase SDK não inicializado');
+      }
     }
     return firebase.firestore();
   }
