@@ -705,62 +705,122 @@ const ModuloPesquisaAdmin = (() => {
           .rpt-capa {
             display: flex !important;
             flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            min-height: 258mm; /* A4 297mm - margem topo 18mm - margem rodapé 14mm - ~7mm folga */
-            padding: 8mm 8mm;
+            justify-content: space-between;
+            align-items: stretch;
+            min-height: 258mm;
+            padding: 0;
             text-align: center;
             page-break-after: always;
+            break-after: always;
             background: #fff;
           }
-          .rpt-capa-logo {
-            font-size: 28pt;
-            font-weight: 900;
-            color: #1a3c6b;
-            letter-spacing: -1px;
-            margin-bottom: 8mm;
+          .rpt-capa-barra-topo {
+            background: #1a3c6b;
+            color: #fff;
+            padding: 5pt 12pt;
+            font-size: 7.5pt;
+            font-weight: 700;
+            letter-spacing: .5pt;
+            text-transform: uppercase;
+            text-align: center;
+          }
+          .rpt-capa-corpo {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 14mm 20mm;
           }
           .rpt-capa-titulo {
-            font-size: 18pt;
-            font-weight: 700;
+            font-size: 20pt;
+            font-weight: 900;
             color: #1a3c6b;
             text-transform: uppercase;
             letter-spacing: 1px;
-            margin-bottom: 4mm;
+            margin-bottom: 3mm;
+            line-height: 1.2;
           }
           .rpt-capa-subtitulo {
-            font-size: 10pt;
-            color: #555;
-            margin-bottom: 12mm;
+            font-size: 9pt;
+            color: #666;
+            margin-bottom: 10mm;
+          }
+          .rpt-capa-linha {
+            width: 40mm;
+            height: 2px;
+            background: #1a3c6b;
+            margin: 0 auto 10mm;
           }
           .rpt-capa-tabela {
             width: 100%;
-            max-width: 140mm;
+            max-width: 130mm;
             border-collapse: collapse;
             font-size: 9pt;
-            margin: 0 auto 12mm;
-          }
-          .rpt-capa-tabela th {
-            background: #1a3c6b;
-            color: #fff;
-            padding: 4pt 8pt;
             text-align: left;
-            font-weight: 600;
-            width: 45%;
           }
           .rpt-capa-tabela td {
             padding: 4pt 8pt;
-            border: 1px solid #ccc;
+            border: none !important;
+            border-bottom: 1px solid #e0e0e0 !important;
+            background: transparent !important;
             color: #222;
           }
-          .rpt-capa-rodape {
+          .rpt-capa-td-label {
+            font-weight: 700;
+            color: #1a3c6b !important;
+            width: 44%;
+          }
+          .rpt-capa-barra-rodape {
+            background: #1a3c6b;
+            color: #fff;
+            padding: 5pt 12pt;
             font-size: 8pt;
-            color: #888;
-            margin-top: 12mm;
-            padding-top: 6mm;
-            border-top: 1px solid #ccc;
-            width: 100%;
             text-align: center;
+          }
+
+          /* ── Sumário (página 2) ────────────────── */
+          .rpt-sumario {
+            page-break-after: always;
+            break-after: always;
+            padding: 10mm 0 0;
+          }
+          .rpt-sumario-titulo {
+            font-size: 13pt;
+            font-weight: 900;
+            color: #fff !important;
+            background: #1a3c6b !important;
+            padding: 5pt 9pt !important;
+            text-transform: uppercase;
+            letter-spacing: 1pt;
+            margin: 0 0 8mm !important;
+          }
+          .rpt-sumario-tabela {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 9pt;
+          }
+          .rpt-sumario-tabela td {
+            padding: 4pt 4pt !important;
+            border: none !important;
+            background: transparent !important;
+            color: #111;
+          }
+          .rpt-sumario-tabela tr:nth-child(even) td {
+            background: #f5f7fa !important;
+          }
+          .rpt-sumario-num {
+            width: 12mm;
+            font-weight: 700;
+            color: #1a3c6b !important;
+            vertical-align: top;
+          }
+          .rpt-sumario-titulo-item {
+            color: #111;
+          }
+          .rpt-sumario-sub {
+            padding-left: 12mm !important;
+            color: #444;
           }
 
           /* Mostrar só na impressão (substitui checkboxes/radios por texto) */
@@ -928,32 +988,117 @@ const ModuloPesquisaAdmin = (() => {
         }
 
         @media screen {
-          .rpt-capa, .rpt-header, .rpt-footer { display: none !important; }
+          .rpt-capa, .rpt-header, .rpt-footer, .rpt-sumario { display: none !important; }
           .so-imprimir { display: none !important; }
         }
       </style>
 
       <!-- ── CAPA (visível só na impressão) ──── -->
       <div class="rpt-capa">
-        <div class="rpt-capa-logo">ENGENHALVES</div>
-        <div style="font-size:8pt;color:#888;margin-bottom:8mm">Centro de Engenharia &amp; Segurança LTDA</div>
-        <div class="rpt-capa-titulo">Avaliação de Fatores Psicossociais</div>
-        <div class="rpt-capa-subtitulo">
-          Consulta sobre Organização do Trabalho e Fatores Psicossociais<br>
-          COPSOQ-III Versão Curta (23 itens) · NR-01 / NR-17
+        <!-- Barra superior azul -->
+        <div class="rpt-capa-barra-topo">
+          ENGENHALVES — Engenharia de Segurança e Saúde do Trabalho
         </div>
-        <table class="rpt-capa-tabela">
-          <tr><th>Empresa / Cliente</th><td>${c.empresaNome || '—'}</td></tr>
-          <tr><th>Projeto</th><td>${c.nome || '—'}</td></tr>
-          <tr><th>N° do Laudo</th><td>${_nrLaudo}</td></tr>
-          <tr><th>Data de Emissão</th><td>${_dataEmissao}</td></tr>
-          <tr><th>Responsável Técnico</th><td>${_responsavel || '—'}</td></tr>
-          <tr><th>Registro Profissional</th><td>${_registro || '—'}</td></tr>
-          <tr><th>Contexto da Avaliação</th><td>${_contextoTxt}</td></tr>
+
+        <!-- Corpo centralizado -->
+        <div class="rpt-capa-corpo">
+          <!-- Logo SVG (círculo azul com E) -->
+          <svg width="72" height="72" viewBox="0 0 72 72" style="margin-bottom:7mm"
+               xmlns="http://www.w3.org/2000/svg">
+            <circle cx="36" cy="36" r="36" fill="#1a3c6b"/>
+            <text x="36" y="50" font-family="Arial,sans-serif" font-size="40"
+                  font-weight="900" fill="#ffffff" text-anchor="middle">E</text>
+          </svg>
+
+          <div class="rpt-capa-titulo">Avaliação de Fatores Psicossociais</div>
+          <div class="rpt-capa-subtitulo">
+            Análise de Riscos Psicossociais no Trabalho &mdash; COPSOQ-III &middot; NR-01 &middot; NR-17
+          </div>
+          <div class="rpt-capa-linha"></div>
+
+          <table class="rpt-capa-tabela">
+            <tr>
+              <td class="rpt-capa-td-label">Projeto</td>
+              <td>${c.nome || '—'}</td>
+            </tr>
+            <tr>
+              <td class="rpt-capa-td-label">Cliente</td>
+              <td>${c.empresaNome || '—'}</td>
+            </tr>
+            <tr>
+              <td class="rpt-capa-td-label">Data de Emissão</td>
+              <td>${_dataEmissao}</td>
+            </tr>
+            <tr>
+              <td class="rpt-capa-td-label">Engenheiro Responsável</td>
+              <td>${_responsavel || '—'}</td>
+            </tr>
+            <tr>
+              <td class="rpt-capa-td-label">Registro Profissional</td>
+              <td>${_registro || '—'}</td>
+            </tr>
+          </table>
+        </div>
+
+        <!-- Barra inferior azul -->
+        <div class="rpt-capa-barra-rodape">
+          Documento gerado em ${_dataEmissao} &mdash; Confidencial &nbsp;|&nbsp; ${_nrLaudo}
+        </div>
+      </div>
+
+      <!-- ── SUMÁRIO (página 2, visível só na impressão) ──── -->
+      <div class="rpt-sumario so-imprimir">
+        <h2 class="rpt-sumario-titulo">Sumário</h2>
+        <table class="rpt-sumario-tabela">
+          <tr>
+            <td class="rpt-sumario-num">1.</td>
+            <td class="rpt-sumario-titulo-item">Informações Gerais</td>
+          </tr>
+          <tr>
+            <td class="rpt-sumario-num">2.</td>
+            <td class="rpt-sumario-titulo-item">Objetivo</td>
+          </tr>
+          <tr>
+            <td class="rpt-sumario-num">3.</td>
+            <td class="rpt-sumario-titulo-item">Metodologia</td>
+          </tr>
+          <tr>
+            <td class="rpt-sumario-num">4.</td>
+            <td class="rpt-sumario-titulo-item">Normas Aplicáveis</td>
+          </tr>
+          <tr>
+            <td class="rpt-sumario-num">5.</td>
+            <td class="rpt-sumario-titulo-item">Resultados</td>
+          </tr>
+          <tr>
+            <td></td>
+            <td class="rpt-sumario-sub">5.1 &nbsp; Participação e Score Geral</td>
+          </tr>
+          <tr>
+            <td></td>
+            <td class="rpt-sumario-sub">5.2 &nbsp; Perfil Psicossocial — Gráfico COPSOQ-III</td>
+          </tr>
+          <tr>
+            <td></td>
+            <td class="rpt-sumario-sub">5.3 &nbsp; Resultado Consolidado por Dimensão</td>
+          </tr>
+          <tr>
+            <td class="rpt-sumario-num">6.</td>
+            <td class="rpt-sumario-titulo-item">Análise por Setor</td>
+          </tr>
+          <tr>
+            <td class="rpt-sumario-num">7.</td>
+            <td class="rpt-sumario-titulo-item">Análise Técnica — Profissional Responsável</td>
+          </tr>
+          <tr>
+            <td class="rpt-sumario-num">8.</td>
+            <td class="rpt-sumario-titulo-item">Limitações do Relatório</td>
+          </tr>
+          <tr>
+            <td class="rpt-sumario-num">9.</td>
+            <td class="rpt-sumario-titulo-item">Conclusão e Assinatura</td>
+          </tr>
         </table>
-        <div class="rpt-capa-rodape">
-          ENGENHALVES — Centro de Engenharia &amp; Segurança LTDA | Documento de uso exclusivo do cliente
-        </div>
       </div>
 
       <!-- ── HEADER FIXO (visível só na impressão) ── -->
@@ -986,14 +1131,6 @@ const ModuloPesquisaAdmin = (() => {
         <div style="display:flex;gap:var(--s3);flex-wrap:wrap;margin-bottom:var(--s5)">
           <button class="btn btn-primario" onclick="window.print()">🖨️ Imprimir / PDF</button>
           <button class="btn btn-secundario" onclick="ModuloPesquisaAdmin.trocarSecao('monitor')">📊 Monitoramento</button>
-        </div>
-
-        <!-- Aviso técnico -->
-        <div class="aviso-tecnico aviso" style="margin-bottom:var(--s5)">
-          <span>⚠️</span>
-          <span>Resultados referem-se ao <strong>grupo avaliado</strong>.
-          Não constituem diagnóstico médico ou psicológico individual.
-          Profissional habilitado é responsável pela interpretação.</span>
         </div>
 
         <!-- 1. INFORMAÇÕES GERAIS -->
@@ -1150,10 +1287,6 @@ const ModuloPesquisaAdmin = (() => {
         <!-- 5.3 Consolidado por dimensão -->
         <div class="relatorio-secao">
           <h3>5.3 Resultado Consolidado por Dimensão</h3>
-          <div class="aviso-tecnico info" style="margin-bottom:var(--s3)">
-            <span>ℹ️</span>
-            <span>Escala 0–100. Favorável ≥ 67 · Intermediário 34–66 · Desfavorável ≤ 33.</span>
-          </div>
           <div style="overflow-x:auto">
             <table class="tabela-simples">
               <thead>
