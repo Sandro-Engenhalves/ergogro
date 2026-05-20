@@ -1045,15 +1045,19 @@ const ModuloPesquisaAdmin = (() => {
       registro:              get('ps-it-registro'),
       dataEmissao:           get('ps-it-data'),
     };
+    const btn = document.querySelector('.btn.btn-primario.nao-imprimir');
+    if (btn) { btn.disabled = true; btn.textContent = '⏳ Salvando...'; }
+
     try {
       await salvarInterpretacao(_campanhaAberta.id, dados);
+      App.mostrarToast('Análise técnica salva com sucesso', 'sucesso');
       const ind = document.getElementById('ps-it-autosave');
-      if (ind) {
-        ind.textContent = '✓ Salvo';
-        setTimeout(() => { if (ind) ind.textContent = ''; }, 2500);
-      }
+      if (ind) { ind.textContent = '✓ Salvo'; setTimeout(() => { if (ind) ind.textContent = ''; }, 3000); }
     } catch (e) {
       console.error('Erro ao salvar interpretação:', e);
+      App.mostrarToast('Erro ao salvar. Verifique a conexão.', 'erro');
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = '💾 Salvar Análise Técnica'; }
     }
   }
 
