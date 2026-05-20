@@ -20,11 +20,76 @@ const App = (() => {
     Storage.migrar();
     _configurarNavPrincipal();
     _configurarBotaoVoltar();
-    /* Carrega o dashboard imediatamente com os dados locais */
+
+    /* Verifica autenticação antes de mostrar o app.
+       Auth.onAuthChange dispara imediatamente se já há sessão ativa. */
+    if (typeof Auth !== 'undefined') {
+      Auth.onAuthChange(usuario => {
+        if (usuario) {
+          _onLoginSucesso(usuario);
+        } else {
+          _mostrarTelaLogin();
+        }
+      });
+    } else {
+      /* Auth não disponível — carrega normalmente (modo offline) */
+      navegarPara('dashboard');
+      _sincronizarCloud();
+    }
+  }
+
+  /* Chamado quando o usuário faz login com sucesso */
+  function _onLoginSucesso(usuario) {
+    _ocultarTelaLogin();
+    _atualizarHeaderUsuario(usuario);
     navegarPara('dashboard');
-    /* Sync com o Firestore em segundo plano — não bloqueia a UI.
-       Se trouxer dados novos, atualiza o dashboard automaticamente. */
     _sincronizarCloud();
+  }
+
+  /* Exibe a tela de login e oculta o app */
+  function _mostrarTelaLogin() {
+    const telaLogin = document.getElementById('tela-login');
+    const appContent = document.getElementById('app-content');
+    const header = document.getElementById('app-header');
+    const nav = document.getElementById('nav-principal');
+    if (telaLogin)  telaLogin.classList.remove('oculto');
+    if (appContent) appContent.style.display = 'none';
+    if (header)     header.style.display = 'none';
+    if (nav)        nav.classList.add('oculto');
+  }
+
+  /* Oculta a tela de login e mostra o app */
+  function _ocultarTelaLogin() {
+    const telaLogin = document.getElementById('tela-login');
+    const appContent = document.getElementById('app-content');
+    const header = document.getElementById('app-header');
+    if (telaLogin)  telaLogin.classList.add('oculto');
+    if (appContent) appContent.style.display = '';
+    if (header)     header.style.display = '';
+  }
+
+  /* Atualiza avatar e nome no header após login */
+  function _atualizarHeaderUsuario(usuario) {
+    const divUsuario = document.getElementById('header-usuario');
+    const foto = document.getElementById('foto-usuario');
+    if (!divUsuario) return;
+    if (usuario) {
+      divUsuario.classList.remove('oculto');
+      if (foto) {
+        foto.src   = usuario.photoURL || '';
+        foto.alt   = usuario.displayName || 'Usuário';
+        foto.title = usuario.displayName || usuario.email || '';
+        foto.style.display = usuario.photoURL ? '' : 'none';
+      }
+    } else {
+      divUsuario.classList.add('oculto');
+    }
+  }
+
+  /* Confirma e executa logout */
+  function confirmarLogout() {
+    if (!confirm('Sair da sua conta?')) return;
+    if (typeof Auth !== 'undefined') Auth.logout();
   }
 
   function _sincronizarCloud() {
@@ -33,10 +98,9 @@ const App = (() => {
 
     StorageCloud.syncInicial()
       .then(resultado => {
-        if (!resultado.ok) return; /* falhou silenciosamente */
+        if (!resultado.ok) return;
         const temNovos = resultado.totalNovos > 0 || resultado.totalAt > 0;
         if (temNovos && _telaAtual === 'dashboard') {
-          /* Novos dados chegaram — atualiza o dashboard sem navegar */
           console.log('[App] Sync trouxe dados novos — atualizando dashboard');
           _renderizarDashboard();
         }
@@ -481,7 +545,9 @@ const App = (() => {
     /* Avaliações */
     abrirAvaliacao, obterAvaliacaoAtual, confirmarExclusao, voltarParaProjeto,
     /* Toast */
-    mostrarToast
+    mostrarToast,
+    /* Auth */
+    confirmarLogout
   };
 })();
 

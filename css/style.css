@@ -1274,3 +1274,119 @@ body.sem-nav #toast {
   border-bottom: 1px solid var(--borda);
 }
 .item-funcao-avs:last-child { border-bottom: none; }
+
+/* ══════════════════════════════════════════════════════════
+   TELA DE LOGIN
+══════════════════════════════════════════════════════════ */
+
+.login-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: var(--fundo);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--s5);
+}
+
+.login-overlay.oculto { display: none; }
+
+.login-card {
+  background: var(--superficie);
+  border: 1px solid var(--borda);
+  border-radius: calc(var(--raio) * 2);
+  padding: var(--s7) var(--s6);
+  width: 100%;
+  max-width: 360px;
+  text-align: center;
+  box-shadow: 0 8px 32px rgba(0,0,0,.4);
+}
+
+.login-logo {
+  font-size: 2rem;
+  font-weight: 800;
+  letter-spacing: -1px;
+  color: var(--texto);
+  margin-bottom: var(--s2);
+}
+
+.login-logo span { color: var(--primaria); }
+
+.login-subtitulo {
+  font-size: var(--txt-sm);
+  color: var(--texto);
+  font-weight: 600;
+  margin-bottom: var(--s1);
+}
+
+.login-descricao {
+  font-size: var(--txt-xs);
+  color: var(--texto-sec);
+  margin-bottom: var(--s6);
+  letter-spacing: .5px;
+}
+
+.btn-google {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s3);
+  width: 100%;
+  padding: var(--s3) var(--s4);
+  background: #fff;
+  color: #3c4043;
+  border: 1px solid #dadce0;
+  border-radius: var(--raio);
+  font-size: var(--txt-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: box-shadow .15s, background .15s;
+}
+
+.btn-google:hover {
+  background: #f8f9fa;
+  box-shadow: 0 2px 8px rgba(0,0,0,.2);
+}
+
+.btn-google:active { background: #f1f3f4; }
+
+.login-rodape {
+  font-size: var(--txt-xs);
+  color: var(--texto-sec);
+  margin-top: var(--s4);
+}
+
+/* ── Avatar e logout no header ─────────────────────────── */
+.header-usuario {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+}
+
+.header-usuario.oculto { display: none !important; }
+
+.foto-usuario {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid var(--primaria);
+  object-fit: cover;
+}
+
+.btn-logout {
+  background: transparent;
+  border: none;
+  color: var(--texto-sec);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  transition: color .15s, background .15s;
+}
+
+.btn-logout:hover {
+  color: var(--perigo);
+  background: var(--superficie-alt);
+}

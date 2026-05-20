@@ -164,21 +164,37 @@ const StorageCloud = (() => {
      OPERAÇÕES FIRESTORE PRIMITIVAS
   ────────────────────────────────────────────────────────── */
 
-  /* Baixa TODOS os documentos de uma coleção Firestore.
-     Retorna array de objetos com o campo id preenchido.     */
+  /* Retorna o userId do usuário autenticado, ou null se não logado.
+     Usa Auth se disponível, com fallback seguro.              */
+  function _getUserId() {
+    if (typeof Auth !== 'undefined' && Auth.isLogado()) return Auth.getUid();
+    return null;
+  }
+
+  /* Baixa documentos de uma coleção Firestore.
+     Se userId disponível, filtra apenas os docs do usuário.
+     Fallback sem filtro para compatibilidade durante migração. */
   async function _baixarColecao(nomeCol) {
-    const snap = await _getDb().collection(nomeCol).get();
+    const db = _getDb();
+    const uid = _getUserId();
+    let query = db.collection(nomeCol);
+    if (uid) query = query.where('userId', '==', uid);
+    const snap = await query.get();
     return snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
   }
 
   /* Sobe um único documento ao Firestore usando set+merge.
-     merge:true garante que campos omitidos não são apagados. */
+     Injeta userId automaticamente se o usuário estiver logado.
+     merge:true garante que campos omitidos não são apagados.  */
   async function _subirDoc(nomeCol, obj) {
     if (!obj || !obj.id) {
       console.warn(`${_CLOUD_LOG} Ignorado: objeto sem id em ${nomeCol}`);
       return;
     }
-    await _getDb().collection(nomeCol).doc(obj.id).set(obj, { merge: true });
+    const uid = _getUserId();
+    /* Injeta userId no documento — identifica o dono dos dados */
+    const docComUserId = uid ? { ...obj, userId: uid } : obj;
+    await _getDb().collection(nomeCol).doc(obj.id).set(docComUserId, { merge: true });
   }
 
   /* Remove um documento do Firestore pelo id */
@@ -334,10 +350,16 @@ const StorageCloud = (() => {
     console.log(`${_CLOUD_LOG} ── Migração local → Firestore ────────────────`);
     const resultado = { ok: true, colecoes: {}, total: 0 };
     const inicio = Date.now();
+    const uid = _getUserId();
+    if (uid) console.log(`${_CLOUD_LOG} Migrando como usuário: ${uid}`);
 
     /* ── 1. Coleções com chave direta no localStorage ─────── */
     for (const { local, cloud } of MAPA_COLECOES) {
-      const lista = _lerLocal(local);
+      /* Injeta userId em cada documento antes de enviar */
+      const listaRaw = _lerLocal(local);
+      const lista = uid
+        ? listaRaw.map(item => item.userId ? item : { ...item, userId: uid })
+        : listaRaw;
 
       if (lista.length === 0) {
         console.log(`${_CLOUD_LOG} ${cloud}: vazio, pulando`);
