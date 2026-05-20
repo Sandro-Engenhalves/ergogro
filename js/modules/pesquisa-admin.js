@@ -718,7 +718,7 @@ const ModuloPesquisaAdmin = (() => {
             background: #fff;
           }
           .rpt-capa-barra-topo {
-            background: #1a3c6b;
+            background: #0D47A1;
             color: #fff;
             padding: 10pt 16pt;
             font-size: 8pt;
@@ -738,7 +738,7 @@ const ModuloPesquisaAdmin = (() => {
           .rpt-capa-titulo {
             font-size: 22pt;
             font-weight: 900;
-            color: #1a3c6b;
+            color: #0D47A1;
             text-transform: uppercase;
             letter-spacing: 1.5px;
             margin-bottom: 4mm;
@@ -753,7 +753,7 @@ const ModuloPesquisaAdmin = (() => {
           .rpt-capa-linha {
             width: 40mm;
             height: 2px;
-            background: #1a3c6b;
+            background: #0D47A1;
             margin: 0 auto 10mm;
           }
           .rpt-capa-tabela {
@@ -772,11 +772,11 @@ const ModuloPesquisaAdmin = (() => {
           }
           .rpt-capa-td-label {
             font-weight: 700;
-            color: #1a3c6b !important;
+            color: #0D47A1 !important;
             width: 44%;
           }
           .rpt-capa-barra-rodape {
-            background: #1a3c6b;
+            background: #0D47A1;
             color: #fff;
             padding: 8pt 16pt;
             font-size: 8pt;
@@ -795,7 +795,7 @@ const ModuloPesquisaAdmin = (() => {
             font-size: 14pt;
             font-weight: 900;
             color: #fff !important;
-            background: #1a3c6b !important;
+            background: #0D47A1 !important;
             padding: 8pt 12pt !important;
             text-transform: uppercase;
             letter-spacing: 3pt;
@@ -823,7 +823,7 @@ const ModuloPesquisaAdmin = (() => {
           }
           .rpt-sumario-num {
             font-weight: 700;
-            color: #1a3c6b !important;
+            color: #0D47A1 !important;
             min-width: 24pt;
             flex-shrink: 0;
           }
@@ -844,7 +844,7 @@ const ModuloPesquisaAdmin = (() => {
           }
           .rpt-sumario-sep {
             height: 2pt;
-            background: #1a3c6b !important;
+            background: #0D47A1 !important;
             border: none !important;
             margin: 4pt 0 !important;
             display: block !important;
@@ -859,17 +859,15 @@ const ModuloPesquisaAdmin = (() => {
             display: flex !important;
             height: 14mm;
             background: #fff;
-            border-bottom: 2px solid #1a3c6b;
+            border-bottom: 2px solid #0D47A1;
             padding: 0;
             align-items: center;
             justify-content: space-between;
             margin-bottom: 8pt;
           }
           .rpt-header-logo {
-            font-size: 13pt;
-            font-weight: 900;
-            color: #1a3c6b;
-            letter-spacing: -.5px;
+            display: flex;
+            align-items: center;
           }
           .rpt-header-info {
             font-size: 7pt;
@@ -892,7 +890,7 @@ const ModuloPesquisaAdmin = (() => {
 
           /* ── Títulos de seção (barra azul) ─────── */
           .rpt-secao h3, .relatorio-secao h3 {
-            background: #1a3c6b !important;
+            background: #0D47A1 !important;
             color: #fff !important;
             padding: 5pt 9pt !important;
             font-size: 9pt !important;
@@ -912,12 +910,12 @@ const ModuloPesquisaAdmin = (() => {
             margin-bottom: 6pt !important;
           }
           th {
-            background: #1a3c6b !important;
+            background: #0D47A1 !important;
             color: #fff !important;
             padding: 3pt 6pt !important;
             font-weight: 600 !important;
             text-align: left !important;
-            border: 1px solid #1a3c6b !important;
+            border: 1px solid #0D47A1 !important;
           }
           td {
             padding: 3pt 6pt !important;
@@ -1017,13 +1015,9 @@ const ModuloPesquisaAdmin = (() => {
 
         <!-- Corpo centralizado -->
         <div class="rpt-capa-corpo">
-          <!-- Logo SVG (círculo azul com E) -->
-          <svg width="72" height="72" viewBox="0 0 72 72" style="margin-bottom:7mm"
-               xmlns="http://www.w3.org/2000/svg">
-            <circle cx="36" cy="36" r="36" fill="#1a3c6b"/>
-            <text x="36" y="50" font-family="Arial,sans-serif" font-size="40"
-                  font-weight="900" fill="#ffffff" text-anchor="middle">E</text>
-          </svg>
+          <!-- Logo oficial Engenhalves -->
+          <img src="Engenhalves/logo.png" alt="ENGENHALVES"
+               style="height:22mm;width:auto;max-width:120mm;margin-bottom:10mm">
 
           <div class="rpt-capa-titulo">Avaliação de Fatores Psicossociais</div>
           <div class="rpt-capa-subtitulo">
@@ -1153,7 +1147,10 @@ const ModuloPesquisaAdmin = (() => {
 
         <!-- Header do relatório (só impressão, primeira página de conteúdo) -->
         <div class="rpt-header so-imprimir">
-          <div class="rpt-header-logo">ENGENHALVES</div>
+          <div class="rpt-header-logo">
+            <img src="Engenhalves/logo.png" alt="ENGENHALVES"
+                 style="height:9mm;width:auto;max-width:60mm;display:block">
+          </div>
           <div class="rpt-header-info">
             ${c.empresaNome || ''} &nbsp;·&nbsp; ${c.nome || 'Avaliação Psicossocial'}<br>
             ${_nrLaudo} &nbsp;·&nbsp; ${_dataEmissao}
@@ -1484,8 +1481,8 @@ const ModuloPesquisaAdmin = (() => {
                     const dim = PerguntasPsicossociais.DIMENSOES.find(d => d.id === dimId);
                     return `
                       <div style="margin-bottom:8pt">
-                        <div style="font-size:8pt;font-weight:700;color:#1a3c6b;text-transform:uppercase;letter-spacing:.3pt;margin-bottom:3pt">${dim?.nome || dimId}</div>
-                        ${textos.map(t => `<div style="padding:2pt 0 2pt 10pt;border-left:2px solid #1a3c6b;font-size:9pt;margin-bottom:2pt">${t}</div>`).join('')}
+                        <div style="font-size:8pt;font-weight:700;color:#0D47A1;text-transform:uppercase;letter-spacing:.3pt;margin-bottom:3pt">${dim?.nome || dimId}</div>
+                        ${textos.map(t => `<div style="padding:2pt 0 2pt 10pt;border-left:2px solid #0D47A1;font-size:9pt;margin-bottom:2pt">${t}</div>`).join('')}
                       </div>`;
                   }).join('') + (it.recomendacoesCustom ? `<div style="margin-top:6pt;font-size:9pt"><em>Recomendação adicional:</em> ${it.recomendacoesCustom}</div>` : '')
                 : '<p style="font-size:9pt;color:#555;font-style:italic">Nenhuma recomendação selecionada.</p>'
@@ -1582,7 +1579,7 @@ const ModuloPesquisaAdmin = (() => {
                 : `<p style="font-size:9pt;color:#555;font-style:italic">Conclusão técnica não preenchida.</p>`
               }
               ${it.necessitaAET ? `
-                <div style="border:1px solid #1a3c6b;background:#e8f0fb;padding:6pt 10pt;border-radius:3pt;margin-top:6pt;font-size:9pt">
+                <div style="border:1px solid #0D47A1;background:#e8f0fb;padding:6pt 10pt;border-radius:3pt;margin-top:6pt;font-size:9pt">
                   <strong>⚠ Indica necessidade de Análise Ergonômica do Trabalho (AET)</strong>
                   ${it.justificativaAET ? `<br><span style="font-size:8pt">${it.justificativaAET}</span>` : ''}
                 </div>
@@ -1680,8 +1677,8 @@ const ModuloPesquisaAdmin = (() => {
         let html = Object.entries(porDim).map(([dimId, textos]) => {
           const dim = PerguntasPsicossociais.DIMENSOES.find(d => d.id === dimId);
           return `<div style="margin-bottom:8pt">
-            <div style="font-size:8pt;font-weight:700;color:#1a3c6b;text-transform:uppercase;letter-spacing:.3pt;margin-bottom:3pt">${dim?.nome || dimId}</div>
-            ${textos.map(t => `<div style="padding:2pt 0 2pt 10pt;border-left:2px solid #1a3c6b;font-size:9pt;margin-bottom:2pt">${t}</div>`).join('')}
+            <div style="font-size:8pt;font-weight:700;color:#0D47A1;text-transform:uppercase;letter-spacing:.3pt;margin-bottom:3pt">${dim?.nome || dimId}</div>
+            ${textos.map(t => `<div style="padding:2pt 0 2pt 10pt;border-left:2px solid #0D47A1;font-size:9pt;margin-bottom:2pt">${t}</div>`).join('')}
           </div>`;
         }).join('');
         if (custom) html += `<div style="margin-top:6pt;font-size:9pt"><em>Recomendação adicional:</em> ${custom}</div>`;

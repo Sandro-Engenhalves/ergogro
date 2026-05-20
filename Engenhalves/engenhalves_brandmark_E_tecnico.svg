@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000" role="img" aria-labelledby="title desc">
+  <title id="title">Engenhalves - Brand Mark E Técnico</title>
+  <desc id="desc">Marca reduzida da Engenhalves com monograma E técnico em azul institucional.</desc>
+  <defs>
+    <style>
+      .blue{fill:#0D47A1;}
+    </style>
+  </defs>
+
+  <!-- Símbolo E técnico: círculo aberto + cortes horizontais -->
+  <path class="blue" d="M500 115
+    C287.2 115 115 287.2 115 500
+    S287.2 885 500 885
+    c129.1 0 243.4-63.7 313.2-161.4
+    H641.8
+    C600.5 748.7 551.8 762 500 762
+    c-144.7 0-262-117.3-262-262
+    s117.3-262 262-262
+    c51.8 0 100.5 13.3 141.8 38.4
+    h171.4
+    C743.4 178.7 629.1 115 500 115z"/>
+
+  <!-- Barra superior do E -->
+  <path class="blue" d="M300 333
+    H732
+    L795 426
+    H300
+    Z"/>
+
+  <!-- Barra central do E -->
+  <path class="blue" d="M248 454
+    H752
+    L695 546
+    H248
+    Z"/>
+
+  <!-- Barra inferior do E -->
+  <path class="blue" d="M300 574
+    H795
+    L732 667
+    H300
+    Z"/>
+</svg>
