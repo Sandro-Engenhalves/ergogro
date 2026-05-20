@@ -565,7 +565,7 @@ const ModuloPesquisaAdmin = (() => {
       ]);
       el.innerHTML = _htmlRelatorio(relatorio, campanha || c);
       /* Pequeno delay garante que o canvas já está no DOM */
-      setTimeout(() => _desenharRadar('ps-radar-chart', relatorio.consolidado), 80);
+      setTimeout(() => _desenharRadar('ps-radar-chart', relatorio.consolidado), 200);
     } catch (e) {
       el.innerHTML = `
         <div class="container">
@@ -717,14 +717,14 @@ const ModuloPesquisaAdmin = (() => {
         <!-- Gráfico radar COPSOQ-III -->
         <div class="relatorio-secao">
           <h3>Perfil Psicossocial — COPSOQ-III</h3>
-          <div style="text-align:center">
+          <div class="card" style="text-align:center;padding:var(--s4)">
             <canvas id="ps-radar-chart" width="380" height="380"
-              style="max-width:100%;height:auto;border-radius:var(--raio)"></canvas>
-          </div>
-          <div style="display:flex;justify-content:center;gap:var(--s5);margin-top:var(--s3);flex-wrap:wrap">
-            <span style="font-size:var(--txt-xs);color:#3fb950">● Favorável ≥ 67</span>
-            <span style="font-size:var(--txt-xs);color:#d29922">● Intermediário 34–66</span>
-            <span style="font-size:var(--txt-xs);color:#f85149">● Desfavorável ≤ 33</span>
+              style="display:block;margin:0 auto;max-width:100%"></canvas>
+            <div style="display:flex;justify-content:center;gap:var(--s5);margin-top:var(--s3);flex-wrap:wrap">
+              <span style="font-size:var(--txt-xs);color:#3fb950">● Favorável ≥ 67</span>
+              <span style="font-size:var(--txt-xs);color:#d29922">● Intermediário 34–66</span>
+              <span style="font-size:var(--txt-xs);color:#f85149">● Desfavorável ≤ 33</span>
+            </div>
           </div>
         </div>
 
@@ -1020,10 +1020,7 @@ const ModuloPesquisaAdmin = (() => {
     });
 
     ctx.clearRect(0, 0, W, H);
-
-    /* Fundo escuro */
-    ctx.fillStyle = '#161b22';
-    ctx.fillRect(0, 0, W, H);
+    /* Canvas transparente — fundo vem do card wrapper */
 
     /* Anéis de referência: 33, 67, 100 */
     [[100,'#30363d',null],[67,'#30363d','rgba(210,153,34,0.07)'],[33,'#30363d','rgba(248,81,73,0.08)']].forEach(([lv, stroke, fill]) => {
