@@ -731,9 +731,8 @@ const ModuloPesquisaAdmin = (() => {
             flex: 1;
             display: flex;
             flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            padding: 14mm 20mm;
+            align-items: stretch;
+            padding: 0 20mm;
           }
           .rpt-capa-titulo {
             font-size: 22pt;
@@ -1013,12 +1012,17 @@ const ModuloPesquisaAdmin = (() => {
           ENGENHALVES — Engenharia de Segurança e Saúde do Trabalho
         </div>
 
-        <!-- Corpo centralizado -->
+        <!-- Corpo: logo na metade superior, info na inferior -->
         <div class="rpt-capa-corpo">
-          <!-- Logo oficial Engenhalves -->
-          <img src="Engenhalves/engenhalves_logo_01_exata.svg" alt="ENGENHALVES"
-               style="height:22mm;width:auto;max-width:120mm;margin-bottom:10mm">
 
+          <!-- Seção logo — centralizada verticalmente na metade superior -->
+          <div style="flex:1;display:flex;align-items:center;justify-content:center">
+            <img src="Engenhalves/Engenhalves.png" alt="ENGENHALVES"
+                 style="height:24mm;width:auto;max-width:130mm">
+          </div>
+
+          <!-- Seção título + tabela — metade inferior -->
+          <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding-top:10mm">
           <div class="rpt-capa-titulo">Avaliação de Fatores Psicossociais</div>
           <div class="rpt-capa-subtitulo">
             Análise de Riscos Psicossociais no Trabalho &mdash; COPSOQ-III &middot; NR-01 &middot; NR-17
@@ -1047,6 +1051,8 @@ const ModuloPesquisaAdmin = (() => {
               <td>${_registro || '—'}</td>
             </tr>
           </table>
+          </div><!-- fim seção título -->
+
         </div>
 
         <!-- Barra inferior azul -->
@@ -1148,7 +1154,7 @@ const ModuloPesquisaAdmin = (() => {
         <!-- Header do relatório (só impressão, primeira página de conteúdo) -->
         <div class="rpt-header so-imprimir">
           <div class="rpt-header-logo">
-            <img src="Engenhalves/engenhalves_logo_01_exata.svg" alt="ENGENHALVES"
+            <img src="Engenhalves/Engenhalves.png" alt="ENGENHALVES"
                  style="height:9mm;width:auto;max-width:60mm;display:block">
           </div>
           <div class="rpt-header-info">
