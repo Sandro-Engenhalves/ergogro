@@ -31,6 +31,54 @@ const ModuloPesquisaAdmin = (() => {
     sem_dados:     { t: 'Sem dados',     cls: 'badge-na',      barra: '#8b949e' },
   };
 
+  /* ── Banco de contextos de avaliação ─────────────────────── */
+  const CONTEXTOS = [
+    { id: 'legal',      texto: 'Cumprimento de requisito legal (NR-01 / NR-17 / PGR)' },
+    { id: 'cipa',       texto: 'Demanda dos trabalhadores ou CIPA' },
+    { id: 'gestao',     texto: 'Demanda da gestão / RH' },
+    { id: 'renovacao',  texto: 'Renovação periódica (avaliação anterior)' },
+    { id: 'acidente',   texto: 'Ocorrência de acidente ou incidente de trabalho' },
+    { id: 'outro',      texto: 'Outro motivo' },
+  ];
+
+  /* ── Banco de recomendações por dimensão COPSOQ-III ─────── */
+  const RECOMENDACOES = {
+    demandas: [
+      { id: 'r01', texto: 'Revisar o dimensionamento do quadro de pessoal e a distribuição de tarefas' },
+      { id: 'r02', texto: 'Estabelecer pausas programadas e regulares durante a jornada de trabalho' },
+      { id: 'r03', texto: 'Implementar gestão participativa da carga de trabalho por setor' },
+      { id: 'r04', texto: 'Revisar metas, prazos e ritmo de produção com a equipe' },
+    ],
+    organizacao: [
+      { id: 'r05', texto: 'Ampliar a autonomia dos trabalhadores na execução das atividades' },
+      { id: 'r06', texto: 'Implementar reuniões periódicas de alinhamento e participação' },
+      { id: 'r07', texto: 'Promover o significado e propósito das atividades realizadas' },
+      { id: 'r08', texto: 'Melhorar a comunicação antecipada sobre mudanças organizacionais' },
+    ],
+    relacoes: [
+      { id: 'r09', texto: 'Capacitar líderes em gestão humanizada e comunicação assertiva' },
+      { id: 'r10', texto: 'Implementar programa de feedback regular entre chefia e equipe' },
+      { id: 'r11', texto: 'Desenvolver ações de integração e melhoria do clima organizacional' },
+      { id: 'r12', texto: 'Estabelecer política clara de resolução de conflitos interpessoais' },
+    ],
+    interface: [
+      { id: 'r13', texto: 'Fortalecer a comunicação sobre estabilidade e segurança no emprego' },
+      { id: 'r14', texto: 'Implementar ações de conciliação entre trabalho e vida pessoal/familiar' },
+      { id: 'r15', texto: 'Revisar a jornada de trabalho e o volume de horas extras' },
+    ],
+    valores: [
+      { id: 'r16', texto: 'Implementar política de transparência nas comunicações organizacionais' },
+      { id: 'r17', texto: 'Estabelecer programa de reconhecimento e valorização dos trabalhadores' },
+      { id: 'r18', texto: 'Revisar práticas de equidade, justiça e respeito no ambiente de trabalho' },
+    ],
+    saude: [
+      { id: 'r19', texto: 'Implementar programa de promoção da saúde e bem-estar dos trabalhadores' },
+      { id: 'r20', texto: 'Avaliar e melhorar as condições ergonômicas dos postos de trabalho' },
+      { id: 'r21', texto: 'Oferecer suporte em saúde ocupacional e encaminhar casos identificados' },
+      { id: 'r22', texto: 'Promover ações de prevenção ao esgotamento (burnout) e estresse ocupacional' },
+    ],
+  };
+
   const _fd = iso => {
     if (!iso) return '';
     try { const [a,m,d] = iso.slice(0,10).split('-'); return `${d}/${m}/${a}`; }
@@ -726,63 +774,126 @@ const ModuloPesquisaAdmin = (() => {
             <span id="ps-it-autosave" style="font-size:11px;color:var(--sucesso);font-weight:400;margin-left:8px"></span>
           </h3>
 
+          <!-- 1. Contexto -->
           <div class="card">
-            <div class="grupo-campo">
-              <label>Contexto da Avaliação</label>
-              <textarea id="ps-it-contexto" class="campo-tecnico" rows="3"
-                placeholder="Descreva o contexto organizacional e o objetivo da avaliação..."
-                oninput="ModuloPesquisaAdmin.agendarAutoSave()"
-              >${it.contexto || ''}</textarea>
+            <div class="card-titulo" style="margin-bottom:var(--s3)">1. Contexto da Avaliação</div>
+            <div style="display:flex;flex-direction:column;gap:var(--s2)">
+              ${CONTEXTOS.map(ctx => `
+                <label style="display:flex;align-items:center;gap:var(--s3);cursor:pointer;padding:var(--s2) 0">
+                  <input type="radio" name="ps-it-contexto" value="${ctx.id}"
+                    ${(it.contextoId === ctx.id) ? 'checked' : ''}
+                    onchange="ModuloPesquisaAdmin.agendarAutoSave()">
+                  <span style="font-size:var(--txt-sm)">${ctx.texto}</span>
+                </label>
+              `).join('')}
             </div>
-
-            <div class="grupo-campo">
-              <label>Interpretação Técnica Geral</label>
-              <textarea id="ps-it-interpretacao" class="campo-tecnico" rows="5"
-                placeholder="Análise técnica consolidada dos resultados do COPSOQ-III..."
+            <div class="grupo-campo" style="margin-top:var(--s3)">
+              <input type="text" id="ps-it-contexto-complemento" class="campo-tecnico"
+                placeholder="Complemento ou observação (opcional)"
                 oninput="ModuloPesquisaAdmin.agendarAutoSave()"
-              >${it.interpretacao || ''}</textarea>
+                value="${it.contextoComplemento || ''}">
             </div>
+          </div>
 
-            <div class="grupo-campo">
-              <label>Fatores de Risco Psicossocial Identificados</label>
-              <textarea id="ps-it-criticos" class="campo-tecnico" rows="4"
-                placeholder="Dimensões desfavoráveis e seus impactos no grupo avaliado..."
+          <!-- 2. Interpretação (auto-gerada) -->
+          <div class="card" style="margin-top:var(--s4)">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--s3)">
+              <div class="card-titulo">2. Interpretação Técnica Geral</div>
+              <button class="btn btn-secundario nao-imprimir" style="font-size:var(--txt-xs);padding:4px 10px"
+                onclick="ModuloPesquisaAdmin.gerarInterpretacao()">
+                ↺ Gerar automático
+              </button>
+            </div>
+            <textarea id="ps-it-interpretacao" class="campo-tecnico" rows="5"
+              placeholder="Clique em 'Gerar automático' ou escreva a interpretação..."
+              oninput="ModuloPesquisaAdmin.agendarAutoSave()"
+            >${it.interpretacao || ''}</textarea>
+          </div>
+
+          <!-- 3. Fatores de risco (checklist automático) -->
+          <div class="card" style="margin-top:var(--s4)">
+            <div class="card-titulo" style="margin-bottom:var(--s3)">3. Fatores de Risco Identificados</div>
+            <p style="font-size:var(--txt-xs);color:var(--texto-sec);margin-bottom:var(--s3)">
+              Marcados automaticamente conforme resultado. Edite conforme sua análise.
+            </p>
+            <div style="display:flex;flex-direction:column;gap:var(--s2)" id="ps-it-riscos-lista">
+              ${PerguntasPsicossociais.DIMENSOES.map(dim => {
+                const res = r.consolidado.find(d => d.id === dim.id);
+                const autoCheck = res?.nivel === 'desfavoravel';
+                const jaSalvo  = it.fatoresRiscoIds?.includes(dim.id);
+                const checked  = jaSalvo != null ? jaSalvo : autoCheck;
+                const badge    = NIVEL_L[res?.nivel || 'sem_dados'];
+                return `
+                  <label style="display:flex;align-items:center;gap:var(--s3);cursor:pointer;padding:var(--s2) 0;border-bottom:1px solid var(--borda)">
+                    <input type="checkbox" name="ps-it-risco" value="${dim.id}"
+                      ${checked ? 'checked' : ''}
+                      onchange="ModuloPesquisaAdmin.agendarAutoSave()">
+                    <span style="flex:1;font-size:var(--txt-sm)">${dim.nome}</span>
+                    <span class="badge ${badge.cls}" style="font-size:10px">${badge.t} ${res?.media != null ? '· ' + res.media : ''}</span>
+                  </label>
+                `;
+              }).join('')}
+            </div>
+          </div>
+
+          <!-- 4. Recomendações (banco por dimensão) -->
+          <div class="card" style="margin-top:var(--s4)">
+            <div class="card-titulo" style="margin-bottom:var(--s3)">4. Recomendações Técnicas</div>
+            <p style="font-size:var(--txt-xs);color:var(--texto-sec);margin-bottom:var(--s3)">
+              Selecione as recomendações aplicáveis. Agrupadas por dimensão.
+            </p>
+            ${Object.entries(RECOMENDACOES).map(([dimId, recs]) => {
+              const dim  = PerguntasPsicossociais.DIMENSOES.find(d => d.id === dimId);
+              const recsHTML = recs.map(rec => `
+                <label style="display:flex;align-items:flex-start;gap:var(--s3);cursor:pointer;padding:var(--s2) 0;font-size:var(--txt-sm)">
+                  <input type="checkbox" name="ps-it-rec" value="${rec.id}"
+                    ${it.recomendacoesIds?.includes(rec.id) ? 'checked' : ''}
+                    onchange="ModuloPesquisaAdmin.agendarAutoSave()"
+                    style="margin-top:2px;flex-shrink:0">
+                  <span>${rec.texto}</span>
+                </label>
+              `).join('');
+              return `
+                <div style="margin-bottom:var(--s4)">
+                  <div style="font-size:var(--txt-xs);font-weight:700;color:var(--texto-sec);text-transform:uppercase;letter-spacing:.5px;margin-bottom:var(--s2)">
+                    ${dim?.nome || dimId}
+                  </div>
+                  ${recsHTML}
+                </div>
+              `;
+            }).join('')}
+            <div class="grupo-campo" style="margin-top:var(--s3)">
+              <label style="font-size:var(--txt-xs);color:var(--texto-sec)">Recomendação adicional (opcional)</label>
+              <textarea id="ps-it-rec-custom" class="campo-tecnico" rows="2"
+                placeholder="Outras medidas específicas para esta empresa..."
                 oninput="ModuloPesquisaAdmin.agendarAutoSave()"
-              >${criticosDefault}</textarea>
+              >${it.recomendacoesCustom || ''}</textarea>
             </div>
+          </div>
 
-            <div class="grupo-campo">
-              <label>Recomendações Técnicas</label>
-              <textarea id="ps-it-recomendacoes" class="campo-tecnico" rows="5"
-                placeholder="Medidas preventivas e de controle recomendadas conforme NR-01/NR-17..."
-                oninput="ModuloPesquisaAdmin.agendarAutoSave()"
-              >${it.recomendacoes || ''}</textarea>
-            </div>
+          <!-- 5. Conclusão (texto livre) -->
+          <div class="card" style="margin-top:var(--s4)">
+            <div class="card-titulo" style="margin-bottom:var(--s3)">5. Conclusão Técnica</div>
+            <textarea id="ps-it-conclusao" class="campo-tecnico" rows="4"
+              placeholder="Conclusão técnica formal do profissional habilitado..."
+              oninput="ModuloPesquisaAdmin.agendarAutoSave()"
+            >${it.conclusao || ''}</textarea>
+          </div>
 
-            <div class="grupo-campo">
-              <label>Conclusão Técnica</label>
-              <textarea id="ps-it-conclusao" class="campo-tecnico" rows="3"
-                placeholder="Conclusão técnica formal do profissional habilitado..."
-                oninput="ModuloPesquisaAdmin.agendarAutoSave()"
-              >${it.conclusao || ''}</textarea>
-            </div>
-
-            <label class="check-item" style="cursor:pointer;margin:var(--s3) 0">
+          <!-- 6. Indica AET -->
+          <div class="card" style="margin-top:var(--s4)">
+            <label class="check-item" style="cursor:pointer">
               <input type="checkbox" id="ps-it-aet"
                 ${it.necessitaAET ? 'checked' : ''}
                 onchange="ModuloPesquisaAdmin.toggleAET();ModuloPesquisaAdmin.agendarAutoSave()">
               <div class="check-box">✓</div>
-              <span>Indica necessidade de Análise Ergonômica do Trabalho (AET)</span>
+              <span style="font-weight:600">Indica necessidade de Análise Ergonômica do Trabalho (AET)</span>
             </label>
-
-            <div id="ps-it-aet-div" style="${it.necessitaAET ? '' : 'display:none'}">
-              <div class="grupo-campo">
-                <label>Justificativa para indicação de AET</label>
-                <textarea id="ps-it-aet-just" class="campo-tecnico" rows="3"
-                  placeholder="Justifique tecnicamente a necessidade de AET..."
-                  oninput="ModuloPesquisaAdmin.agendarAutoSave()"
-                >${it.justificativaAET || ''}</textarea>
-              </div>
+            <div id="ps-it-aet-div" style="${it.necessitaAET ? 'margin-top:var(--s3)' : 'display:none'}">
+              <textarea id="ps-it-aet-just" class="campo-tecnico" rows="2"
+                placeholder="Justifique a indicação de AET..."
+                oninput="ModuloPesquisaAdmin.agendarAutoSave()"
+              >${it.justificativaAET || ''}</textarea>
             </div>
           </div>
 
@@ -813,9 +924,7 @@ const ModuloPesquisaAdmin = (() => {
             </div>
           </div>
 
-          <!-- Botão salvar explícito (além do auto-save) -->
-          <button class="btn btn-primario nao-imprimir"
-            style="width:100%;margin:var(--s4) 0"
+          <button class="btn btn-primario nao-imprimir" style="width:100%;margin:var(--s4) 0"
             onclick="ModuloPesquisaAdmin.salvarInterpretacaoTecnica()">
             💾 Salvar Análise Técnica
           </button>
@@ -885,23 +994,56 @@ const ModuloPesquisaAdmin = (() => {
   function toggleAET() {
     const div = document.getElementById('ps-it-aet-div');
     const chk = document.getElementById('ps-it-aet');
-    if (div) div.style.display = chk?.checked ? '' : 'none';
+    if (div) div.style.display = chk?.checked ? 'margin-top:var(--s3)' : 'none';
+  }
+
+  /* Gera parágrafo de interpretação automaticamente com base nos resultados */
+  function gerarInterpretacao() {
+    const camp = _campanhaAberta;
+    if (!camp?.id) return;
+
+    /* Lê os dados do relatório atual do DOM */
+    const score = parseInt(document.querySelector('[style*="font-size:48px"]')?.textContent) || null;
+    const criticos  = [...document.querySelectorAll('input[name="ps-it-risco"]:checked')]
+      .map(el => PerguntasPsicossociais.DIMENSOES.find(d => d.id === el.value)?.nome).filter(Boolean);
+    const total = parseInt(document.querySelector('[style*="font-size:36px"]')?.textContent) || 0;
+
+    let nivel = score == null ? 'Intermediário' : score >= 67 ? 'Favorável' : score >= 34 ? 'Intermediário' : 'Desfavorável';
+    let texto = `A avaliação dos fatores psicossociais pelo COPSOQ-III (versão curta, 23 itens) identificou score geral de ${score ?? '—'}/100 — nível ${nivel}. `;
+    texto += `Participaram ${total} trabalhador(es) da consulta. `;
+
+    if (criticos.length > 0) {
+      texto += `As dimensões ${criticos.join(', ')} apresentaram resultado Desfavorável, indicando necessidade de intervenção prioritária. `;
+    } else {
+      texto += `Nenhuma dimensão apresentou resultado Desfavorável. `;
+    }
+
+    texto += `Os resultados referem-se ao grupo avaliado e devem ser interpretados em conjunto com as observações de campo e o contexto organizacional da empresa.`;
+
+    const campo = document.getElementById('ps-it-interpretacao');
+    if (campo) { campo.value = texto; agendarAutoSave(); }
   }
 
   async function salvarInterpretacaoTecnica() {
     if (!_campanhaAberta?.id) return;
-    const get = id => (document.getElementById(id)?.value ?? '').trim();
+    const get     = id => (document.getElementById(id)?.value ?? '').trim();
+    const radios  = document.querySelector('input[name="ps-it-contexto"]:checked');
+    const riscos  = [...document.querySelectorAll('input[name="ps-it-risco"]:checked')].map(el => el.value);
+    const recs    = [...document.querySelectorAll('input[name="ps-it-rec"]:checked')].map(el => el.value);
+
     const dados = {
-      contexto:        get('ps-it-contexto'),
-      interpretacao:   get('ps-it-interpretacao'),
-      fatoresCriticos: get('ps-it-criticos'),
-      recomendacoes:   get('ps-it-recomendacoes'),
-      conclusao:       get('ps-it-conclusao'),
-      necessitaAET:    document.getElementById('ps-it-aet')?.checked || false,
-      justificativaAET: get('ps-it-aet-just'),
-      responsavel:     get('ps-it-responsavel'),
-      registro:        get('ps-it-registro'),
-      dataEmissao:     get('ps-it-data'),
+      contextoId:            radios?.value || '',
+      contextoComplemento:   get('ps-it-contexto-complemento'),
+      interpretacao:         get('ps-it-interpretacao'),
+      fatoresRiscoIds:       riscos,
+      recomendacoesIds:      recs,
+      recomendacoesCustom:   get('ps-it-rec-custom'),
+      conclusao:             get('ps-it-conclusao'),
+      necessitaAET:          document.getElementById('ps-it-aet')?.checked || false,
+      justificativaAET:      get('ps-it-aet-just'),
+      responsavel:           get('ps-it-responsavel'),
+      registro:              get('ps-it-registro'),
+      dataEmissao:           get('ps-it-data'),
     };
     try {
       await salvarInterpretacao(_campanhaAberta.id, dados);
@@ -960,6 +1102,7 @@ const ModuloPesquisaAdmin = (() => {
     confirmarReativacao,
     agendarAutoSave,
     toggleAET,
+    gerarInterpretacao,
     salvarInterpretacaoTecnica,
   };
 })();
