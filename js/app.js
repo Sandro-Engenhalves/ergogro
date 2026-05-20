@@ -22,23 +22,25 @@ const App = (() => {
     _configurarBotaoVoltar();
 
     /* Verifica autenticação antes de mostrar o app.
-       Auth.onAuthChange dispara imediatamente se já há sessão ativa. */
+       Auth.onAuthChange(usuario, autorizado) dispara ao detectar sessão. */
     if (typeof Auth !== 'undefined') {
-      Auth.onAuthChange(usuario => {
-        if (usuario) {
-          _onLoginSucesso(usuario);
+      Auth.onAuthChange((usuario, autorizado) => {
+        if (!usuario) {
+          _mostrarTelaLogin(false);
+        } else if (!autorizado) {
+          /* Logado mas não autorizado — mostra mensagem */
+          _mostrarTelaLogin(true, usuario.email);
         } else {
-          _mostrarTelaLogin();
+          _onLoginSucesso(usuario);
         }
       });
     } else {
-      /* Auth não disponível — carrega normalmente (modo offline) */
       navegarPara('dashboard');
       _sincronizarCloud();
     }
   }
 
-  /* Chamado quando o usuário faz login com sucesso */
+  /* Chamado quando login + autorização OK */
   function _onLoginSucesso(usuario) {
     _ocultarTelaLogin();
     _atualizarHeaderUsuario(usuario);
@@ -46,16 +48,21 @@ const App = (() => {
     _sincronizarCloud();
   }
 
-  /* Exibe a tela de login e oculta o app */
-  function _mostrarTelaLogin() {
+  /* Exibe tela de login.
+     naoAutorizado=true mostra mensagem de acesso negado.      */
+  function _mostrarTelaLogin(naoAutorizado, email) {
     const telaLogin = document.getElementById('tela-login');
     const appContent = document.getElementById('app-content');
     const header = document.getElementById('app-header');
     const nav = document.getElementById('nav-principal');
+    const msgNegado = document.getElementById('login-msg-negado');
+    const emailNeg  = document.getElementById('login-email-negado');
     if (telaLogin)  telaLogin.classList.remove('oculto');
     if (appContent) appContent.style.display = 'none';
     if (header)     header.style.display = 'none';
     if (nav)        nav.classList.add('oculto');
+    if (msgNegado)  msgNegado.style.display = naoAutorizado ? '' : 'none';
+    if (emailNeg && email) emailNeg.textContent = email;
   }
 
   /* Oculta a tela de login e mostra o app */
@@ -68,10 +75,11 @@ const App = (() => {
     if (header)     header.style.display = '';
   }
 
-  /* Atualiza avatar e nome no header após login */
+  /* Atualiza avatar + botão de usuários no header */
   function _atualizarHeaderUsuario(usuario) {
-    const divUsuario = document.getElementById('header-usuario');
-    const foto = document.getElementById('foto-usuario');
+    const divUsuario  = document.getElementById('header-usuario');
+    const foto        = document.getElementById('foto-usuario');
+    const btnAdmin    = document.getElementById('btn-admin-usuarios');
     if (!divUsuario) return;
     if (usuario) {
       divUsuario.classList.remove('oculto');
@@ -80,6 +88,10 @@ const App = (() => {
         foto.alt   = usuario.displayName || 'Usuário';
         foto.title = usuario.displayName || usuario.email || '';
         foto.style.display = usuario.photoURL ? '' : 'none';
+      }
+      /* Botão de gerenciar usuários: visível apenas para admin */
+      if (btnAdmin) {
+        btnAdmin.style.display = Auth.isAdminAtual() ? '' : 'none';
       }
     } else {
       divUsuario.classList.add('oculto');
@@ -90,6 +102,69 @@ const App = (() => {
   function confirmarLogout() {
     if (!confirm('Sair da sua conta?')) return;
     if (typeof Auth !== 'undefined') Auth.logout();
+  }
+
+  /* ── Painel de gerenciamento de usuários (admin only) ──── */
+  function abrirPainelUsuarios() {
+    if (!Auth.isAdminAtual()) return;
+    const modal = document.getElementById('modal-usuarios');
+    if (modal) {
+      modal.classList.remove('oculto');
+      _carregarListaUsuarios();
+    }
+  }
+
+  function fecharPainelUsuarios() {
+    document.getElementById('modal-usuarios')?.classList.add('oculto');
+  }
+
+  async function _carregarListaUsuarios() {
+    const lista = document.getElementById('lista-usuarios');
+    if (!lista) return;
+    lista.innerHTML = '<p style="color:var(--texto-sec);font-size:var(--txt-sm)">Carregando...</p>';
+    try {
+      const emails = await Auth.listarEmails();
+      lista.innerHTML = emails.map(email => `
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:var(--s2) 0;border-bottom:1px solid var(--borda)">
+          <span style="font-size:var(--txt-sm)">${email}</span>
+          ${email !== Auth.getEmail() ? `
+            <button class="btn btn-perigo btn-sm"
+                    onclick="App.removerUsuario('${email}')">Remover</button>
+          ` : '<span style="font-size:var(--txt-xs);color:var(--texto-sec)">você (admin)</span>'}
+        </div>
+      `).join('') || '<p style="color:var(--texto-sec);font-size:var(--txt-sm)">Nenhum usuário.</p>';
+    } catch(e) {
+      lista.innerHTML = `<p style="color:var(--perigo);font-size:var(--txt-sm)">${e.message}</p>`;
+    }
+  }
+
+  async function adicionarUsuario() {
+    const input = document.getElementById('input-novo-email');
+    const email = input?.value?.trim();
+    if (!email) return;
+    const btn = document.getElementById('btn-add-usuario');
+    if (btn) btn.disabled = true;
+    try {
+      await Auth.adicionarEmail(email);
+      if (input) input.value = '';
+      mostrarToast('Usuário adicionado', 'sucesso');
+      _carregarListaUsuarios();
+    } catch(e) {
+      mostrarToast(e.message, 'erro');
+    } finally {
+      if (btn) btn.disabled = false;
+    }
+  }
+
+  async function removerUsuario(email) {
+    if (!confirm(`Remover acesso de ${email}?`)) return;
+    try {
+      await Auth.removerEmail(email);
+      mostrarToast('Acesso removido', 'sucesso');
+      _carregarListaUsuarios();
+    } catch(e) {
+      mostrarToast(e.message, 'erro');
+    }
   }
 
   function _sincronizarCloud() {
@@ -547,7 +622,9 @@ const App = (() => {
     /* Toast */
     mostrarToast,
     /* Auth */
-    confirmarLogout
+    confirmarLogout,
+    /* Admin — gerenciamento de usuários */
+    abrirPainelUsuarios, fecharPainelUsuarios, adicionarUsuario, removerUsuario
   };
 })();
 

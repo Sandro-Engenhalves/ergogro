@@ -164,37 +164,33 @@ const StorageCloud = (() => {
      OPERAÇÕES FIRESTORE PRIMITIVAS
   ────────────────────────────────────────────────────────── */
 
-  /* Retorna o userId do usuário autenticado, ou null se não logado.
-     Usa Auth se disponível, com fallback seguro.              */
-  function _getUserId() {
+  /* Retorna o uid do usuário autenticado, ou null.
+     Usado apenas para preencher 'criadoPor' (auditoria).     */
+  function _getUid() {
     if (typeof Auth !== 'undefined' && Auth.isLogado()) return Auth.getUid();
     return null;
   }
 
-  /* Baixa documentos de uma coleção Firestore.
-     Se userId disponível, filtra apenas os docs do usuário.
-     Fallback sem filtro para compatibilidade durante migração. */
+  /* Baixa TODOS os documentos de uma coleção Firestore.
+     Modelo de equipe compartilhada: sem filtro por usuário.
+     Todos os membros autorizados veem todos os dados.         */
   async function _baixarColecao(nomeCol) {
-    const db = _getDb();
-    const uid = _getUserId();
-    let query = db.collection(nomeCol);
-    if (uid) query = query.where('userId', '==', uid);
-    const snap = await query.get();
+    const snap = await _getDb().collection(nomeCol).get();
     return snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
   }
 
   /* Sobe um único documento ao Firestore usando set+merge.
-     Injeta userId automaticamente se o usuário estiver logado.
-     merge:true garante que campos omitidos não são apagados.  */
+     Injeta 'criadoPor' (uid do autor) para auditoria.
+     Modelo equipe: não filtra por usuário — dados compartilhados. */
   async function _subirDoc(nomeCol, obj) {
     if (!obj || !obj.id) {
       console.warn(`${_CLOUD_LOG} Ignorado: objeto sem id em ${nomeCol}`);
       return;
     }
-    const uid = _getUserId();
-    /* Injeta userId no documento — identifica o dono dos dados */
-    const docComUserId = uid ? { ...obj, userId: uid } : obj;
-    await _getDb().collection(nomeCol).doc(obj.id).set(docComUserId, { merge: true });
+    const uid = _getUid();
+    /* criadoPor: identifica quem criou (auditoria), não restringe acesso */
+    const doc = (uid && !obj.criadoPor) ? { ...obj, criadoPor: uid } : obj;
+    await _getDb().collection(nomeCol).doc(obj.id).set(doc, { merge: true });
   }
 
   /* Remove um documento do Firestore pelo id */
@@ -350,15 +346,15 @@ const StorageCloud = (() => {
     console.log(`${_CLOUD_LOG} ── Migração local → Firestore ────────────────`);
     const resultado = { ok: true, colecoes: {}, total: 0 };
     const inicio = Date.now();
-    const uid = _getUserId();
-    if (uid) console.log(`${_CLOUD_LOG} Migrando como usuário: ${uid}`);
+    const uid = _getUid();
+    if (uid) console.log(`${_CLOUD_LOG} Migrando como: ${uid}`);
 
     /* ── 1. Coleções com chave direta no localStorage ─────── */
     for (const { local, cloud } of MAPA_COLECOES) {
-      /* Injeta userId em cada documento antes de enviar */
+      /* Injeta criadoPor para auditoria (não restringe acesso) */
       const listaRaw = _lerLocal(local);
       const lista = uid
-        ? listaRaw.map(item => item.userId ? item : { ...item, userId: uid })
+        ? listaRaw.map(item => item.criadoPor ? item : { ...item, criadoPor: uid })
         : listaRaw;
 
       if (lista.length === 0) {

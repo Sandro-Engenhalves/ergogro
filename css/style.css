@@ -1390,3 +1390,36 @@ body.sem-nav #toast {
   color: var(--perigo);
   background: var(--superficie-alt);
 }
+
+/* ── Mensagem de acesso negado na tela de login ─────────── */
+.login-acesso-negado {
+  background: var(--risco-alto-bg, rgba(248,81,73,.12));
+  border: 1px solid var(--perigo);
+  border-radius: var(--raio);
+  padding: var(--s3) var(--s4);
+  margin-top: var(--s4);
+  color: var(--perigo);
+  font-size: var(--txt-sm);
+  text-align: left;
+}
+
+.login-acesso-negado p { margin: 0 0 var(--s1); }
+.login-acesso-negado p:last-child { margin-bottom: 0; }
+
+/* ── Botão gerenciar usuários no header ─────────────────── */
+.btn-admin-usuarios {
+  background: transparent;
+  border: none;
+  color: var(--texto-sec);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  transition: color .15s, background .15s;
+}
+
+.btn-admin-usuarios:hover {
+  color: var(--primaria);
+  background: var(--superficie-alt);
+}

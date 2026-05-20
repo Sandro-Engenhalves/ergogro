@@ -2,52 +2,52 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // ── Função de autorização ──────────────────────────────
+    // Verifica se o e-mail do usuário autenticado está na lista
+    // de autorizados em ergogro_config/acesso.
+    function isAutorizado() {
+      return request.auth != null
+        && exists(/databases/$(database)/documents/ergogro_config/acesso)
+        && get(/databases/$(database)/documents/ergogro_config/acesso)
+             .data.emailsAutorizados.hasAny([request.auth.token.email]);
+    }
+
+    function isAdmin() {
+      return request.auth != null
+        && exists(/databases/$(database)/documents/ergogro_config/acesso)
+        && get(/databases/$(database)/documents/ergogro_config/acesso)
+             .data.adminEmail == request.auth.token.email;
+    }
+
+    // ── Config de acesso ───────────────────────────────────
+    // Qualquer autenticado pode ler (para verificar própria auth).
+    // Criação: permitida uma vez, quando o doc ainda não existe.
+    // Atualização: somente admin.
+    match /ergogro_config/{doc} {
+      allow read:   if request.auth != null;
+      allow create: if request.auth != null
+                    && !exists(/databases/$(database)/documents/ergogro_config/acesso);
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
     // ── Pesquisa psicossocial anônima ──────────────────────
-    // Públicas — trabalhadores respondem via QR Code sem login.
-    match /ergogro_campanhas/{id}  { allow read, write: if true; }
-    match /ergogro_respostas/{id}  { allow read, write: if true; }
+    // Públicas: trabalhadores respondem via QR Code sem login.
+    match /ergogro_campanhas/{id} { allow read, write: if true; }
+    match /ergogro_respostas/{id} { allow read, write: if true; }
 
-    // ── Dados de laudos ────────────────────────────────────
-    // Leitura e exclusão: exige que o documento já pertença ao usuário.
-    // Escrita (create/update): exige que o documento RESULTANTE
-    // pertença ao usuário — permite migração de docs sem userId.
-
-    match /ergogro_empresas/{id} {
-      allow read, delete:   if request.auth != null && resource.data.userId == request.auth.uid;
-      allow create, update: if request.auth != null && request.resource.data.userId == request.auth.uid;
-    }
-    match /ergogro_projetos/{id} {
-      allow read, delete:   if request.auth != null && resource.data.userId == request.auth.uid;
-      allow create, update: if request.auth != null && request.resource.data.userId == request.auth.uid;
-    }
-    match /ergogro_setores/{id} {
-      allow read, delete:   if request.auth != null && resource.data.userId == request.auth.uid;
-      allow create, update: if request.auth != null && request.resource.data.userId == request.auth.uid;
-    }
-    match /ergogro_funcoes/{id} {
-      allow read, delete:   if request.auth != null && resource.data.userId == request.auth.uid;
-      allow create, update: if request.auth != null && request.resource.data.userId == request.auth.uid;
-    }
-    match /ergogro_setores_master/{id} {
-      allow read, delete:   if request.auth != null && resource.data.userId == request.auth.uid;
-      allow create, update: if request.auth != null && request.resource.data.userId == request.auth.uid;
-    }
-    match /ergogro_funcoes_master/{id} {
-      allow read, delete:   if request.auth != null && resource.data.userId == request.auth.uid;
-      allow create, update: if request.auth != null && request.resource.data.userId == request.auth.uid;
-    }
-    match /ergogro_avaliacoes/{id} {
-      allow read, delete:   if request.auth != null && resource.data.userId == request.auth.uid;
-      allow create, update: if request.auth != null && request.resource.data.userId == request.auth.uid;
-    }
-    match /ergogro_planos/{id} {
-      allow read, delete:   if request.auth != null && resource.data.userId == request.auth.uid;
-      allow create, update: if request.auth != null && request.resource.data.userId == request.auth.uid;
-    }
-    match /ergogro_psicossocial/{id} {
-      allow read, delete:   if request.auth != null && resource.data.userId == request.auth.uid;
-      allow create, update: if request.auth != null && request.resource.data.userId == request.auth.uid;
-    }
+    // ── Dados de laudos (equipe compartilhada) ─────────────
+    // Qualquer usuário autorizado pode ler e escrever.
+    // Dados não são filtrados por userId — toda a equipe vê tudo.
+    match /ergogro_empresas/{id}       { allow read, write: if isAutorizado(); }
+    match /ergogro_projetos/{id}       { allow read, write: if isAutorizado(); }
+    match /ergogro_setores/{id}        { allow read, write: if isAutorizado(); }
+    match /ergogro_funcoes/{id}        { allow read, write: if isAutorizado(); }
+    match /ergogro_setores_master/{id} { allow read, write: if isAutorizado(); }
+    match /ergogro_funcoes_master/{id} { allow read, write: if isAutorizado(); }
+    match /ergogro_avaliacoes/{id}     { allow read, write: if isAutorizado(); }
+    match /ergogro_planos/{id}         { allow read, write: if isAutorizado(); }
+    match /ergogro_psicossocial/{id}   { allow read, write: if isAutorizado(); }
 
   }
 }
