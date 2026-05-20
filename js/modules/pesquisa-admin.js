@@ -1016,7 +1016,7 @@ const ModuloPesquisaAdmin = (() => {
         <!-- Corpo centralizado -->
         <div class="rpt-capa-corpo">
           <!-- Logo oficial Engenhalves -->
-          <img src="Engenhalves/logo.png" alt="ENGENHALVES"
+          <img src="Engenhalves/engenhalves_logo_01_exata.svg" alt="ENGENHALVES"
                style="height:22mm;width:auto;max-width:120mm;margin-bottom:10mm">
 
           <div class="rpt-capa-titulo">Avaliação de Fatores Psicossociais</div>
@@ -1148,7 +1148,7 @@ const ModuloPesquisaAdmin = (() => {
         <!-- Header do relatório (só impressão, primeira página de conteúdo) -->
         <div class="rpt-header so-imprimir">
           <div class="rpt-header-logo">
-            <img src="Engenhalves/logo.png" alt="ENGENHALVES"
+            <img src="Engenhalves/engenhalves_logo_01_exata.svg" alt="ENGENHALVES"
                  style="height:9mm;width:auto;max-width:60mm;display:block">
           </div>
           <div class="rpt-header-info">
