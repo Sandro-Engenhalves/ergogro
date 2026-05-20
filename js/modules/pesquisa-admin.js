@@ -657,15 +657,270 @@ const ModuloPesquisaAdmin = (() => {
     const criticos  = r.consolidado.filter(d => d.nivel === 'desfavoravel').map(d => d.nome);
     const protetores = r.consolidado.filter(d => d.nivel === 'favoravel').map(d => d.nome);
 
+    /* Número do laudo e data para o rodapé */
+    const _nrLaudo = `PS-${(c.empresaNome||'ERG').replace(/\s+/g,'').slice(0,4).toUpperCase()}-${new Date().getFullYear()}`;
+    const _dataEmissao = _fd(r.geradoEm);
+    const _responsavel = it.responsavel || proj?.responsavelTecnico || '';
+    const _registro    = it.registro    || proj?.registroProfissional || '';
+    const _contextoTxt = CONTEXTOS.find(x => x.id === it.contextoId)?.texto || 'Cumprimento de requisito legal (NR-01 / NR-17 / PGR)';
+
     return `
-      <div class="container">
-        <!-- Cabeçalho -->
+      <!-- ══ CSS DE IMPRESSÃO PADRÃO ENGENHALVES ══ -->
+      <style>
+        @media print {
+          /* Configuração da página A4 */
+          @page { size: A4 portrait; margin: 0; }
+
+          /* Oculta elementos de tela */
+          #app-header, #nav-principal, .subnav-abas,
+          .nao-imprimir, .btn, #toast { display: none !important; }
+
+          body {
+            background: #fff !important;
+            color: #000 !important;
+            font-family: Arial, Helvetica, sans-serif !important;
+            font-size: 9pt !important;
+            line-height: 1.4 !important;
+            margin: 0 !important;
+          }
+
+          /* ── Capa (página 1) ───────────────────── */
+          .rpt-capa {
+            display: flex !important;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 297mm;
+            padding: 20mm;
+            text-align: center;
+            page-break-after: always;
+            background: #fff;
+          }
+          .rpt-capa-logo {
+            font-size: 28pt;
+            font-weight: 900;
+            color: #1a3c6b;
+            letter-spacing: -1px;
+            margin-bottom: 8mm;
+          }
+          .rpt-capa-titulo {
+            font-size: 18pt;
+            font-weight: 700;
+            color: #1a3c6b;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 4mm;
+          }
+          .rpt-capa-subtitulo {
+            font-size: 10pt;
+            color: #555;
+            margin-bottom: 12mm;
+          }
+          .rpt-capa-tabela {
+            width: 100%;
+            max-width: 140mm;
+            border-collapse: collapse;
+            font-size: 9pt;
+            margin: 0 auto 12mm;
+          }
+          .rpt-capa-tabela th {
+            background: #1a3c6b;
+            color: #fff;
+            padding: 4pt 8pt;
+            text-align: left;
+            font-weight: 600;
+            width: 45%;
+          }
+          .rpt-capa-tabela td {
+            padding: 4pt 8pt;
+            border: 1px solid #ccc;
+            color: #222;
+          }
+          .rpt-capa-rodape {
+            font-size: 8pt;
+            color: #888;
+            margin-top: auto;
+            padding-top: 8mm;
+            border-top: 1px solid #ccc;
+            width: 100%;
+            text-align: center;
+          }
+
+          /* ── Header fixo (páginas 2+) ──────────── */
+          .rpt-header {
+            display: flex !important;
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            height: 14mm;
+            background: #fff;
+            border-bottom: 2px solid #1a3c6b;
+            padding: 0 12mm;
+            align-items: center;
+            justify-content: space-between;
+            z-index: 9999;
+          }
+          .rpt-header-logo {
+            font-size: 13pt;
+            font-weight: 900;
+            color: #1a3c6b;
+            letter-spacing: -.5px;
+          }
+          .rpt-header-info {
+            font-size: 7pt;
+            color: #555;
+            text-align: right;
+            line-height: 1.5;
+          }
+
+          /* ── Footer fixo ───────────────────────── */
+          .rpt-footer {
+            display: flex !important;
+            position: fixed;
+            bottom: 0; left: 0; right: 0;
+            height: 10mm;
+            background: #fff;
+            border-top: 1px solid #ccc;
+            padding: 0 12mm;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 7pt;
+            color: #666;
+            z-index: 9999;
+          }
+
+          /* ── Área de conteúdo ──────────────────── */
+          .rpt-conteudo {
+            margin: 18mm 12mm 14mm !important;
+            padding: 0 !important;
+          }
+
+          /* ── Títulos de seção (barra azul) ─────── */
+          .rpt-secao h3, .relatorio-secao h3 {
+            background: #1a3c6b !important;
+            color: #fff !important;
+            padding: 5pt 9pt !important;
+            font-size: 9pt !important;
+            font-weight: 700 !important;
+            text-transform: uppercase !important;
+            letter-spacing: .5pt !important;
+            margin: 0 0 6pt !important;
+            border-radius: 0 !important;
+            page-break-after: avoid !important;
+          }
+
+          /* ── Tabelas ────────────────────────────── */
+          table {
+            width: 100% !important;
+            border-collapse: collapse !important;
+            font-size: 8pt !important;
+            margin-bottom: 6pt !important;
+          }
+          th {
+            background: #1a3c6b !important;
+            color: #fff !important;
+            padding: 3pt 6pt !important;
+            font-weight: 600 !important;
+            text-align: left !important;
+            border: 1px solid #1a3c6b !important;
+          }
+          td {
+            padding: 3pt 6pt !important;
+            border: 1px solid #ccc !important;
+            color: #111 !important;
+          }
+          tr:nth-child(even) td { background: #f0f4f8 !important; }
+
+          /* ── Cards e badges ─────────────────────── */
+          .card {
+            border: 1px solid #ccc !important;
+            background: #fff !important;
+            border-radius: 0 !important;
+            padding: 8pt !important;
+            margin-bottom: 6pt !important;
+            color: #000 !important;
+          }
+          .badge { border: 1px solid #ccc !important; font-size: 7pt !important; padding: 1pt 4pt !important; }
+          .badge-sucesso { background:#d4edda !important; color:#155724 !important; border-color:#c3e6cb !important; }
+          .badge-aviso   { background:#fff3cd !important; color:#856404 !important; border-color:#ffeeba !important; }
+          .badge-alto    { background:#f8d7da !important; color:#721c24 !important; border-color:#f5c6cb !important; }
+
+          /* ── Análise técnica: inputs como texto ─ */
+          .campo-tecnico {
+            border: none !important;
+            border-bottom: 1px solid #ccc !important;
+            background: transparent !important;
+            resize: none !important;
+            color: #000 !important;
+            padding: 2pt 0 !important;
+            font-size: 8pt !important;
+            width: 100% !important;
+            font-family: Arial !important;
+          }
+          label input[type="radio"], label input[type="checkbox"] { display: none !important; }
+
+          /* ── Canvas (radar) ─────────────────────── */
+          canvas { max-width: 260px !important; height: auto !important; }
+
+          /* ── Quebras de página ──────────────────── */
+          .relatorio-secao { page-break-inside: avoid; margin-bottom: 8pt; }
+          .rpt-capa { page-break-after: always; }
+
+          /* Ocultar na tela */
+          .rpt-capa, .rpt-header, .rpt-footer { display: none; }
+        }
+
+        @media screen {
+          .rpt-capa, .rpt-header, .rpt-footer { display: none !important; }
+        }
+      </style>
+
+      <!-- ── CAPA (visível só na impressão) ──── -->
+      <div class="rpt-capa">
+        <div class="rpt-capa-logo">ENGENHALVES</div>
+        <div style="font-size:8pt;color:#888;margin-bottom:8mm">Centro de Engenharia &amp; Segurança LTDA</div>
+        <div class="rpt-capa-titulo">Avaliação de Fatores Psicossociais</div>
+        <div class="rpt-capa-subtitulo">
+          Consulta sobre Organização do Trabalho e Fatores Psicossociais<br>
+          COPSOQ-III Versão Curta (23 itens) · NR-01 / NR-17
+        </div>
+        <table class="rpt-capa-tabela">
+          <tr><th>Empresa / Cliente</th><td>${c.empresaNome || '—'}</td></tr>
+          <tr><th>Projeto</th><td>${c.nome || '—'}</td></tr>
+          <tr><th>N° do Laudo</th><td>${_nrLaudo}</td></tr>
+          <tr><th>Data de Emissão</th><td>${_dataEmissao}</td></tr>
+          <tr><th>Responsável Técnico</th><td>${_responsavel || '—'}</td></tr>
+          <tr><th>Registro Profissional</th><td>${_registro || '—'}</td></tr>
+          <tr><th>Contexto da Avaliação</th><td>${_contextoTxt}</td></tr>
+        </table>
+        <div class="rpt-capa-rodape">
+          ENGENHALVES — Centro de Engenharia &amp; Segurança LTDA | Documento de uso exclusivo do cliente
+        </div>
+      </div>
+
+      <!-- ── HEADER FIXO (visível só na impressão) ── -->
+      <div class="rpt-header">
+        <div class="rpt-header-logo">ENGENHALVES</div>
+        <div class="rpt-header-info">
+          ${c.empresaNome || ''} · ${c.nome || 'Avaliação Psicossocial'}<br>
+          ${_nrLaudo} · ${_dataEmissao}
+        </div>
+      </div>
+
+      <!-- ── FOOTER FIXO (visível só na impressão) ── -->
+      <div class="rpt-footer">
+        <span>${_nrLaudo} | ENGENHALVES — Centro de Engenharia &amp; Segurança LTDA</span>
+        <span>${_responsavel}${_registro ? ' · ' + _registro : ''} | ${_dataEmissao}</span>
+      </div>
+
+      <!-- ── CONTEÚDO DO RELATÓRIO ── -->
+      <div class="rpt-conteudo container">
+        <!-- Cabeçalho tela -->
         <div style="margin:var(--s4) 0 var(--s5);text-align:center">
           <div style="font-size:var(--txt-xs);color:var(--texto-sec);text-transform:uppercase;letter-spacing:.5px">
             Avaliação de Fatores Psicossociais — NR-01 / NR-17
           </div>
           <div style="font-size:var(--txt-xl);font-weight:700">Relatório Técnico</div>
-          <div style="font-size:var(--txt-sm);color:var(--texto-sec)">${c.empresaNome || ''} · ${_fd(r.geradoEm)}</div>
+          <div style="font-size:var(--txt-sm);color:var(--texto-sec)">${c.empresaNome || ''} · ${_dataEmissao}</div>
         </div>
 
         <!-- Ações -->
@@ -946,14 +1201,14 @@ const ModuloPesquisaAdmin = (() => {
           </button>
         </div>
 
-        <!-- Rodapé do documento -->
+        <!-- Rodapé tela / impressão -->
         <div style="text-align:center;padding:var(--s6) 0;color:var(--texto-sec);font-size:var(--txt-xs);border-top:1px solid var(--borda);margin-top:var(--s4)">
           ErgoGRO · Consulta sobre Organização do Trabalho e Fatores Psicossociais<br>
           Instrumento: COPSOQ-III Versão Curta (Kristensen et al., 2019) · NR-01 / NR-17<br>
           Documento técnico — não substitui avaliação clínica individual<br>
-          Gerado em ${_fd(r.geradoEm)}
+          Gerado em ${_dataEmissao}
         </div>
-      </div>
+      </div><!-- fim .rpt-conteudo -->
     `;
   }
 
