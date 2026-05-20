@@ -687,6 +687,7 @@ const ModuloPesquisaAdmin = (() => {
         @media print {
           /* Configuração da página A4 — margens reservam espaço para header/footer em toda página */
           @page { size: A4 portrait; margin: 18mm 12mm 14mm; }
+          @page :first { margin: 0 12mm; }
 
           /* Oculta elementos de tela */
           #app-header, #nav-principal, .subnav-abas,
@@ -707,7 +708,7 @@ const ModuloPesquisaAdmin = (() => {
             flex-direction: column;
             justify-content: space-between;
             align-items: stretch;
-            min-height: 258mm;
+            min-height: 297mm;
             padding: 0;
             text-align: center;
             page-break-after: always;
@@ -717,10 +718,10 @@ const ModuloPesquisaAdmin = (() => {
           .rpt-capa-barra-topo {
             background: #1a3c6b;
             color: #fff;
-            padding: 5pt 12pt;
-            font-size: 7.5pt;
+            padding: 10pt 16pt;
+            font-size: 8pt;
             font-weight: 700;
-            letter-spacing: .5pt;
+            letter-spacing: 1pt;
             text-transform: uppercase;
             text-align: center;
           }
@@ -733,18 +734,19 @@ const ModuloPesquisaAdmin = (() => {
             padding: 14mm 20mm;
           }
           .rpt-capa-titulo {
-            font-size: 20pt;
+            font-size: 22pt;
             font-weight: 900;
             color: #1a3c6b;
             text-transform: uppercase;
-            letter-spacing: 1px;
-            margin-bottom: 3mm;
+            letter-spacing: 1.5px;
+            margin-bottom: 4mm;
             line-height: 1.2;
           }
           .rpt-capa-subtitulo {
-            font-size: 9pt;
-            color: #666;
-            margin-bottom: 10mm;
+            font-size: 10pt;
+            color: #555;
+            margin-bottom: 12mm;
+            letter-spacing: .3pt;
           }
           .rpt-capa-linha {
             width: 40mm;
@@ -774,71 +776,92 @@ const ModuloPesquisaAdmin = (() => {
           .rpt-capa-barra-rodape {
             background: #1a3c6b;
             color: #fff;
-            padding: 5pt 12pt;
+            padding: 8pt 16pt;
             font-size: 8pt;
             text-align: center;
+            line-height: 1.6;
           }
 
           /* ── Sumário (página 2) ────────────────── */
           .rpt-sumario {
             page-break-after: always;
             break-after: always;
-            padding: 10mm 0 0;
+            padding: 0;
           }
           .rpt-sumario-titulo {
-            font-size: 13pt;
+            display: block !important;
+            font-size: 14pt;
             font-weight: 900;
             color: #fff !important;
             background: #1a3c6b !important;
-            padding: 5pt 9pt !important;
+            padding: 8pt 12pt !important;
             text-transform: uppercase;
-            letter-spacing: 1pt;
-            margin: 0 0 8mm !important;
+            letter-spacing: 3pt;
+            margin: 0 0 10mm !important;
           }
-          .rpt-sumario-tabela {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 9pt;
+          .rpt-sumario-lista {
+            padding: 0;
           }
-          .rpt-sumario-tabela td {
-            padding: 4pt 4pt !important;
+          .rpt-sumario-item {
+            display: flex !important;
+            align-items: baseline !important;
+            padding: 5pt 14pt !important;
+            font-size: 10pt;
+            color: #111;
             border: none !important;
             background: transparent !important;
-            color: #111;
           }
-          .rpt-sumario-tabela tr:nth-child(even) td {
+          .rpt-sumario-item:nth-child(even) {
             background: #f5f7fa !important;
           }
+          .rpt-sumario-item.sumario-sub {
+            padding: 3pt 14pt 3pt 34pt !important;
+            font-size: 9pt;
+            color: #444;
+          }
           .rpt-sumario-num {
-            width: 12mm;
             font-weight: 700;
             color: #1a3c6b !important;
-            vertical-align: top;
+            min-width: 24pt;
+            flex-shrink: 0;
           }
-          .rpt-sumario-titulo-item {
-            color: #111;
+          .rpt-sumario-nome {
+            flex-shrink: 0;
+            white-space: nowrap;
           }
-          .rpt-sumario-sub {
-            padding-left: 12mm !important;
-            color: #444;
+          .rpt-sumario-pontilhado {
+            flex: 1;
+            border-bottom: 1pt dotted #bbb;
+            margin: 0 8pt 3pt;
+          }
+          .rpt-sumario-pag {
+            color: #555;
+            min-width: 18pt;
+            text-align: right;
+            flex-shrink: 0;
+          }
+          .rpt-sumario-sep {
+            height: 2pt;
+            background: #1a3c6b !important;
+            border: none !important;
+            margin: 4pt 0 !important;
+            display: block !important;
           }
 
           /* Mostrar só na impressão (substitui checkboxes/radios por texto) */
           .so-imprimir { display: block !important; }
           .nao-imprimir { display: none !important; }
 
-          /* ── Header fixo (páginas 2+) ──────────── */
+          /* ── Header (primeira página de conteúdo) ── */
           .rpt-header {
             display: flex !important;
-            position: fixed;
-            top: 0; left: 0; right: 0;
             height: 14mm;
             background: #fff;
             border-bottom: 2px solid #1a3c6b;
-            padding: 0 12mm;
+            padding: 0;
             align-items: center;
             justify-content: space-between;
-            z-index: 9999;
+            margin-bottom: 8pt;
           }
           .rpt-header-logo {
             font-size: 13pt;
@@ -853,20 +876,9 @@ const ModuloPesquisaAdmin = (() => {
             line-height: 1.5;
           }
 
-          /* ── Footer fixo ───────────────────────── */
+          /* ── Footer (rodapé inline — não repete) ── */
           .rpt-footer {
-            display: flex !important;
-            position: fixed;
-            bottom: 0; left: 0; right: 0;
-            height: 10mm;
-            background: #fff;
-            border-top: 1px solid #ccc;
-            padding: 0 12mm;
-            align-items: center;
-            justify-content: space-between;
-            font-size: 7pt;
-            color: #666;
-            z-index: 9999;
+            display: none !important;
           }
 
           /* ── Área de conteúdo ──────────────────── */
@@ -988,7 +1000,7 @@ const ModuloPesquisaAdmin = (() => {
         }
 
         @media screen {
-          .rpt-capa, .rpt-header, .rpt-footer, .rpt-sumario { display: none !important; }
+          .rpt-capa, .rpt-sumario { display: none !important; }
           .so-imprimir { display: none !important; }
         }
       </style>
@@ -1048,78 +1060,105 @@ const ModuloPesquisaAdmin = (() => {
 
       <!-- ── SUMÁRIO (página 2, visível só na impressão) ──── -->
       <div class="rpt-sumario so-imprimir">
-        <h2 class="rpt-sumario-titulo">Sumário</h2>
-        <table class="rpt-sumario-tabela">
-          <tr>
-            <td class="rpt-sumario-num">1.</td>
-            <td class="rpt-sumario-titulo-item">Informações Gerais</td>
-          </tr>
-          <tr>
-            <td class="rpt-sumario-num">2.</td>
-            <td class="rpt-sumario-titulo-item">Objetivo</td>
-          </tr>
-          <tr>
-            <td class="rpt-sumario-num">3.</td>
-            <td class="rpt-sumario-titulo-item">Metodologia</td>
-          </tr>
-          <tr>
-            <td class="rpt-sumario-num">4.</td>
-            <td class="rpt-sumario-titulo-item">Normas Aplicáveis</td>
-          </tr>
-          <tr>
-            <td class="rpt-sumario-num">5.</td>
-            <td class="rpt-sumario-titulo-item">Resultados</td>
-          </tr>
-          <tr>
-            <td></td>
-            <td class="rpt-sumario-sub">5.1 &nbsp; Participação e Score Geral</td>
-          </tr>
-          <tr>
-            <td></td>
-            <td class="rpt-sumario-sub">5.2 &nbsp; Perfil Psicossocial — Gráfico COPSOQ-III</td>
-          </tr>
-          <tr>
-            <td></td>
-            <td class="rpt-sumario-sub">5.3 &nbsp; Resultado Consolidado por Dimensão</td>
-          </tr>
-          <tr>
-            <td class="rpt-sumario-num">6.</td>
-            <td class="rpt-sumario-titulo-item">Análise por Setor</td>
-          </tr>
-          <tr>
-            <td class="rpt-sumario-num">7.</td>
-            <td class="rpt-sumario-titulo-item">Análise Técnica — Profissional Responsável</td>
-          </tr>
-          <tr>
-            <td class="rpt-sumario-num">8.</td>
-            <td class="rpt-sumario-titulo-item">Limitações do Relatório</td>
-          </tr>
-          <tr>
-            <td class="rpt-sumario-num">9.</td>
-            <td class="rpt-sumario-titulo-item">Conclusão e Assinatura</td>
-          </tr>
-        </table>
-      </div>
+        <div class="rpt-sumario-titulo">Sumário</div>
+        <div class="rpt-sumario-lista">
 
-      <!-- ── HEADER FIXO (visível só na impressão) ── -->
-      <div class="rpt-header">
-        <div class="rpt-header-logo">ENGENHALVES</div>
-        <div class="rpt-header-info">
-          ${c.empresaNome || ''} · ${c.nome || 'Avaliação Psicossocial'}<br>
-          ${_nrLaudo} · ${_dataEmissao}
+          <div class="rpt-sumario-item">
+            <span class="rpt-sumario-num">1.</span>
+            <span class="rpt-sumario-nome">Informações Gerais</span>
+            <span class="rpt-sumario-pontilhado"></span>
+            <span class="rpt-sumario-pag">3</span>
+          </div>
+          <div class="rpt-sumario-item">
+            <span class="rpt-sumario-num">2.</span>
+            <span class="rpt-sumario-nome">Objetivo</span>
+            <span class="rpt-sumario-pontilhado"></span>
+            <span class="rpt-sumario-pag">3</span>
+          </div>
+          <div class="rpt-sumario-item">
+            <span class="rpt-sumario-num">3.</span>
+            <span class="rpt-sumario-nome">Metodologia</span>
+            <span class="rpt-sumario-pontilhado"></span>
+            <span class="rpt-sumario-pag">4</span>
+          </div>
+          <div class="rpt-sumario-item">
+            <span class="rpt-sumario-num">4.</span>
+            <span class="rpt-sumario-nome">Normas Aplicáveis</span>
+            <span class="rpt-sumario-pontilhado"></span>
+            <span class="rpt-sumario-pag">4</span>
+          </div>
+
+          <div class="rpt-sumario-sep"></div>
+
+          <div class="rpt-sumario-item">
+            <span class="rpt-sumario-num">5.</span>
+            <span class="rpt-sumario-nome">Resultados</span>
+            <span class="rpt-sumario-pontilhado"></span>
+            <span class="rpt-sumario-pag">5</span>
+          </div>
+          <div class="rpt-sumario-item sumario-sub">
+            <span class="rpt-sumario-num">5.1</span>
+            <span class="rpt-sumario-nome">Participação e Score Geral</span>
+            <span class="rpt-sumario-pontilhado"></span>
+            <span class="rpt-sumario-pag">5</span>
+          </div>
+          <div class="rpt-sumario-item sumario-sub">
+            <span class="rpt-sumario-num">5.2</span>
+            <span class="rpt-sumario-nome">Perfil Psicossocial — Gráfico COPSOQ-III</span>
+            <span class="rpt-sumario-pontilhado"></span>
+            <span class="rpt-sumario-pag">5</span>
+          </div>
+          <div class="rpt-sumario-item sumario-sub">
+            <span class="rpt-sumario-num">5.3</span>
+            <span class="rpt-sumario-nome">Resultado Consolidado por Dimensão</span>
+            <span class="rpt-sumario-pontilhado"></span>
+            <span class="rpt-sumario-pag">6</span>
+          </div>
+
+          <div class="rpt-sumario-sep"></div>
+
+          <div class="rpt-sumario-item">
+            <span class="rpt-sumario-num">6.</span>
+            <span class="rpt-sumario-nome">Análise por Setor</span>
+            <span class="rpt-sumario-pontilhado"></span>
+            <span class="rpt-sumario-pag">7</span>
+          </div>
+          <div class="rpt-sumario-item">
+            <span class="rpt-sumario-num">7.</span>
+            <span class="rpt-sumario-nome">Análise Técnica — Profissional Responsável</span>
+            <span class="rpt-sumario-pontilhado"></span>
+            <span class="rpt-sumario-pag">8</span>
+          </div>
+          <div class="rpt-sumario-item">
+            <span class="rpt-sumario-num">8.</span>
+            <span class="rpt-sumario-nome">Limitações do Relatório</span>
+            <span class="rpt-sumario-pontilhado"></span>
+            <span class="rpt-sumario-pag">9</span>
+          </div>
+          <div class="rpt-sumario-item">
+            <span class="rpt-sumario-num">9.</span>
+            <span class="rpt-sumario-nome">Conclusão e Assinatura</span>
+            <span class="rpt-sumario-pontilhado"></span>
+            <span class="rpt-sumario-pag">10</span>
+          </div>
+
         </div>
-      </div>
-
-      <!-- ── FOOTER FIXO (visível só na impressão) ── -->
-      <div class="rpt-footer">
-        <span>${_nrLaudo} | ENGENHALVES — Centro de Engenharia &amp; Segurança LTDA</span>
-        <span>${_responsavel}${_registro ? ' · ' + _registro : ''} | ${_dataEmissao}</span>
       </div>
 
       <!-- ── CONTEÚDO DO RELATÓRIO ── -->
       <div class="rpt-conteudo container">
+
+        <!-- Header do relatório (só impressão, primeira página de conteúdo) -->
+        <div class="rpt-header so-imprimir">
+          <div class="rpt-header-logo">ENGENHALVES</div>
+          <div class="rpt-header-info">
+            ${c.empresaNome || ''} &nbsp;·&nbsp; ${c.nome || 'Avaliação Psicossocial'}<br>
+            ${_nrLaudo} &nbsp;·&nbsp; ${_dataEmissao}
+          </div>
+        </div>
+
         <!-- Cabeçalho tela -->
-        <div style="margin:var(--s4) 0 var(--s5);text-align:center">
+        <div class="nao-imprimir" style="margin:var(--s4) 0 var(--s5);text-align:center">
           <div style="font-size:var(--txt-xs);color:var(--texto-sec);text-transform:uppercase;letter-spacing:.5px">
             Avaliação de Fatores Psicossociais — NR-01 / NR-17
           </div>
@@ -1128,7 +1167,7 @@ const ModuloPesquisaAdmin = (() => {
         </div>
 
         <!-- Ações -->
-        <div style="display:flex;gap:var(--s3);flex-wrap:wrap;margin-bottom:var(--s5)">
+        <div class="nao-imprimir" style="display:flex;gap:var(--s3);flex-wrap:wrap;margin-bottom:var(--s5)">
           <button class="btn btn-primario" onclick="window.print()">🖨️ Imprimir / PDF</button>
           <button class="btn btn-secundario" onclick="ModuloPesquisaAdmin.trocarSecao('monitor')">📊 Monitoramento</button>
         </div>

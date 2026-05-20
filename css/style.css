@@ -1062,7 +1062,8 @@ body.sem-nav #toast {
   .subnav-abas, .modal-overlay { display: none !important; }
   body { background: #fff; color: #000; }
   #app-content { margin-top: 0; padding-bottom: 0; }
-  .tela { display: block !important; }
+  .tela { display: none !important; }
+  .tela.ativa { display: block !important; }
   .card { border: 1px solid #ddd; }
   .relatorio-secao { page-break-inside: avoid; }
   :root {
