@@ -20,7 +20,28 @@ const App = (() => {
     Storage.migrar();
     _configurarNavPrincipal();
     _configurarBotaoVoltar();
+    /* Carrega o dashboard imediatamente com os dados locais */
     navegarPara('dashboard');
+    /* Sync com o Firestore em segundo plano — não bloqueia a UI.
+       Se trouxer dados novos, atualiza o dashboard automaticamente. */
+    _sincronizarCloud();
+  }
+
+  function _sincronizarCloud() {
+    if (typeof StorageCloud === 'undefined') return;
+    if (typeof CLOUD_SYNC_ENABLED !== 'undefined' && !CLOUD_SYNC_ENABLED) return;
+
+    StorageCloud.syncInicial()
+      .then(resultado => {
+        if (!resultado.ok) return; /* falhou silenciosamente */
+        const temNovos = resultado.totalNovos > 0 || resultado.totalAt > 0;
+        if (temNovos && _telaAtual === 'dashboard') {
+          /* Novos dados chegaram — atualiza o dashboard sem navegar */
+          console.log('[App] Sync trouxe dados novos — atualizando dashboard');
+          _renderizarDashboard();
+        }
+      })
+      .catch(err => console.warn('[App] Sync cloud falhou (usando dados locais):', err.message));
   }
 
   /* ── Roteador central ─────────────────────────────────────── */
