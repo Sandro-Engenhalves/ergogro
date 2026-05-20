@@ -39,6 +39,23 @@ const Storage = (() => {
     }
   }
 
+  /* ── Helpers cloud — fire-and-forget para o Firestore ────────
+     Chamam StorageCloud se disponível; falha silenciosa — nunca
+     interrompe o fluxo local. StorageCloud é definido em
+     firebase-storage.js, carregado após este arquivo.           */
+  function _cloudPush(metodo, obj) {
+    if (typeof StorageCloud === 'undefined') return;
+    if (typeof CLOUD_SYNC_ENABLED !== 'undefined' && !CLOUD_SYNC_ENABLED) return;
+    StorageCloud[metodo](obj).catch(err =>
+      console.warn('[Storage→Cloud] ' + metodo + ':', err.message));
+  }
+  function _cloudDel(metodo, id) {
+    if (typeof StorageCloud === 'undefined') return;
+    if (typeof CLOUD_SYNC_ENABLED !== 'undefined' && !CLOUD_SYNC_ENABLED) return;
+    StorageCloud[metodo](id).catch(err =>
+      console.warn('[Storage→Cloud] ' + metodo + ':', err.message));
+  }
+
   /* ─────────────────────────────────────────────────────────
      EMPRESAS
   ───────────────────────────────────────────────────────── */
@@ -54,14 +71,15 @@ const Storage = (() => {
     if (idx >= 0) { lista[idx] = e; }
     else          { e.criadaEm = e.criadaEm || agora; lista.unshift(e); }
     _gravar(CHAVE_EMPRESAS, lista);
+    _cloudPush('pushEmpresa', e);
     return e;
   }
 
   function excluirEmpresa(id) {
     listarProjetos(id).forEach(p => excluirProjeto(p.id));
-    /* Remove também o catálogo mestre da empresa */
     listarSetoresMaster(id).forEach(s => excluirSetorMaster(s.id));
     _gravar(CHAVE_EMPRESAS, listarEmpresas().filter(e => e.id !== id));
+    _cloudDel('deleteEmpresa', id);
   }
 
   function criarEmpresa() {
@@ -91,14 +109,19 @@ const Storage = (() => {
     if (idx >= 0) { lista[idx] = proj; }
     else          { proj.criadoEm = proj.criadoEm || agora; lista.unshift(proj); }
     _gravar(CHAVE_PROJETOS, lista);
+    _cloudPush('pushProjeto', proj);
     return proj;
   }
 
   function excluirProjeto(id) {
-    /* Remove em cascata: setores, funcoes, avaliacoes */
+    /* Remove em cascata: setores, funcoes (excluirSetor já chama _cloudDel) */
     listarSetores(id).forEach(s => excluirSetor(s.id));
+    /* Avaliações: deleta individualmente no Firestore antes do bulk local */
+    _ler(CHAVE_AV).filter(a => a.projetoId === id)
+      .forEach(a => _cloudDel('deleteAvaliacao', a.id));
     _gravar(CHAVE_AV,       _ler(CHAVE_AV).filter(a => a.projetoId !== id));
     _gravar(CHAVE_PROJETOS, _ler(CHAVE_PROJETOS).filter(p => p.id !== id));
+    _cloudDel('deleteProjeto', id);
   }
 
   function criarProjeto(empresaId) {
@@ -143,12 +166,14 @@ const Storage = (() => {
     if (idx >= 0) { lista[idx] = s; }
     else          { s.criadaEm = s.criadaEm || agora; lista.push(s); }
     _gravar(CHAVE_SETORES, lista);
+    _cloudPush('pushSetor', s);
     return s;
   }
 
   function excluirSetor(id) {
     listarFuncoes(id).forEach(f => excluirFuncao(f.id));
     _gravar(CHAVE_SETORES, _ler(CHAVE_SETORES).filter(s => s.id !== id));
+    _cloudDel('deleteSetor', id);
   }
 
   function criarSetor(projetoId) {
@@ -184,11 +209,13 @@ const Storage = (() => {
     if (idx >= 0) { lista[idx] = f; }
     else          { f.criadaEm = f.criadaEm || agora; lista.push(f); }
     _gravar(CHAVE_FUNCOES, lista);
+    _cloudPush('pushFuncao', f);
     return f;
   }
 
   function excluirFuncao(id) {
     _gravar(CHAVE_FUNCOES, _ler(CHAVE_FUNCOES).filter(f => f.id !== id));
+    _cloudDel('deleteFuncao', id);
   }
 
   function criarFuncao(projetoId, setorId) {
@@ -220,12 +247,14 @@ const Storage = (() => {
     if (idx >= 0) { lista[idx] = s; }
     else { s.criadaEm = s.criadaEm || agora; lista.push(s); }
     _gravar(CHAVE_SETORES_MASTER, lista);
+    _cloudPush('pushSetorMaster', s);
     return s;
   }
 
   function excluirSetorMaster(id) {
     listarFuncoesMaster(id).forEach(f => excluirFuncaoMaster(f.id));
     _gravar(CHAVE_SETORES_MASTER, _ler(CHAVE_SETORES_MASTER).filter(s => s.id !== id));
+    _cloudDel('deleteSetorMaster', id);
   }
 
   function criarSetorMaster(empresaId) {
@@ -258,11 +287,13 @@ const Storage = (() => {
     if (idx >= 0) { lista[idx] = f; }
     else { f.criadaEm = f.criadaEm || agora; lista.push(f); }
     _gravar(CHAVE_FUNCOES_MASTER, lista);
+    _cloudPush('pushFuncaoMaster', f);
     return f;
   }
 
   function excluirFuncaoMaster(id) {
     _gravar(CHAVE_FUNCOES_MASTER, _ler(CHAVE_FUNCOES_MASTER).filter(f => f.id !== id));
+    _cloudDel('deleteFuncaoMaster', id);
   }
 
   function criarFuncaoMaster(empresaId, setorMasterId) {
@@ -341,11 +372,13 @@ const Storage = (() => {
     if (idx >= 0) { lista[idx] = av; }
     else { av.criadaEm = av.criadaEm || agora; lista.unshift(av); }
     _gravar(CHAVE_AV, lista);
+    _cloudPush('pushAvaliacao', av);
     return av;
   }
 
   function excluir(id) {
     _gravar(CHAVE_AV, listar().filter(a => a.id !== id));
+    _cloudDel('deleteAvaliacao', id);
   }
 
   /* Cria avaliação vinculada ao ProjetoLaudo */
