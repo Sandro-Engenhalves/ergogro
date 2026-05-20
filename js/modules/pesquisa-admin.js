@@ -657,12 +657,29 @@ const ModuloPesquisaAdmin = (() => {
     const criticos  = r.consolidado.filter(d => d.nivel === 'desfavoravel').map(d => d.nome);
     const protetores = r.consolidado.filter(d => d.nivel === 'favoravel').map(d => d.nome);
 
-    /* Número do laudo e data para o rodapé */
-    const _nrLaudo = `PS-${(c.empresaNome||'ERG').replace(/\s+/g,'').slice(0,4).toUpperCase()}-${new Date().getFullYear()}`;
+    /* Variáveis do rodapé e capa */
+    const _nrLaudo     = `PS-${(c.empresaNome||'ERG').replace(/\s+/g,'').slice(0,4).toUpperCase()}-${new Date().getFullYear()}`;
     const _dataEmissao = _fd(r.geradoEm);
     const _responsavel = it.responsavel || proj?.responsavelTecnico || '';
     const _registro    = it.registro    || proj?.registroProfissional || '';
     const _contextoTxt = CONTEXTOS.find(x => x.id === it.contextoId)?.texto || 'Cumprimento de requisito legal (NR-01 / NR-17 / PGR)';
+
+    /* Itens selecionados — versão impressão somente */
+    const _fatoresPrint = (it.fatoresRiscoIds || [])
+      .map(id => {
+        const dim = PerguntasPsicossociais.DIMENSOES.find(d => d.id === id);
+        const res = r.consolidado.find(d => d.id === id);
+        return dim ? { nome: dim.nome, nivel: NIVEL_L[res?.nivel||'sem_dados'], media: res?.media } : null;
+      }).filter(Boolean);
+
+    const _recsPrint = {};
+    (it.recomendacoesIds || []).forEach(rid => {
+      Object.entries(RECOMENDACOES).forEach(([dimId, recs]) => {
+        const rec = recs.find(r2 => r2.id === rid);
+        if (rec) { if (!_recsPrint[dimId]) _recsPrint[dimId] = []; _recsPrint[dimId].push(rec.texto); }
+      });
+    });
+    const _temRecsImpressao = Object.keys(_recsPrint).length > 0 || !!it.recomendacoesCustom;
 
     return `
       <!-- ══ CSS DE IMPRESSÃO PADRÃO ENGENHALVES ══ -->
@@ -690,8 +707,8 @@ const ModuloPesquisaAdmin = (() => {
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            height: 297mm;
-            padding: 20mm;
+            min-height: 175mm;
+            padding: 16mm 20mm;
             text-align: center;
             page-break-after: always;
             background: #fff;
@@ -739,12 +756,16 @@ const ModuloPesquisaAdmin = (() => {
           .rpt-capa-rodape {
             font-size: 8pt;
             color: #888;
-            margin-top: auto;
-            padding-top: 8mm;
+            margin-top: 12mm;
+            padding-top: 6mm;
             border-top: 1px solid #ccc;
             width: 100%;
             text-align: center;
           }
+
+          /* Mostrar só na impressão (substitui checkboxes/radios por texto) */
+          .so-imprimir { display: block !important; }
+          .nao-imprimir { display: none !important; }
 
           /* ── Header fixo (páginas 2+) ──────────── */
           .rpt-header {
@@ -871,6 +892,7 @@ const ModuloPesquisaAdmin = (() => {
 
         @media screen {
           .rpt-capa, .rpt-header, .rpt-footer { display: none !important; }
+          .so-imprimir { display: none !important; }
         }
       </style>
 
@@ -937,9 +959,91 @@ const ModuloPesquisaAdmin = (() => {
           Profissional habilitado é responsável pela interpretação.</span>
         </div>
 
-        <!-- Indicadores de participação -->
+        <!-- 1. INFORMAÇÕES GERAIS -->
         <div class="relatorio-secao">
-          <h3>Participação</h3>
+          <h3>1. Informações Gerais</h3>
+          <div style="overflow-x:auto">
+            <table class="tabela-simples">
+              <tbody>
+                <tr><td style="font-weight:600;width:40%">Empresa / Cliente</td><td>${c.empresaNome || '—'}</td></tr>
+                <tr><td style="font-weight:600">Projeto</td><td>${c.nome || '—'}</td></tr>
+                <tr><td style="font-weight:600">N° do Laudo</td><td>${_nrLaudo}</td></tr>
+                <tr><td style="font-weight:600">Data de Emissão</td><td>${_dataEmissao}</td></tr>
+                <tr><td style="font-weight:600">Prazo de Coleta</td><td>${c.prazo ? _fd(c.prazo) : '—'}</td></tr>
+                <tr><td style="font-weight:600">Instrumento</td><td>COPSOQ-III — Copenhagen Psychosocial Questionnaire, 3ª Edição</td></tr>
+                <tr><td style="font-weight:600">Responsável Técnico</td><td>${_responsavel || '—'}</td></tr>
+                <tr><td style="font-weight:600">Registro Profissional</td><td>${_registro || '—'}</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- 2. OBJETIVO -->
+        <div class="relatorio-secao">
+          <h3>2. Objetivo</h3>
+          <div class="card">
+            <p style="font-size:var(--txt-sm)">
+              A presente avaliação tem por objetivo identificar e analisar os fatores psicossociais presentes
+              no ambiente de trabalho da empresa <strong>${c.empresaNome || '[Empresa]'}</strong>,
+              em atendimento às disposições da <strong>NR-01</strong> — Gerenciamento de Riscos Ocupacionais
+              (Portaria MTP nº 672/2021) e da <strong>NR-17</strong> — Ergonomia.
+              A identificação dos fatores psicossociais é componente obrigatório do Programa de Gerenciamento
+              de Riscos — PGR, conforme as alterações introduzidas pela Portaria MTP nº 672/2021.
+            </p>
+            <p style="font-size:var(--txt-sm);margin-top:var(--s3)">
+              <strong>Contexto:</strong> ${_contextoTxt}.
+              ${it.contextoComplemento ? it.contextoComplemento : ''}
+            </p>
+          </div>
+        </div>
+
+        <!-- 3. METODOLOGIA -->
+        <div class="relatorio-secao">
+          <h3>3. Metodologia</h3>
+          <div class="card">
+            <p style="font-size:var(--txt-sm)">
+              Para a avaliação dos fatores psicossociais foi utilizado o
+              <strong>COPSOQ-III — Copenhagen Psychosocial Questionnaire, 3ª Edição</strong>
+              (Kristensen et al., 2019), instrumento validado internacionalmente para avaliação
+              das condições psicossociais do trabalho. Foi aplicada a <strong>versão curta</strong>
+              (23 itens), organizada em 6 dimensões temáticas, com escala de resposta de frequência
+              em 5 pontos (Nunca a Sempre).
+            </p>
+            <p style="font-size:var(--txt-sm);margin-top:var(--s3)">
+              Os resultados são expressos em escores de 0 a 100:
+              <strong style="color:var(--sucesso)">Favorável ≥ 67</strong> ·
+              <strong style="color:var(--aviso)">Intermediário 34–66</strong> ·
+              <strong style="color:var(--perigo)">Desfavorável ≤ 33</strong>.
+              Os dados são analisados exclusivamente em nível de grupo, preservando o anonimato
+              dos participantes (LGPD — Lei nº 13.709/2018). Setores com menos de
+              ${r.minRespostasSetor} respondentes não são analisados individualmente.
+            </p>
+            <p style="font-size:var(--txt-sm);margin-top:var(--s3)">
+              <strong>Participação:</strong> ${r.totalRespostas} respondente(s)
+              ${r.totalAutorizados ? `de ${r.totalAutorizados} autorizado(s) (${r.taxaParticipacao ?? '—'}% de taxa de resposta)` : ''}.
+            </p>
+          </div>
+        </div>
+
+        <!-- 4. NORMAS APLICÁVEIS -->
+        <div class="relatorio-secao">
+          <h3>4. Normas Aplicáveis</h3>
+          <div style="overflow-x:auto">
+            <table class="tabela-simples">
+              <thead><tr><th>Norma / Referência</th><th>Descrição</th></tr></thead>
+              <tbody>
+                <tr><td>NR-01</td><td>Disposições Gerais e Gerenciamento de Riscos Ocupacionais — Portaria MTP nº 672/2021</td></tr>
+                <tr><td>NR-17</td><td>Ergonomia</td></tr>
+                <tr><td>LGPD — Lei nº 13.709/2018</td><td>Lei Geral de Proteção de Dados Pessoais</td></tr>
+                <tr><td>COPSOQ-III</td><td>Copenhagen Psychosocial Questionnaire, 3ª Edição (Kristensen et al., 2019)</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- 5. Indicadores de participação -->
+        <div class="relatorio-secao">
+          <h3>5. Resultados — Participação e Score Geral</h3>
           <div class="card">
             <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:var(--s3);text-align:center">
               <div>
@@ -969,9 +1073,9 @@ const ModuloPesquisaAdmin = (() => {
           </div>
         </div>
 
-        <!-- Gráfico radar COPSOQ-III -->
+        <!-- 5.2 Gráfico radar -->
         <div class="relatorio-secao">
-          <h3>Perfil Psicossocial — COPSOQ-III</h3>
+          <h3>5.2 Perfil Psicossocial — COPSOQ-III</h3>
           <div class="card" style="text-align:center;padding:var(--s4)">
             <canvas id="ps-radar-chart" width="380" height="380"
               style="display:block;margin:0 auto;max-width:100%"></canvas>
@@ -1006,9 +1110,9 @@ const ModuloPesquisaAdmin = (() => {
           </div>
         ` : ''}
 
-        <!-- Consolidado geral -->
+        <!-- 5.3 Consolidado por dimensão -->
         <div class="relatorio-secao">
-          <h3>Resultado Consolidado por Dimensão</h3>
+          <h3>5.3 Resultado Consolidado por Dimensão</h3>
           <div class="aviso-tecnico info" style="margin-bottom:var(--s3)">
             <span>ℹ️</span>
             <span>Escala 0–100. Favorável ≥ 67 · Intermediário 34–66 · Desfavorável ≤ 33.</span>
@@ -1028,9 +1132,9 @@ const ModuloPesquisaAdmin = (() => {
           </div>
         </div>
 
-        <!-- Por setor -->
+        <!-- 6. Análise por setor -->
         <div class="relatorio-secao">
-          <h3>Análise por Setor</h3>
+          <h3>6. Análise por Setor</h3>
           <div class="aviso-tecnico info" style="margin-bottom:var(--s3)">
             <span>🔒</span>
             <span>Setores com menos de ${r.minRespostasSetor} respostas não são exibidos individualmente para proteger o anonimato (LGPD).</span>
@@ -1038,17 +1142,18 @@ const ModuloPesquisaAdmin = (() => {
           ${setorHTML}
         </div>
 
-        <!-- ══ ANÁLISE TÉCNICA DO PROFISSIONAL ══ -->
+        <!-- 7. ANÁLISE TÉCNICA DO PROFISSIONAL ══ -->
         <div class="relatorio-secao">
           <h3>
-            Análise Técnica — Profissional Responsável
+            7. Análise Técnica — Profissional Responsável
             <span id="ps-it-autosave" style="font-size:11px;color:var(--sucesso);font-weight:400;margin-left:8px"></span>
           </h3>
 
           <!-- 1. Contexto -->
           <div class="card">
             <div class="card-titulo" style="margin-bottom:var(--s3)">1. Contexto da Avaliação</div>
-            <div style="display:flex;flex-direction:column;gap:var(--s2)">
+            <!-- Tela: todos os radios -->
+            <div class="nao-imprimir" style="display:flex;flex-direction:column;gap:var(--s2)">
               ${CONTEXTOS.map(ctx => `
                 <label style="display:flex;align-items:center;gap:var(--s3);cursor:pointer;padding:var(--s2) 0">
                   <input type="radio" name="ps-it-contexto" value="${ctx.id}"
@@ -1058,11 +1163,16 @@ const ModuloPesquisaAdmin = (() => {
                 </label>
               `).join('')}
             </div>
-            <div class="grupo-campo" style="margin-top:var(--s3)">
+            <div class="nao-imprimir grupo-campo" style="margin-top:var(--s3)">
               <input type="text" id="ps-it-contexto-complemento" class="campo-tecnico"
                 placeholder="Complemento ou observação (opcional)"
                 oninput="ModuloPesquisaAdmin.agendarAutoSave()"
                 value="${it.contextoComplemento || ''}">
+            </div>
+            <!-- Impressão: só o selecionado -->
+            <div class="so-imprimir">
+              <p style="font-size:9pt;padding:4pt 0">${_contextoTxt}</p>
+              ${it.contextoComplemento ? `<p style="font-size:8pt;color:#555">${it.contextoComplemento}</p>` : ''}
             </div>
           </div>
 
@@ -1081,13 +1191,14 @@ const ModuloPesquisaAdmin = (() => {
             >${it.interpretacao || ''}</textarea>
           </div>
 
-          <!-- 3. Fatores de risco (checklist automático) -->
+          <!-- 3. Fatores de risco -->
           <div class="card" style="margin-top:var(--s4)">
-            <div class="card-titulo" style="margin-bottom:var(--s3)">3. Fatores de Risco Identificados</div>
-            <p style="font-size:var(--txt-xs);color:var(--texto-sec);margin-bottom:var(--s3)">
+            <div class="card-titulo" style="margin-bottom:var(--s3)">3. Fatores de Risco Psicossocial Identificados</div>
+            <!-- Tela: checklist -->
+            <p class="nao-imprimir" style="font-size:var(--txt-xs);color:var(--texto-sec);margin-bottom:var(--s3)">
               Marcados automaticamente conforme resultado. Edite conforme sua análise.
             </p>
-            <div style="display:flex;flex-direction:column;gap:var(--s2)" id="ps-it-riscos-lista">
+            <div class="nao-imprimir" style="display:flex;flex-direction:column;gap:var(--s2)" id="ps-it-riscos-lista">
               ${PerguntasPsicossociais.DIMENSOES.map(dim => {
                 const res = r.consolidado.find(d => d.id === dim.id);
                 const autoCheck = res?.nivel === 'desfavoravel';
@@ -1105,40 +1216,68 @@ const ModuloPesquisaAdmin = (() => {
                 `;
               }).join('')}
             </div>
+            <!-- Impressão: só os selecionados -->
+            <div class="so-imprimir">
+              ${_fatoresPrint.length > 0
+                ? _fatoresPrint.map(f => `
+                    <div style="display:flex;justify-content:space-between;align-items:center;padding:3pt 0;border-bottom:1px solid #eee;font-size:9pt">
+                      <span>• ${f.nome}</span>
+                      <span style="font-weight:600;color:${f.nivel.barra}">${f.nivel.t}${f.media != null ? ' · ' + f.media : ''}</span>
+                    </div>`).join('')
+                : '<p style="font-size:9pt;color:#555;font-style:italic">Nenhum fator de risco identificado.</p>'
+              }
+            </div>
           </div>
 
-          <!-- 4. Recomendações (banco por dimensão) -->
+          <!-- 4. Recomendações -->
           <div class="card" style="margin-top:var(--s4)">
             <div class="card-titulo" style="margin-bottom:var(--s3)">4. Recomendações Técnicas</div>
-            <p style="font-size:var(--txt-xs);color:var(--texto-sec);margin-bottom:var(--s3)">
+            <!-- Tela: todos os checkboxes -->
+            <p class="nao-imprimir" style="font-size:var(--txt-xs);color:var(--texto-sec);margin-bottom:var(--s3)">
               Selecione as recomendações aplicáveis. Agrupadas por dimensão.
             </p>
-            ${Object.entries(RECOMENDACOES).map(([dimId, recs]) => {
-              const dim  = PerguntasPsicossociais.DIMENSOES.find(d => d.id === dimId);
-              const recsHTML = recs.map(rec => `
-                <label style="display:flex;align-items:flex-start;gap:var(--s3);cursor:pointer;padding:var(--s2) 0;font-size:var(--txt-sm)">
-                  <input type="checkbox" name="ps-it-rec" value="${rec.id}"
-                    ${it.recomendacoesIds?.includes(rec.id) ? 'checked' : ''}
-                    onchange="ModuloPesquisaAdmin.agendarAutoSave()"
-                    style="margin-top:2px;flex-shrink:0">
-                  <span>${rec.texto}</span>
-                </label>
-              `).join('');
-              return `
-                <div style="margin-bottom:var(--s4)">
-                  <div style="font-size:var(--txt-xs);font-weight:700;color:var(--texto-sec);text-transform:uppercase;letter-spacing:.5px;margin-bottom:var(--s2)">
-                    ${dim?.nome || dimId}
+            <div class="nao-imprimir">
+              ${Object.entries(RECOMENDACOES).map(([dimId, recs]) => {
+                const dim  = PerguntasPsicossociais.DIMENSOES.find(d => d.id === dimId);
+                const recsHTML = recs.map(rec => `
+                  <label style="display:flex;align-items:flex-start;gap:var(--s3);cursor:pointer;padding:var(--s2) 0;font-size:var(--txt-sm)">
+                    <input type="checkbox" name="ps-it-rec" value="${rec.id}"
+                      ${it.recomendacoesIds?.includes(rec.id) ? 'checked' : ''}
+                      onchange="ModuloPesquisaAdmin.agendarAutoSave()"
+                      style="margin-top:2px;flex-shrink:0">
+                    <span>${rec.texto}</span>
+                  </label>
+                `).join('');
+                return `
+                  <div style="margin-bottom:var(--s4)">
+                    <div style="font-size:var(--txt-xs);font-weight:700;color:var(--texto-sec);text-transform:uppercase;letter-spacing:.5px;margin-bottom:var(--s2)">
+                      ${dim?.nome || dimId}
+                    </div>
+                    ${recsHTML}
                   </div>
-                  ${recsHTML}
-                </div>
-              `;
-            }).join('')}
-            <div class="grupo-campo" style="margin-top:var(--s3)">
-              <label style="font-size:var(--txt-xs);color:var(--texto-sec)">Recomendação adicional (opcional)</label>
-              <textarea id="ps-it-rec-custom" class="campo-tecnico" rows="2"
-                placeholder="Outras medidas específicas para esta empresa..."
-                oninput="ModuloPesquisaAdmin.agendarAutoSave()"
-              >${it.recomendacoesCustom || ''}</textarea>
+                `;
+              }).join('')}
+              <div class="grupo-campo" style="margin-top:var(--s3)">
+                <label style="font-size:var(--txt-xs);color:var(--texto-sec)">Recomendação adicional (opcional)</label>
+                <textarea id="ps-it-rec-custom" class="campo-tecnico" rows="2"
+                  placeholder="Outras medidas específicas para esta empresa..."
+                  oninput="ModuloPesquisaAdmin.agendarAutoSave()"
+                >${it.recomendacoesCustom || ''}</textarea>
+              </div>
+            </div>
+            <!-- Impressão: só as selecionadas -->
+            <div class="so-imprimir">
+              ${_temRecsImpressao
+                ? Object.entries(_recsPrint).map(([dimId, textos]) => {
+                    const dim = PerguntasPsicossociais.DIMENSOES.find(d => d.id === dimId);
+                    return `
+                      <div style="margin-bottom:8pt">
+                        <div style="font-size:8pt;font-weight:700;color:#1a3c6b;text-transform:uppercase;letter-spacing:.3pt;margin-bottom:3pt">${dim?.nome || dimId}</div>
+                        ${textos.map(t => `<div style="padding:2pt 0 2pt 10pt;border-left:2px solid #1a3c6b;font-size:9pt;margin-bottom:2pt">${t}</div>`).join('')}
+                      </div>`;
+                  }).join('') + (it.recomendacoesCustom ? `<div style="margin-top:6pt;font-size:9pt"><em>Recomendação adicional:</em> ${it.recomendacoesCustom}</div>` : '')
+                : '<p style="font-size:9pt;color:#555;font-style:italic">Nenhuma recomendação selecionada.</p>'
+              }
             </div>
           </div>
 
@@ -1201,8 +1340,72 @@ const ModuloPesquisaAdmin = (() => {
           </button>
         </div>
 
+        <!-- 8. LIMITAÇÕES DO RELATÓRIO -->
+        <div class="relatorio-secao">
+          <h3>8. Limitações do Relatório</h3>
+          <div class="card">
+            <ul style="padding-left:var(--s5);display:flex;flex-direction:column;gap:var(--s2);font-size:var(--txt-sm)">
+              <li>O COPSOQ-III é um instrumento de rastreamento de nível grupal. Os resultados <strong>não constituem diagnóstico médico ou psicológico individual</strong> e não substituem avaliação clínica por profissional de saúde habilitado.</li>
+              <li>A confiabilidade dos resultados está diretamente relacionada à <strong>taxa de participação</strong> e à sinceridade das respostas. Taxa de resposta inferior a 60% exige cautela na interpretação.</li>
+              <li>A Avaliação de Fatores Psicossociais — AEP é etapa <strong>preliminar</strong>. Sempre que os resultados indicarem risco relevante, é recomendada a realização de Análise Ergonômica do Trabalho — AET aprofundada.</li>
+              <li>O instrumento avalia percepção coletiva em um dado momento. Fatores conjunturais (sazonalidade, mudanças organizacionais recentes) podem influenciar os resultados.</li>
+              <li>Os dados são analisados por grupo/setor. Setores com menos de ${r.minRespostasSetor} respondentes não são apresentados individualmente, em conformidade com a LGPD — Lei nº 13.709/2018.</li>
+              <li>Este relatório foi gerado com apoio da plataforma <strong>ErgoGRO</strong> e deve ser revisado e assinado por profissional legalmente habilitado antes de ser utilizado como documento técnico oficial.</li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- 9. CONCLUSÃO E ASSINATURA -->
+        <div class="relatorio-secao">
+          <h3>9. Conclusão</h3>
+          <div class="card">
+            <!-- Tela: instrução -->
+            <p class="nao-imprimir" style="font-size:var(--txt-sm);color:var(--texto-sec);margin-bottom:var(--s3)">
+              A conclusão técnica é preenchida na seção <strong>7 · Análise Técnica</strong> acima e aparecerá aqui na versão impressa.
+            </p>
+            <!-- Impressão: texto da conclusão -->
+            <div class="so-imprimir">
+              ${it.conclusao
+                ? `<p style="font-size:9pt;line-height:1.6;margin-bottom:8pt">${it.conclusao}</p>`
+                : `<p style="font-size:9pt;color:#555;font-style:italic">Conclusão técnica não preenchida.</p>`
+              }
+              ${it.necessitaAET ? `
+                <div style="border:1px solid #1a3c6b;background:#e8f0fb;padding:6pt 10pt;border-radius:3pt;margin-top:6pt;font-size:9pt">
+                  <strong>⚠ Indica necessidade de Análise Ergonômica do Trabalho (AET)</strong>
+                  ${it.justificativaAET ? `<br><span style="font-size:8pt">${it.justificativaAET}</span>` : ''}
+                </div>
+              ` : ''}
+            </div>
+          </div>
+
+          <!-- Bloco de assinatura — visível apenas na impressão -->
+          <div class="so-imprimir" style="margin-top:16pt">
+            <table style="width:100%;border-collapse:collapse;font-size:9pt">
+              <tr>
+                <td style="width:50%;padding:0 12pt 0 0;border:none;vertical-align:top">
+                  <div style="border-top:1px solid #000;padding-top:4pt;text-align:center">
+                    <div style="font-weight:700">${_responsavel || '____________________________'}</div>
+                    ${_registro ? `<div style="font-size:8pt;color:#444">${_registro}</div>` : ''}
+                    <div style="font-size:8pt;color:#555;margin-top:2pt">Responsável Técnico</div>
+                  </div>
+                </td>
+                <td style="width:50%;padding:0 0 0 12pt;border:none;vertical-align:top">
+                  <div style="border-top:1px solid #000;padding-top:4pt;text-align:center">
+                    <div style="font-weight:700">${_dataEmissao}</div>
+                    <div style="font-size:8pt;color:#555;margin-top:2pt">Data de Emissão</div>
+                  </div>
+                </td>
+              </tr>
+            </table>
+            <div style="text-align:center;font-size:8pt;color:#888;margin-top:10pt;border-top:1px solid #eee;padding-top:6pt">
+              ENGENHALVES — Centro de Engenharia &amp; Segurança LTDA<br>
+              Documento técnico de uso exclusivo do cliente · ${_nrLaudo}
+            </div>
+          </div>
+        </div>
+
         <!-- Rodapé tela / impressão -->
-        <div style="text-align:center;padding:var(--s6) 0;color:var(--texto-sec);font-size:var(--txt-xs);border-top:1px solid var(--borda);margin-top:var(--s4)">
+        <div class="nao-imprimir" style="text-align:center;padding:var(--s6) 0;color:var(--texto-sec);font-size:var(--txt-xs);border-top:1px solid var(--borda);margin-top:var(--s4)">
           ErgoGRO · Consulta sobre Organização do Trabalho e Fatores Psicossociais<br>
           Instrumento: COPSOQ-III Versão Curta (Kristensen et al., 2019) · NR-01 / NR-17<br>
           Documento técnico — não substitui avaliação clínica individual<br>
