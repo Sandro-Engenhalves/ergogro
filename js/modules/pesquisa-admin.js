@@ -1360,7 +1360,7 @@ const ModuloPesquisaAdmin = (() => {
 
           <!-- 1. Contexto -->
           <div class="card">
-            <div class="card-titulo" style="margin-bottom:var(--s3)">1. Contexto da Avaliação</div>
+            <div class="card-titulo" style="margin-bottom:var(--s3)">7.1 Contexto da Avaliação</div>
             <!-- Tela: todos os radios -->
             <div class="nao-imprimir" style="display:flex;flex-direction:column;gap:var(--s2)">
               ${CONTEXTOS.map(ctx => `
@@ -1388,7 +1388,7 @@ const ModuloPesquisaAdmin = (() => {
           <!-- 2. Interpretação (auto-gerada) -->
           <div class="card" style="margin-top:var(--s4)">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--s3)">
-              <div class="card-titulo">2. Interpretação Técnica Geral</div>
+              <div class="card-titulo">7.2 Interpretação Técnica Geral</div>
               <button class="btn btn-secundario nao-imprimir" style="font-size:var(--txt-xs);padding:4px 10px"
                 onclick="ModuloPesquisaAdmin.gerarInterpretacao()">
                 ↺ Gerar automático
@@ -1402,7 +1402,7 @@ const ModuloPesquisaAdmin = (() => {
 
           <!-- 3. Fatores de risco -->
           <div class="card" style="margin-top:var(--s4)">
-            <div class="card-titulo" style="margin-bottom:var(--s3)">3. Fatores de Risco Psicossocial Identificados</div>
+            <div class="card-titulo" style="margin-bottom:var(--s3)">7.3 Fatores de Risco Psicossocial Identificados</div>
             <!-- Tela: checklist -->
             <p class="nao-imprimir" style="font-size:var(--txt-xs);color:var(--texto-sec);margin-bottom:var(--s3)">
               Marcados automaticamente conforme resultado. Edite conforme sua análise.
@@ -1440,7 +1440,7 @@ const ModuloPesquisaAdmin = (() => {
 
           <!-- 4. Recomendações -->
           <div class="card" style="margin-top:var(--s4)">
-            <div class="card-titulo" style="margin-bottom:var(--s3)">4. Recomendações Técnicas</div>
+            <div class="card-titulo" style="margin-bottom:var(--s3)">7.4 Recomendações Técnicas</div>
             <!-- Tela: todos os checkboxes -->
             <p class="nao-imprimir" style="font-size:var(--txt-xs);color:var(--texto-sec);margin-bottom:var(--s3)">
               Selecione as recomendações aplicáveis. Agrupadas por dimensão.
@@ -1492,7 +1492,7 @@ const ModuloPesquisaAdmin = (() => {
 
           <!-- 5. Conclusão (texto livre) -->
           <div class="card" style="margin-top:var(--s4)">
-            <div class="card-titulo" style="margin-bottom:var(--s3)">5. Conclusão Técnica</div>
+            <div class="card-titulo" style="margin-bottom:var(--s3)">7.5 Conclusão Técnica</div>
             <textarea id="ps-it-conclusao" class="campo-tecnico" rows="4"
               placeholder="Conclusão técnica formal do profissional habilitado..."
               oninput="ModuloPesquisaAdmin.agendarAutoSave()"
