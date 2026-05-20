@@ -1012,24 +1012,29 @@ const ModuloPesquisaAdmin = (() => {
           ENGENHALVES — Engenharia de Segurança e Saúde do Trabalho
         </div>
 
-        <!-- Corpo: logo na metade superior, info na inferior -->
+        <!-- Corpo: logo → título → espaçador → tabela junto ao rodapé -->
         <div class="rpt-capa-corpo">
 
-          <!-- Seção logo — centralizada verticalmente na metade superior -->
+          <!-- Logo: centralizada na metade superior -->
           <div style="flex:1;display:flex;align-items:center;justify-content:center">
             <img src="Engenhalves/Engenhalves.png" alt="ENGENHALVES"
                  style="height:24mm;width:auto;max-width:130mm">
           </div>
 
-          <!-- Seção título + tabela — metade inferior -->
-          <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding-top:10mm">
-          <div class="rpt-capa-titulo">Avaliação de Fatores Psicossociais</div>
-          <div class="rpt-capa-subtitulo">
-            Análise de Riscos Psicossociais no Trabalho &mdash; COPSOQ-III &middot; NR-01 &middot; NR-17
+          <!-- Título e subtítulo: centro da página -->
+          <div style="text-align:center">
+            <div class="rpt-capa-titulo">Avaliação de Fatores Psicossociais</div>
+            <div class="rpt-capa-subtitulo">
+              Análise de Riscos Psicossociais no Trabalho &mdash; COPSOQ-III &middot; NR-01 &middot; NR-17
+            </div>
+            <div class="rpt-capa-linha"></div>
           </div>
-          <div class="rpt-capa-linha"></div>
 
-          <table class="rpt-capa-tabela">
+          <!-- Espaçador empurra a tabela para o fundo -->
+          <div style="flex:1"></div>
+
+          <!-- Tabela de identificação: próxima ao rodapé -->
+          <table class="rpt-capa-tabela" style="margin-bottom:8mm">
             <tr>
               <td class="rpt-capa-td-label">Projeto</td>
               <td>${c.nome || '—'}</td>
@@ -1051,7 +1056,6 @@ const ModuloPesquisaAdmin = (() => {
               <td>${_registro || '—'}</td>
             </tr>
           </table>
-          </div><!-- fim seção título -->
 
         </div>
 
