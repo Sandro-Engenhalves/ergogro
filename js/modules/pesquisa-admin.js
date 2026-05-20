@@ -926,11 +926,12 @@ const ModuloPesquisaAdmin = (() => {
 
           /* ── Cards e badges ─────────────────────── */
           .card {
-            border: 1px solid #ccc !important;
+            border: none !important;
+            border-bottom: 1px solid #e8e8e8 !important;
             background: #fff !important;
             border-radius: 0 !important;
-            padding: 8pt !important;
-            margin-bottom: 6pt !important;
+            padding: 6pt 0 !important;
+            margin-bottom: 8pt !important;
             color: #000 !important;
           }
           .badge { border: 1px solid #ccc !important; font-size: 7pt !important; padding: 1pt 4pt !important; }
