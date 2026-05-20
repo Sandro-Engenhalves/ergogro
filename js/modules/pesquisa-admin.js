@@ -660,7 +660,7 @@ const ModuloPesquisaAdmin = (() => {
     const protetores = r.consolidado.filter(d => d.nivel === 'favoravel').map(d => d.nome);
 
     /* Variáveis do rodapé e capa */
-    const _nrLaudo     = `PS-${(c.empresaNome||'ERG').replace(/\s+/g,'').slice(0,4).toUpperCase()}-${new Date().getFullYear()}`;
+    const _nrLaudo     = `AFP-${(c.empresaNome||'ERG').replace(/\s+/g,'').slice(0,4).toUpperCase()}-${new Date().getFullYear()}`;
     const _dataEmissao = _fd(r.geradoEm);
     const _responsavel = it.responsavel || proj?.responsavelTecnico || '';
     const _registro    = it.registro    || proj?.registroProfissional || '';
@@ -690,6 +690,12 @@ const ModuloPesquisaAdmin = (() => {
           /* Configuração da página A4 — margens reservam espaço para header/footer em toda página */
           @page { size: A4 portrait; margin: 18mm 12mm 14mm; }
           @page :first { margin: 0 12mm; }
+
+          /* Forçar impressão de cores e backgrounds (Chrome não imprime por padrão) */
+          * {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
 
           /* Oculta elementos de tela */
           #app-header, #nav-principal, .subnav-abas,
