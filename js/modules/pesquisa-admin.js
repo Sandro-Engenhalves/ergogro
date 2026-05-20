@@ -1015,7 +1015,7 @@ const ModuloPesquisaAdmin = (() => {
       <div class="rpt-capa">
         <!-- Barra superior azul -->
         <div class="rpt-capa-barra-topo">
-          ENGENHALVES — Engenharia de Segurança e Saúde do Trabalho
+          ENGENHALVES — Centro de Engenharia e Segurança LTDA
         </div>
 
         <!-- Corpo: logo → título → espaçador → tabela junto ao rodapé -->
