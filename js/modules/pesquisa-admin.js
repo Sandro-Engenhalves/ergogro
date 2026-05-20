@@ -1,0 +1,965 @@
+/* ============================================================
+   ErgoGRO — Módulo Admin: Pesquisa Psicossocial
+   Gerencia campanhas de pesquisa dentro de um ProjetoLaudo.
+
+   Seções:
+   - campanhas   : lista de campanhas do projeto
+   - criar       : formulário de nova campanha
+   - participantes: importar lista de CPFs
+   - monitor     : progresso em tempo real
+   - relatorio   : relatório anônimo consolidado + por setor
+   ============================================================ */
+
+const ModuloPesquisaAdmin = (() => {
+
+  let _secaoAtual      = 'campanhas';
+  let _campanhaAberta  = null; /* campanha selecionada */
+  let _monitorUnsubscribe = null;
+
+  const SECOES = [
+    { id: 'campanhas',     icone: '📋', label: 'Campanhas'    },
+    { id: 'criar',         icone: '➕', label: 'Nova'         },
+    { id: 'participantes', icone: '👥', label: 'Participantes' },
+    { id: 'monitor',       icone: '📊', label: 'Progresso'    },
+    { id: 'relatorio',     icone: '📄', label: 'Relatório'    },
+  ];
+
+  const NIVEL_L = {
+    favoravel:     { t: 'Favorável',     cls: 'badge-sucesso', barra: '#3fb950' },
+    intermediario: { t: 'Intermediário', cls: 'badge-aviso',   barra: '#d29922' },
+    desfavoravel:  { t: 'Desfavorável',  cls: 'badge-alto',    barra: '#f85149' },
+    sem_dados:     { t: 'Sem dados',     cls: 'badge-na',      barra: '#8b949e' },
+  };
+
+  const _fd = iso => {
+    if (!iso) return '';
+    try { const [a,m,d] = iso.slice(0,10).split('-'); return `${d}/${m}/${a}`; }
+    catch { return iso; }
+  };
+
+  /* ── Renderiza o módulo de pesquisas ─────────────────────── */
+  function renderizar() {
+    _secaoAtual = 'campanhas';
+    const el = document.getElementById('projeto-conteudo');
+    if (!el) return;
+
+    /* Verifica se Firebase está configurado */
+    if (!firebaseConfigurado()) {
+      el.innerHTML = _htmlFirebaseNaoConfigurado();
+      return;
+    }
+
+    _renderizarShell();
+    _renderizarConteudo('campanhas');
+  }
+
+  function _renderizarShell() {
+    const el = document.getElementById('projeto-conteudo');
+    const abasHTML = SECOES.map(s => `
+      <button class="aba-bloco ${s.id === _secaoAtual ? 'ativa' : ''}"
+              data-sec-ps="${s.id}"
+              onclick="ModuloPesquisaAdmin.trocarSecao('${s.id}')">
+        <span>${s.icone}</span><span>${s.label}</span>
+      </button>
+    `).join('');
+
+    el.innerHTML = `
+      <nav class="subnav-abas" id="subnav-pesquisa" style="overflow-x:auto;-webkit-overflow-scrolling:touch">${abasHTML}</nav>
+      <div id="ps-admin-conteudo"></div>
+    `;
+  }
+
+  function trocarSecao(secao) {
+    if (_monitorUnsubscribe) { _monitorUnsubscribe(); _monitorUnsubscribe = null; }
+    _secaoAtual = secao;
+    document.querySelectorAll('#subnav-pesquisa [data-sec-ps]').forEach(b => {
+      b.classList.toggle('ativa', b.dataset.secPs === secao);
+    });
+    _renderizarConteudo(secao);
+    window.scrollTo({ top: 0 });
+  }
+
+  function _renderizarConteudo(secao) {
+    const el = document.getElementById('ps-admin-conteudo');
+    if (!el) return;
+    if      (secao === 'campanhas')     _listarCampanhas(el);
+    else if (secao === 'criar')         el.innerHTML = _htmlFormCriar();
+    else if (secao === 'participantes') {
+      el.innerHTML = _campanhaAberta ? _htmlParticipantes() : _htmlSelecioneCampanha();
+      /* Gera QR automaticamente se campanha já tem link disponível */
+      if (_campanhaAberta?.id) setTimeout(_gerarQRCode, 50);
+    }
+    else if (secao === 'monitor')       _campanhaAberta ? _iniciarMonitor(el) : (el.innerHTML = _htmlSelecioneCampanha());
+    else if (secao === 'relatorio')     _campanhaAberta ? _gerarRelatorio(el) : (el.innerHTML = _htmlSelecioneCampanha());
+  }
+
+  /* ══════════════════════════════════════════════════════════
+     SEÇÃO: LISTA DE CAMPANHAS
+  ══════════════════════════════════════════════════════════ */
+
+  async function _listarCampanhas(el) {
+    const proj = App.obterProjetoAtual();
+    if (!proj) return;
+
+    el.innerHTML = '<div class="container"><div class="loading-inline">Carregando campanhas...</div></div>';
+
+    try {
+      const campanhas = await listarCampanhas(proj.id);
+
+      const STATUS_L = { ativa: '🟢 Ativa', encerrada: '🔴 Encerrada', rascunho: '⚫ Rascunho' };
+
+      const listaHTML = campanhas.length === 0
+        ? `<div class="empty-state">
+             <div class="empty-icon">📋</div>
+             <p><strong>Nenhuma campanha criada.</strong></p>
+             <p style="font-size:var(--txt-sm)">Crie a primeira campanha de pesquisa psicossocial para este projeto.</p>
+           </div>`
+        : campanhas.map(c => `
+            <div class="item-projeto" style="cursor:pointer" onclick="ModuloPesquisaAdmin.abrirCampanha('${c.id}')">
+              <div class="item-projeto-icon">📋</div>
+              <div class="item-info">
+                <div class="item-empresa">${c.nome}</div>
+                <div class="item-meta">
+                  <span>${STATUS_L[c.status] || c.status}</span>
+                  ${c.prazo ? `<span>Prazo: ${_fd(c.prazo)}</span>` : ''}
+                  <span>${c.totalRespostas || 0} resposta(s)</span>
+                  ${c.totalAutorizados ? `<span>${c.totalAutorizados} autorizado(s)</span>` : ''}
+                </div>
+              </div>
+              <div onclick="event.stopPropagation()">
+                ${c.status === 'ativa'
+                  ? `<button class="btn-icone" title="Encerrar" onclick="ModuloPesquisaAdmin.confirmarEncerramento('${c.id}')">🔒</button>`
+                  : `<button class="btn-icone" title="Reativar" onclick="ModuloPesquisaAdmin.confirmarReativacao('${c.id}')">🔓</button>`}
+              </div>
+            </div>
+          `).join('');
+
+      el.innerHTML = `
+        <div class="container">
+          <div class="aviso-tecnico info" style="margin-top:var(--s4)">
+            <span>ℹ️</span>
+            <span>Esta pesquisa é apresentada aos trabalhadores como <strong>"Consulta sobre organização do trabalho e fatores psicossociais"</strong> — nunca como avaliação de saúde mental.</span>
+          </div>
+
+          <button class="btn-bloco" style="margin:var(--s4) 0" onclick="ModuloPesquisaAdmin.trocarSecao('criar')">
+            + Nova Campanha de Pesquisa
+          </button>
+
+          <div style="font-weight:600;margin-bottom:var(--s3)">Campanhas (${campanhas.length})</div>
+          ${listaHTML}
+          <div style="height:var(--s6)"></div>
+        </div>
+      `;
+    } catch (e) {
+      el.innerHTML = `<div class="container"><div class="aviso-tecnico aviso" style="margin-top:var(--s4)"><span>⚠️</span><span>Erro ao carregar campanhas: ${e.message}</span></div></div>`;
+    }
+  }
+
+  /* ══════════════════════════════════════════════════════════
+     SEÇÃO: CRIAR CAMPANHA
+  ══════════════════════════════════════════════════════════ */
+
+  function _htmlFormCriar() {
+    const proj = App.obterProjetoAtual();
+    const emp  = proj ? Storage.buscarEmpresa(proj.empresaId) : null;
+    const hoje = new Date().toISOString().slice(0, 10);
+    const daqui30 = new Date(Date.now() + 30 * 864e5).toISOString().slice(0, 10);
+
+    return `
+      <div class="container">
+        <div style="font-size:var(--txt-xl);font-weight:700;margin:var(--s4) 0 var(--s5)">
+          Nova Campanha de Pesquisa
+        </div>
+
+        <div class="card">
+          <div class="grupo-campo">
+            <label for="ps-nome-camp">Nome da Campanha</label>
+            <input type="text" id="ps-nome-camp"
+              placeholder="Ex.: Pesquisa Psicossocial 2026 — ${emp?.nome || 'Empresa'}"
+              value="Pesquisa Psicossocial 2026${emp ? ' — ' + emp.nome : ''}">
+          </div>
+
+          <div class="linha-campos">
+            <div class="grupo-campo">
+              <label for="ps-prazo">Prazo para Resposta</label>
+              <input type="date" id="ps-prazo" value="${daqui30}" min="${hoje}">
+            </div>
+            <div class="grupo-campo">
+              <label for="ps-min-setor">Mín. respostas por setor</label>
+              <input type="number" id="ps-min-setor" value="5" min="3" max="20">
+              <div class="campo-descricao">Setores com menos respostas não aparecem individualmente (LGPD).</div>
+            </div>
+          </div>
+
+          <div class="grupo-campo">
+            <label for="ps-descricao">Descrição / Contexto (opcional)</label>
+            <textarea id="ps-descricao" rows="2"
+              placeholder="Contexto da avaliação para o relatório técnico..."></textarea>
+          </div>
+        </div>
+
+        <div class="aviso-tecnico info" style="margin-bottom:var(--s4)">
+          <span>📊</span>
+          <span>A campanha usará o banco padrão de <strong>${PerguntasPsicossociais.totalPerguntas()} perguntas</strong>
+          em <strong>${PerguntasPsicossociais.DIMENSOES.length} dimensões</strong> (NR-01/NR-17).</span>
+        </div>
+
+        <button class="btn-bloco" onclick="ModuloPesquisaAdmin.salvarCampanha()">
+          ✅ Criar Campanha
+        </button>
+        <div style="height:var(--s6)"></div>
+      </div>
+    `;
+  }
+
+  async function salvarCampanha() {
+    const proj = App.obterProjetoAtual();
+    const emp  = proj ? Storage.buscarEmpresa(proj.empresaId) : null;
+    if (!proj) return;
+
+    const nome    = document.getElementById('ps-nome-camp')?.value?.trim();
+    const prazo   = document.getElementById('ps-prazo')?.value;
+    const minSet  = parseInt(document.getElementById('ps-min-setor')?.value || '5');
+    const desc    = document.getElementById('ps-descricao')?.value?.trim();
+
+    if (!nome) { App.mostrarToast('Informe o nome da campanha', 'erro'); return; }
+
+    try {
+      const id = await criarCampanha({
+        projetoId:        proj.id,
+        empresaId:        proj.empresaId,
+        empresaNome:      emp?.nome || '',
+        nome,
+        prazo:            prazo || '',
+        descricao:        desc || '',
+        minRespostasSetor: minSet,
+      });
+
+      App.mostrarToast('Campanha criada! Agora importe a lista de CPFs.', 'sucesso');
+      _campanhaAberta = { id, nome, projetoId: proj.id, status: 'ativa', totalRespostas: 0, minRespostasSetor: minSet };
+      trocarSecao('participantes');
+    } catch (e) {
+      App.mostrarToast('Erro ao criar campanha: ' + e.message, 'erro');
+    }
+  }
+
+  /* ══════════════════════════════════════════════════════════
+     SEÇÃO: PARTICIPANTES (importar CPFs)
+  ══════════════════════════════════════════════════════════ */
+
+  function _htmlParticipantes() {
+    const c = _campanhaAberta;
+    return `
+      <div class="container">
+        <div style="font-size:var(--txt-md);font-weight:700;margin:var(--s4) 0 var(--s2)">
+          👥 Participantes — ${c?.nome || 'Campanha'}
+        </div>
+
+        ${c?.totalAutorizados ? `
+          <div class="aviso-box" style="background:var(--superficie);border-color:var(--sucesso);margin-bottom:var(--s4)">
+            <span>✅</span>
+            <span><strong>${c.totalAutorizados}</strong> CPFs já importados.</span>
+          </div>
+        ` : ''}
+
+        <div class="card">
+          <div class="card-titulo" style="margin-bottom:var(--s3)">Importar lista de CPFs</div>
+
+          <div class="aviso-tecnico info" style="margin-bottom:var(--s4)">
+            <span>ℹ️</span>
+            <span>
+              Cole abaixo um CPF por linha. Formato aceito:<br>
+              <code style="font-size:var(--txt-xs)">CPF</code> ou <code style="font-size:var(--txt-xs)">CPF;SETOR</code><br>
+              Exemplo: <code style="font-size:var(--txt-xs)">12345678901;Produção</code><br>
+              Os CPFs são convertidos em código anônimo antes de salvar (LGPD).
+            </span>
+          </div>
+
+          <div class="grupo-campo">
+            <label for="ps-lista-cpf">Lista de CPFs</label>
+            <textarea id="ps-lista-cpf" rows="10"
+              placeholder="12345678901;Produção&#10;98765432100;Logística&#10;11122233344;Administrativo&#10;..."
+              style="font-family:monospace;font-size:13px"></textarea>
+          </div>
+
+          <button class="btn btn-primario" style="width:100%" onclick="ModuloPesquisaAdmin.executarImportacaoCPFs()">
+            📥 Importar e anonimizar CPFs
+          </button>
+        </div>
+
+        <div class="card" style="margin-top:var(--s4)">
+          <div class="card-titulo" style="margin-bottom:var(--s3)">Link da Pesquisa</div>
+          <p style="font-size:var(--txt-sm);color:var(--texto-sec);margin-bottom:var(--s3)">
+            Compartilhe este link com os trabalhadores. Eles acessam pelo próprio celular.
+          </p>
+          ${_htmlLinkCampanha()}
+        </div>
+
+        <div style="height:var(--s6)"></div>
+      </div>
+    `;
+  }
+
+  function _htmlLinkCampanha() {
+    const c   = _campanhaAberta;
+    if (!c?.id) return '';
+
+    /* URL base configurável — padrão: mesma origem do app */
+    const base = window.PS_BASE_URL || window.location.origin + window.location.pathname.replace('index.html', '');
+    const url  = `${base}pesquisa.html?c=${c.id}`;
+    const urlEnc = encodeURIComponent(url);
+
+    return `
+      <div class="grupo-campo">
+        <input type="text" id="ps-link-url" value="${url}" readonly
+          style="font-size:12px;background:var(--superficie-alt)">
+        <button class="btn btn-secundario" style="margin-top:var(--s2)" onclick="ModuloPesquisaAdmin.copiarLink()">
+          📋 Copiar link
+        </button>
+      </div>
+
+      <!-- QR Code -->
+      <div style="margin-top:var(--s4);text-align:center">
+        <div style="font-size:var(--txt-sm);color:var(--texto-sec);margin-bottom:var(--s3)">QR Code para compartilhar:</div>
+        <canvas id="ps-qrcode-canvas" style="border-radius:8px;background:#fff;padding:8px"></canvas>
+        <div style="margin-top:var(--s2)">
+          <button class="btn btn-secundario" onclick="ModuloPesquisaAdmin.baixarQR()">
+            ⬇️ Salvar QR Code
+          </button>
+        </div>
+      </div>
+    `;
+  }
+
+  async function executarImportacaoCPFs() {
+    if (!_campanhaAberta?.id) { App.mostrarToast('Selecione uma campanha', 'erro'); return; }
+
+    const textarea = document.getElementById('ps-lista-cpf');
+    if (!textarea?.value?.trim()) { App.mostrarToast('Cole a lista de CPFs', 'erro'); return; }
+
+    const linhas = textarea.value.split('\n').filter(l => l.trim());
+    const btn    = document.querySelector('#ps-admin-conteudo .btn.btn-primario');
+    if (btn) { btn.disabled = true; btn.textContent = '⏳ Processando...'; }
+
+    try {
+      /* Chama a função global do firebase-pesquisa.js */
+      const resultado = await importarCPFs(_campanhaAberta.id, linhas);
+      _campanhaAberta.totalAutorizados = resultado.importados;
+
+      App.mostrarToast(
+        `${resultado.importados} CPF(s) importados.${resultado.erros.length ? ' ' + resultado.erros.length + ' inválido(s) ignorados.' : ''}`,
+        'sucesso'
+      );
+
+      /* Re-renderiza a seção para mostrar o link / QR */
+      const el = document.getElementById('ps-admin-conteudo');
+      if (el) el.innerHTML = _htmlParticipantes();
+      _gerarQRCode();
+    } catch (e) {
+      App.mostrarToast('Erro: ' + e.message, 'erro');
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = '📥 Importar e anonimizar CPFs'; }
+    }
+  }
+
+  function _gerarQRCode() {
+    const canvas = document.getElementById('ps-qrcode-canvas');
+    if (!canvas || !_campanhaAberta?.id) return;
+
+    const base = window.PS_BASE_URL || window.location.origin + window.location.pathname.replace('index.html', '');
+    const url  = `${base}pesquisa.html?c=${_campanhaAberta.id}`;
+
+    /* Usa a API pública do QR Server para gerar o QR sem biblioteca */
+    const img = document.createElement('img');
+    img.src    = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(url)}&bgcolor=ffffff&color=000000&margin=10`;
+    img.alt    = 'QR Code da pesquisa';
+    img.style  = 'width:200px;height:200px;border-radius:8px';
+    img.id     = 'ps-qrcode-img';
+
+    const parent = canvas.parentNode;
+    parent.replaceChild(img, canvas);
+  }
+
+  function copiarLink() {
+    const input = document.getElementById('ps-link-url');
+    if (!input) return;
+    navigator.clipboard.writeText(input.value)
+      .then(() => App.mostrarToast('Link copiado!', 'sucesso'))
+      .catch(() => {
+        input.select();
+        document.execCommand('copy');
+        App.mostrarToast('Link copiado!', 'sucesso');
+      });
+  }
+
+  function baixarQR() {
+    const img = document.getElementById('ps-qrcode-img');
+    if (!img) return;
+    const a   = document.createElement('a');
+    a.href     = img.src;
+    a.download = `qr-pesquisa-${_campanhaAberta?.id?.slice(0,8) || 'ergogro'}.png`;
+    a.target   = '_blank';
+    a.click();
+  }
+
+  /* ══════════════════════════════════════════════════════════
+     SEÇÃO: MONITORAMENTO
+  ══════════════════════════════════════════════════════════ */
+
+  function _iniciarMonitor(el) {
+    const c = _campanhaAberta;
+    if (!c?.id) return;
+
+    el.innerHTML = `
+      <div class="container">
+        <div style="font-size:var(--txt-md);font-weight:700;margin:var(--s4) 0 var(--s2)">
+          📊 Progresso — ${c.nome}
+        </div>
+        <div id="ps-monitor-conteudo">
+          <div class="loading-inline">Aguardando dados...</div>
+        </div>
+        <div style="height:var(--s6)"></div>
+      </div>
+    `;
+
+    /* Escuta mudanças em tempo real */
+    _monitorUnsubscribe = monitorarProgresso(c.id, (campanha) => {
+      const m = document.getElementById('ps-monitor-conteudo');
+      if (!m) return;
+
+      const resp  = campanha.totalRespostas   || 0;
+      const total = campanha.totalAutorizados || 0;
+      const pct   = total > 0 ? Math.round((resp / total) * 100) : 0;
+      const prazo = campanha.prazo ? _fd(campanha.prazo) : '—';
+      const STATUS = { ativa: '🟢 Ativa', encerrada: '🔴 Encerrada', rascunho: '⚫ Rascunho' };
+
+      m.innerHTML = `
+        <div class="card" style="margin-bottom:var(--s4)">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--s3);margin-bottom:var(--s4)">
+            <div style="text-align:center">
+              <div style="font-size:36px;font-weight:700;color:var(--primaria)">${resp}</div>
+              <div style="font-size:var(--txt-xs);color:var(--texto-sec)">Respostas recebidas</div>
+            </div>
+            <div style="text-align:center">
+              <div style="font-size:36px;font-weight:700">${total || '—'}</div>
+              <div style="font-size:var(--txt-xs);color:var(--texto-sec)">Participantes autorizados</div>
+            </div>
+          </div>
+
+          ${total > 0 ? `
+            <div style="margin-bottom:var(--s2);font-size:var(--txt-sm);color:var(--texto-sec)">
+              Taxa de participação: <strong>${pct}%</strong>
+            </div>
+            <div style="height:12px;background:var(--superficie-alt);border-radius:999px;overflow:hidden">
+              <div style="height:100%;width:${pct}%;background:${pct >= 70 ? 'var(--sucesso)' : pct >= 40 ? 'var(--aviso)' : 'var(--primaria)'};border-radius:999px;transition:width .4s"></div>
+            </div>
+          ` : ''}
+        </div>
+
+        <div class="card">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--s3)">
+            <span style="font-size:var(--txt-sm)">Status: <strong>${STATUS[campanha.status] || campanha.status}</strong></span>
+            <span style="font-size:var(--txt-sm);color:var(--texto-sec)">Prazo: ${prazo}</span>
+          </div>
+
+          <div class="aviso-tecnico info">
+            <span>🔒</span>
+            <span>Respostas individuais nunca são exibidas. Apenas o consolidado anônimo está disponível.</span>
+          </div>
+
+          ${campanha.status === 'ativa' ? `
+            <button class="btn btn-secundario" style="width:100%;margin-top:var(--s3)"
+                    onclick="ModuloPesquisaAdmin.confirmarEncerramento('${campanha.id}')">
+              🔒 Encerrar coleta
+            </button>
+          ` : `
+            <button class="btn btn-secundario" style="width:100%;margin-top:var(--s3)"
+                    onclick="ModuloPesquisaAdmin.confirmarReativacao('${campanha.id}')">
+              🔓 Reabrir coleta
+            </button>
+          `}
+        </div>
+
+        ${resp > 0 ? `
+          <button class="btn btn-primario" style="width:100%;margin-top:var(--s4)"
+                  onclick="ModuloPesquisaAdmin.trocarSecao('relatorio')">
+            📄 Ver Relatório
+          </button>
+        ` : `
+          <div class="aviso-tecnico" style="margin-top:var(--s4)">
+            <span>⏳</span>
+            <span>Aguardando respostas. Esta página atualiza automaticamente.</span>
+          </div>
+        `}
+      `;
+    });
+  }
+
+  /* ══════════════════════════════════════════════════════════
+     SEÇÃO: RELATÓRIO ANÔNIMO
+  ══════════════════════════════════════════════════════════ */
+
+  async function _gerarRelatorio(el) {
+    const c = _campanhaAberta;
+    if (!c?.id) return;
+
+    el.innerHTML = `
+      <div class="container">
+        <div class="loading-inline" style="padding:var(--s6)">Gerando relatório...</div>
+      </div>
+    `;
+
+    try {
+      /* Carrega dados frescos — inclui interpretacaoTecnica salva */
+      const [relatorio, campanha] = await Promise.all([
+        calcularRelatorio(c.id, c.minRespostasSetor || 5),
+        buscarCampanha(c.id),
+      ]);
+      el.innerHTML = _htmlRelatorio(relatorio, campanha || c);
+    } catch (e) {
+      el.innerHTML = `
+        <div class="container">
+          <div class="aviso-tecnico aviso" style="margin-top:var(--s4)">
+            <span>⚠️</span>
+            <span>Erro ao gerar relatório: ${e.message}</span>
+          </div>
+        </div>
+      `;
+    }
+  }
+
+  function _htmlRelatorio(r, c) {
+    const SCORE_COR = score => score >= 67 ? 'var(--sucesso)' : score >= 34 ? 'var(--aviso)' : 'var(--perigo)';
+    const proj = App.obterProjetoAtual();
+    const it   = c.interpretacaoTecnica || {};
+
+    /* Pré-popula fatores críticos com dimensões desfavoráveis (somente na 1ª vez) */
+    const criticosDefault = it.fatoresCriticos != null ? it.fatoresCriticos
+      : r.consolidado.filter(d => d.nivel === 'desfavoravel').map(d => `• ${d.nome}`).join('\n');
+
+    /* Consolidado por dimensão */
+    const dimHTML = r.consolidado.map(d => {
+      const info = NIVEL_L[d.nivel];
+      const pct  = d.media ?? 0;
+      return `
+        <tr>
+          <td style="font-size:var(--txt-sm)">${d.nome}</td>
+          <td style="font-size:var(--txt-sm);color:var(--texto-sec)">${d.respondidas}/${d.totalPerguntas * (r.totalRespostas || 1)}</td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px">
+              <div style="flex:1;height:8px;background:var(--superficie-alt);border-radius:999px;overflow:hidden">
+                <div style="height:100%;width:${pct}%;background:${info.barra};border-radius:999px"></div>
+              </div>
+              <span style="font-size:var(--txt-xs);font-weight:700;min-width:28px">${d.media ?? '—'}</span>
+            </div>
+          </td>
+          <td><span class="badge ${info.cls}" style="font-size:11px">${info.t}</span></td>
+        </tr>
+      `;
+    }).join('');
+
+    /* Por setor */
+    const setorEntries = Object.entries(r.porSetor);
+    const setorHTML = setorEntries.length === 0
+      ? '<p style="color:var(--texto-sec);font-size:var(--txt-sm)">Nenhum setor com dados suficientes.</p>'
+      : setorEntries.map(([nome, dados]) => {
+          if (dados.insuficiente) {
+            return `
+              <div class="card" style="margin-bottom:var(--s3)">
+                <div style="font-weight:600;margin-bottom:var(--s2)">📍 ${nome}</div>
+                <div class="aviso-tecnico aviso" style="margin:0">
+                  <span>🔒</span>
+                  <span>${dados.total} resposta(s) — mínimo de ${dados.minimo} necessário para análise setorial. Dados incluídos no consolidado geral.</span>
+                </div>
+              </div>
+            `;
+          }
+
+          const dimSetorHTML = dados.dimensoes.map(d => {
+            const info = NIVEL_L[d.nivel];
+            const pct  = d.media ?? 0;
+            return `
+              <div style="display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid var(--borda)">
+                <span style="flex:1;font-size:var(--txt-sm)">${d.nome}</span>
+                <div style="width:80px;height:6px;background:var(--superficie-alt);border-radius:999px;overflow:hidden">
+                  <div style="height:100%;width:${pct}%;background:${info.barra};border-radius:999px"></div>
+                </div>
+                <span class="badge ${info.cls}" style="font-size:10px;min-width:80px;text-align:center">${info.t}</span>
+              </div>
+            `;
+          }).join('');
+
+          return `
+            <div class="card" style="margin-bottom:var(--s3)">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--s3)">
+                <div style="font-weight:600">📍 ${nome}</div>
+                <div style="display:flex;align-items:center;gap:8px">
+                  <span style="font-size:var(--txt-xs);color:var(--texto-sec)">${dados.total} resp.</span>
+                  ${dados.score != null ? `<span style="font-weight:700;color:${SCORE_COR(dados.score)}">${dados.score}/100</span>` : ''}
+                </div>
+              </div>
+              ${dimSetorHTML}
+            </div>
+          `;
+        }).join('');
+
+    /* Fatores críticos e protetores */
+    const criticos  = r.consolidado.filter(d => d.nivel === 'desfavoravel').map(d => d.nome);
+    const protetores = r.consolidado.filter(d => d.nivel === 'favoravel').map(d => d.nome);
+
+    return `
+      <div class="container">
+        <!-- Cabeçalho -->
+        <div style="margin:var(--s4) 0 var(--s5);text-align:center">
+          <div style="font-size:var(--txt-xs);color:var(--texto-sec);text-transform:uppercase;letter-spacing:.5px">
+            Avaliação de Fatores Psicossociais — NR-01 / NR-17
+          </div>
+          <div style="font-size:var(--txt-xl);font-weight:700">Relatório Técnico</div>
+          <div style="font-size:var(--txt-sm);color:var(--texto-sec)">${c.empresaNome || ''} · ${_fd(r.geradoEm)}</div>
+        </div>
+
+        <!-- Ações -->
+        <div style="display:flex;gap:var(--s3);flex-wrap:wrap;margin-bottom:var(--s5)">
+          <button class="btn btn-primario" onclick="window.print()">🖨️ Imprimir / PDF</button>
+          <button class="btn btn-secundario" onclick="ModuloPesquisaAdmin.trocarSecao('monitor')">📊 Monitoramento</button>
+        </div>
+
+        <!-- Aviso técnico -->
+        <div class="aviso-tecnico aviso" style="margin-bottom:var(--s5)">
+          <span>⚠️</span>
+          <span>Resultados referem-se ao <strong>grupo avaliado</strong>.
+          Não constituem diagnóstico médico ou psicológico individual.
+          Profissional habilitado é responsável pela interpretação.</span>
+        </div>
+
+        <!-- Indicadores de participação -->
+        <div class="relatorio-secao">
+          <h3>Participação</h3>
+          <div class="card">
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:var(--s3);text-align:center">
+              <div>
+                <div style="font-size:28px;font-weight:700;color:var(--primaria)">${r.totalRespostas}</div>
+                <div style="font-size:var(--txt-xs);color:var(--texto-sec)">Responderam</div>
+              </div>
+              <div>
+                <div style="font-size:28px;font-weight:700">${r.totalAutorizados || '—'}</div>
+                <div style="font-size:var(--txt-xs);color:var(--texto-sec)">Autorizados</div>
+              </div>
+              <div>
+                <div style="font-size:28px;font-weight:700;color:${r.taxaParticipacao >= 70 ? 'var(--sucesso)' : 'var(--aviso)'}">
+                  ${r.taxaParticipacao != null ? r.taxaParticipacao + '%' : '—'}
+                </div>
+                <div style="font-size:var(--txt-xs);color:var(--texto-sec)">Taxa de resposta</div>
+              </div>
+            </div>
+            ${r.scoreGeral != null ? `
+              <div style="margin-top:var(--s4);text-align:center">
+                <div style="font-size:var(--txt-sm);color:var(--texto-sec);margin-bottom:var(--s2)">Score Geral (0–100)</div>
+                <div style="font-size:48px;font-weight:700;color:${SCORE_COR(r.scoreGeral)}">${r.scoreGeral}</div>
+                <div class="badge ${NIVEL_L[r.scoreGeral >= 67 ? 'favoravel' : r.scoreGeral >= 34 ? 'intermediario' : 'desfavoravel'].cls}" style="margin-top:var(--s2)">
+                  ${NIVEL_L[r.scoreGeral >= 67 ? 'favoravel' : r.scoreGeral >= 34 ? 'intermediario' : 'desfavoravel'].t}
+                </div>
+              </div>
+            ` : ''}
+          </div>
+        </div>
+
+        <!-- Fatores críticos / protetores -->
+        ${criticos.length > 0 ? `
+          <div class="relatorio-secao">
+            <h3>Dimensões Críticas (Desfavoráveis)</h3>
+            <div class="card" style="background:var(--risco-alto-bg);border-color:var(--perigo)">
+              <ul style="padding-left:var(--s5);display:flex;flex-direction:column;gap:var(--s2)">
+                ${criticos.map(n => `<li style="font-size:var(--txt-sm)">${n}</li>`).join('')}
+              </ul>
+            </div>
+          </div>
+        ` : ''}
+
+        ${protetores.length > 0 ? `
+          <div class="relatorio-secao">
+            <h3>Dimensões Protetoras (Favoráveis)</h3>
+            <div class="card" style="background:var(--risco-baixo-bg);border-color:var(--sucesso)">
+              <ul style="padding-left:var(--s5);display:flex;flex-direction:column;gap:var(--s2)">
+                ${protetores.map(n => `<li style="font-size:var(--txt-sm)">${n}</li>`).join('')}
+              </ul>
+            </div>
+          </div>
+        ` : ''}
+
+        <!-- Consolidado geral -->
+        <div class="relatorio-secao">
+          <h3>Resultado Consolidado por Dimensão</h3>
+          <div class="aviso-tecnico info" style="margin-bottom:var(--s3)">
+            <span>ℹ️</span>
+            <span>Escala 0–100. Favorável ≥ 67 · Intermediário 34–66 · Desfavorável ≤ 33.</span>
+          </div>
+          <div style="overflow-x:auto">
+            <table class="tabela-simples">
+              <thead>
+                <tr>
+                  <th>Dimensão</th>
+                  <th>Respostas</th>
+                  <th>Pontuação</th>
+                  <th>Classificação</th>
+                </tr>
+              </thead>
+              <tbody>${dimHTML}</tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Por setor -->
+        <div class="relatorio-secao">
+          <h3>Análise por Setor</h3>
+          <div class="aviso-tecnico info" style="margin-bottom:var(--s3)">
+            <span>🔒</span>
+            <span>Setores com menos de ${r.minRespostasSetor} respostas não são exibidos individualmente para proteger o anonimato (LGPD).</span>
+          </div>
+          ${setorHTML}
+        </div>
+
+        <!-- ══ ANÁLISE TÉCNICA DO PROFISSIONAL ══ -->
+        <div class="relatorio-secao">
+          <h3>
+            Análise Técnica — Profissional Responsável
+            <span id="ps-it-autosave" style="font-size:11px;color:var(--sucesso);font-weight:400;margin-left:8px"></span>
+          </h3>
+
+          <div class="card">
+            <div class="grupo-campo">
+              <label>Contexto da Avaliação</label>
+              <textarea id="ps-it-contexto" class="campo-tecnico" rows="3"
+                placeholder="Descreva o contexto organizacional e o objetivo da avaliação..."
+                oninput="ModuloPesquisaAdmin.agendarAutoSave()"
+              >${it.contexto || ''}</textarea>
+            </div>
+
+            <div class="grupo-campo">
+              <label>Interpretação Técnica Geral</label>
+              <textarea id="ps-it-interpretacao" class="campo-tecnico" rows="5"
+                placeholder="Análise técnica consolidada dos resultados do COPSOQ-III..."
+                oninput="ModuloPesquisaAdmin.agendarAutoSave()"
+              >${it.interpretacao || ''}</textarea>
+            </div>
+
+            <div class="grupo-campo">
+              <label>Fatores de Risco Psicossocial Identificados</label>
+              <textarea id="ps-it-criticos" class="campo-tecnico" rows="4"
+                placeholder="Dimensões desfavoráveis e seus impactos no grupo avaliado..."
+                oninput="ModuloPesquisaAdmin.agendarAutoSave()"
+              >${criticosDefault}</textarea>
+            </div>
+
+            <div class="grupo-campo">
+              <label>Recomendações Técnicas</label>
+              <textarea id="ps-it-recomendacoes" class="campo-tecnico" rows="5"
+                placeholder="Medidas preventivas e de controle recomendadas conforme NR-01/NR-17..."
+                oninput="ModuloPesquisaAdmin.agendarAutoSave()"
+              >${it.recomendacoes || ''}</textarea>
+            </div>
+
+            <div class="grupo-campo">
+              <label>Conclusão Técnica</label>
+              <textarea id="ps-it-conclusao" class="campo-tecnico" rows="3"
+                placeholder="Conclusão técnica formal do profissional habilitado..."
+                oninput="ModuloPesquisaAdmin.agendarAutoSave()"
+              >${it.conclusao || ''}</textarea>
+            </div>
+
+            <label class="check-item" style="cursor:pointer;margin:var(--s3) 0">
+              <input type="checkbox" id="ps-it-aet"
+                ${it.necessitaAET ? 'checked' : ''}
+                onchange="ModuloPesquisaAdmin.toggleAET();ModuloPesquisaAdmin.agendarAutoSave()">
+              <div class="check-box">✓</div>
+              <span>Indica necessidade de Análise Ergonômica do Trabalho (AET)</span>
+            </label>
+
+            <div id="ps-it-aet-div" style="${it.necessitaAET ? '' : 'display:none'}">
+              <div class="grupo-campo">
+                <label>Justificativa para indicação de AET</label>
+                <textarea id="ps-it-aet-just" class="campo-tecnico" rows="3"
+                  placeholder="Justifique tecnicamente a necessidade de AET..."
+                  oninput="ModuloPesquisaAdmin.agendarAutoSave()"
+                >${it.justificativaAET || ''}</textarea>
+              </div>
+            </div>
+          </div>
+
+          <!-- Assinatura -->
+          <div class="card" style="margin-top:var(--s4)">
+            <div class="card-titulo" style="margin-bottom:var(--s3)">Responsável Técnico</div>
+            <div class="linha-campos">
+              <div class="grupo-campo">
+                <label>Nome completo</label>
+                <input type="text" id="ps-it-responsavel" class="campo-tecnico"
+                  placeholder="Nome do profissional"
+                  oninput="ModuloPesquisaAdmin.agendarAutoSave()"
+                  value="${it.responsavel || proj?.responsavelTecnico || ''}">
+              </div>
+              <div class="grupo-campo">
+                <label>Registro profissional</label>
+                <input type="text" id="ps-it-registro" class="campo-tecnico"
+                  placeholder="CREA, CRQ, CFT..."
+                  oninput="ModuloPesquisaAdmin.agendarAutoSave()"
+                  value="${it.registro || proj?.registroProfissional || ''}">
+              </div>
+            </div>
+            <div class="grupo-campo">
+              <label>Data de emissão</label>
+              <input type="date" id="ps-it-data" class="campo-tecnico"
+                oninput="ModuloPesquisaAdmin.agendarAutoSave()"
+                value="${it.dataEmissao || new Date().toISOString().slice(0,10)}">
+            </div>
+          </div>
+
+          <!-- Botão salvar explícito (além do auto-save) -->
+          <button class="btn btn-primario nao-imprimir"
+            style="width:100%;margin:var(--s4) 0"
+            onclick="ModuloPesquisaAdmin.salvarInterpretacaoTecnica()">
+            💾 Salvar Análise Técnica
+          </button>
+        </div>
+
+        <!-- Rodapé do documento -->
+        <div style="text-align:center;padding:var(--s6) 0;color:var(--texto-sec);font-size:var(--txt-xs);border-top:1px solid var(--borda);margin-top:var(--s4)">
+          ErgoGRO · Consulta sobre Organização do Trabalho e Fatores Psicossociais<br>
+          Instrumento: COPSOQ-III Versão Curta (Kristensen et al., 2019) · NR-01 / NR-17<br>
+          Documento técnico — não substitui avaliação clínica individual<br>
+          Gerado em ${_fd(r.geradoEm)}
+        </div>
+      </div>
+    `;
+  }
+
+  /* ══════════════════════════════════════════════════════════
+     HELPERS
+  ══════════════════════════════════════════════════════════ */
+
+  function _htmlSelecioneCampanha() {
+    return `
+      <div class="container">
+        <div class="aviso-tecnico info" style="margin-top:var(--s4)">
+          <span>ℹ️</span>
+          <span>Selecione uma campanha primeiro na aba <strong>Campanhas</strong>.</span>
+        </div>
+        <button class="btn btn-secundario" style="margin-top:var(--s4)" onclick="ModuloPesquisaAdmin.trocarSecao('campanhas')">
+          ← Ir para Campanhas
+        </button>
+      </div>
+    `;
+  }
+
+  function _htmlFirebaseNaoConfigurado() {
+    return `
+      <div class="container">
+        <div class="aviso-tecnico aviso" style="margin-top:var(--s4)">
+          <span>⚙️</span>
+          <div>
+            <strong>Firebase não configurado</strong><br>
+            <p style="font-size:var(--txt-sm);margin-top:var(--s2)">
+              O módulo de Pesquisa Psicossocial usa Firebase Firestore para sincronizar
+              respostas entre dispositivos. Para ativar:
+            </p>
+            <ol style="font-size:var(--txt-sm);padding-left:var(--s5);margin-top:var(--s2);display:flex;flex-direction:column;gap:4px">
+              <li>Acesse <strong>console.firebase.google.com</strong> e crie um projeto.</li>
+              <li>Ative o <strong>Firestore Database</strong> (modo de teste).</li>
+              <li>Adicione um app Web e copie as credenciais.</li>
+              <li>Cole as credenciais em <code>js/firebase-pesquisa.js</code> na constante <code>FIREBASE_CONFIG</code>.</li>
+            </ol>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  /* ── Análise técnica: auto-save e save manual ───────────── */
+
+  let _autoSaveTimer = null;
+
+  function agendarAutoSave() {
+    clearTimeout(_autoSaveTimer);
+    _autoSaveTimer = setTimeout(salvarInterpretacaoTecnica, 1800);
+  }
+
+  function toggleAET() {
+    const div = document.getElementById('ps-it-aet-div');
+    const chk = document.getElementById('ps-it-aet');
+    if (div) div.style.display = chk?.checked ? '' : 'none';
+  }
+
+  async function salvarInterpretacaoTecnica() {
+    if (!_campanhaAberta?.id) return;
+    const get = id => (document.getElementById(id)?.value ?? '').trim();
+    const dados = {
+      contexto:        get('ps-it-contexto'),
+      interpretacao:   get('ps-it-interpretacao'),
+      fatoresCriticos: get('ps-it-criticos'),
+      recomendacoes:   get('ps-it-recomendacoes'),
+      conclusao:       get('ps-it-conclusao'),
+      necessitaAET:    document.getElementById('ps-it-aet')?.checked || false,
+      justificativaAET: get('ps-it-aet-just'),
+      responsavel:     get('ps-it-responsavel'),
+      registro:        get('ps-it-registro'),
+      dataEmissao:     get('ps-it-data'),
+    };
+    try {
+      await salvarInterpretacao(_campanhaAberta.id, dados);
+      const ind = document.getElementById('ps-it-autosave');
+      if (ind) {
+        ind.textContent = '✓ Salvo';
+        setTimeout(() => { if (ind) ind.textContent = ''; }, 2500);
+      }
+    } catch (e) {
+      console.error('Erro ao salvar interpretação:', e);
+    }
+  }
+
+  /* ── Ações públicas ──────────────────────────────────────── */
+
+  function abrirCampanha(id) {
+    /* Encontra a campanha na lista e define como ativa */
+    const proj = App.obterProjetoAtual();
+    if (!proj) return;
+
+    listarCampanhas(proj.id).then(lista => {
+      _campanhaAberta = lista.find(c => c.id === id) || { id };
+      trocarSecao('monitor');
+    }).catch(() => {
+      _campanhaAberta = { id };
+      trocarSecao('monitor');
+    });
+  }
+
+  async function confirmarEncerramento(id) {
+    if (!confirm('Encerrar esta campanha? Os trabalhadores não poderão mais responder.')) return;
+    try {
+      await encerrarCampanha(id); /* global de firebase-pesquisa.js */
+      App.mostrarToast('Campanha encerrada', 'sucesso');
+      trocarSecao('campanhas');
+    } catch (e) { App.mostrarToast('Erro: ' + e.message, 'erro'); }
+  }
+
+  async function confirmarReativacao(id) {
+    try {
+      await reativarCampanha(id); /* global de firebase-pesquisa.js */
+      App.mostrarToast('Campanha reativada', 'sucesso');
+      trocarSecao('campanhas');
+    } catch (e) { App.mostrarToast('Erro: ' + e.message, 'erro'); }
+  }
+
+  return {
+    renderizar,
+    trocarSecao,
+    salvarCampanha,
+    executarImportacaoCPFs,
+    copiarLink,
+    baixarQR,
+    abrirCampanha,
+    confirmarEncerramento,
+    confirmarReativacao,
+    agendarAutoSave,
+    toggleAET,
+    salvarInterpretacaoTecnica,
+  };
+})();

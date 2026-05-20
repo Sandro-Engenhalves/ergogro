@@ -1,0 +1,488 @@
+/* ============================================================
+   ErgoGRO — CSS da Pesquisa do Trabalhador
+   Standalone: não depende de style.css
+   Acessibilidade: fonte grande, alto contraste, mobile-first
+   ============================================================ */
+
+/* ── Variáveis ───────────────────────────────────────────── */
+:root {
+  --fundo:      #0d1117;
+  --superficie: #161b22;
+  --sup-alt:    #21262d;
+  --borda:      #30363d;
+  --texto:      #e6edf3;
+  --texto-sec:  #8b949e;
+  --primaria:   #1f6feb;
+  --prim-hover: #388bfd;
+  --sucesso:    #3fb950;
+  --aviso:      #d29922;
+  --perigo:     #f85149;
+  --raio:       12px;
+  --fonte: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* ── Reset ───────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { font-size: 18px; scroll-behavior: smooth; }
+
+body {
+  font-family: var(--fonte);
+  background: var(--fundo);
+  color: var(--texto);
+  line-height: 1.6;
+  min-height: 100dvh;
+  -webkit-font-smoothing: antialiased;
+}
+
+button { cursor: pointer; border: none; background: none; font-family: inherit; }
+input  { font-family: inherit; font-size: inherit; color: inherit; }
+
+/* ── Layout ──────────────────────────────────────────────── */
+.pesquisa-wrap {
+  max-width: 540px;
+  margin: 0 auto;
+  padding: 0 16px 80px;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Header ──────────────────────────────────────────────── */
+.pesquisa-header {
+  text-align: center;
+  padding: 28px 0 20px;
+  border-bottom: 1px solid var(--borda);
+  margin-bottom: 28px;
+}
+
+.pesquisa-logo {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--primaria);
+  letter-spacing: -0.5px;
+  margin-bottom: 4px;
+}
+
+.pesquisa-logo span { color: var(--texto-sec); font-weight: 400; font-size: 16px; }
+
+.pesquisa-empresa {
+  font-size: 15px;
+  color: var(--texto-sec);
+  margin-top: 4px;
+}
+
+/* ── Barra de progresso ──────────────────────────────────── */
+.barra-progresso-wrap {
+  padding: 0 0 20px;
+}
+
+.barra-progresso-info {
+  display: flex;
+  justify-content: space-between;
+  font-size: 14px;
+  color: var(--texto-sec);
+  margin-bottom: 8px;
+}
+
+.barra-progresso {
+  height: 8px;
+  background: var(--sup-alt);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.barra-progresso-fill {
+  height: 100%;
+  background: var(--primaria);
+  border-radius: 999px;
+  transition: width .4s ease;
+}
+
+/* ── Card de pergunta ────────────────────────────────────── */
+.pergunta-card {
+  background: var(--superficie);
+  border: 1px solid var(--borda);
+  border-radius: var(--raio);
+  padding: 24px 20px;
+  margin-bottom: 20px;
+  animation: slideIn .25s ease;
+}
+
+@keyframes slideIn {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.pergunta-numero {
+  font-size: 13px;
+  color: var(--texto-sec);
+  margin-bottom: 12px;
+  font-weight: 500;
+}
+
+.pergunta-dimensao {
+  font-size: 12px;
+  color: var(--primaria);
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  margin-bottom: 8px;
+}
+
+.pergunta-texto {
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1.4;
+  margin-bottom: 20px;
+  color: var(--texto);
+}
+
+/* ── Botão de áudio (TTS) ────────────────────────────────── */
+.btn-audio {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--texto-sec);
+  background: var(--sup-alt);
+  border: 1px solid var(--borda);
+  border-radius: 999px;
+  padding: 6px 14px;
+  margin-bottom: 20px;
+  transition: color .15s, border-color .15s;
+}
+
+.btn-audio:hover   { color: var(--texto); border-color: var(--primaria); }
+.btn-audio.tocando { color: var(--primaria); border-color: var(--primaria); }
+
+.btn-audio svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+/* ── Opções de resposta ──────────────────────────────────── */
+.opcoes-resposta {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.opcao-btn {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 14px 16px;
+  background: var(--sup-alt);
+  border: 2px solid var(--borda);
+  border-radius: var(--raio);
+  font-size: 17px;
+  font-weight: 500;
+  color: var(--texto);
+  text-align: left;
+  transition: border-color .15s, background .15s;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.opcao-btn:hover   { border-color: var(--primaria); background: #1f6feb10; }
+.opcao-btn:active  { transform: scale(.98); }
+
+.opcao-btn.selecionada {
+  border-color: var(--primaria);
+  background: #1f6feb1a;
+  color: var(--texto);
+}
+
+.opcao-bolinha {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid var(--borda);
+  flex-shrink: 0;
+  transition: border-color .15s, background .15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.opcao-btn.selecionada .opcao-bolinha {
+  background: var(--primaria);
+  border-color: var(--primaria);
+}
+
+.opcao-btn.selecionada .opcao-bolinha::after {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #fff;
+}
+
+/* ── Navegação entre perguntas ───────────────────────────── */
+.nav-perguntas {
+  display: flex;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.btn-nav {
+  flex: 1;
+  padding: 16px;
+  border-radius: var(--raio);
+  font-size: 16px;
+  font-weight: 600;
+  transition: opacity .15s, background .15s;
+}
+
+.btn-nav:disabled { opacity: .3; cursor: not-allowed; }
+
+.btn-nav.anterior {
+  background: var(--sup-alt);
+  border: 1px solid var(--borda);
+  color: var(--texto);
+}
+
+.btn-nav.proximo {
+  background: var(--primaria);
+  color: #fff;
+}
+
+.btn-nav.proximo:hover:not(:disabled) { background: var(--prim-hover); }
+
+.btn-nav.finalizar {
+  background: var(--sucesso);
+  color: #fff;
+  flex: 2;
+}
+
+/* ── Tela de entrada de CPF ──────────────────────────────── */
+.tela-entrada {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 24px;
+  padding: 20px 0;
+}
+
+.entrada-titulo {
+  font-size: 24px;
+  font-weight: 700;
+  text-align: center;
+  line-height: 1.3;
+}
+
+.entrada-subtitulo {
+  font-size: 16px;
+  color: var(--texto-sec);
+  text-align: center;
+}
+
+.campo-cpf-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.campo-cpf-wrap label {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.campo-cpf {
+  width: 100%;
+  padding: 18px 16px;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 3px;
+  text-align: center;
+  background: var(--superficie);
+  border: 2px solid var(--borda);
+  border-radius: var(--raio);
+  color: var(--texto);
+  transition: border-color .15s;
+}
+
+.campo-cpf:focus {
+  outline: none;
+  border-color: var(--primaria);
+}
+
+.btn-entrar {
+  width: 100%;
+  padding: 18px;
+  font-size: 18px;
+  font-weight: 700;
+  background: var(--primaria);
+  color: #fff;
+  border-radius: var(--raio);
+  transition: background .15s;
+}
+
+.btn-entrar:hover:not(:disabled) { background: var(--prim-hover); }
+.btn-entrar:disabled { opacity: .4; cursor: not-allowed; }
+
+/* ── Aviso / info ────────────────────────────────────────── */
+.aviso-box {
+  background: var(--sup-alt);
+  border: 1px solid var(--borda);
+  border-radius: var(--raio);
+  padding: 16px;
+  font-size: 14px;
+  color: var(--texto-sec);
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.aviso-box.erro {
+  border-color: var(--perigo);
+  background: #f8514910;
+  color: var(--perigo);
+}
+
+.aviso-box.sucesso {
+  border-color: var(--sucesso);
+  background: #3fb95010;
+  color: var(--sucesso);
+}
+
+/* ── Tela de confirmação ─────────────────────────────────── */
+.tela-confirmacao {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 20px;
+  padding: 40px 0;
+}
+
+.confirmacao-icone {
+  font-size: 72px;
+  line-height: 1;
+}
+
+.confirmacao-titulo {
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.confirmacao-texto {
+  font-size: 16px;
+  color: var(--texto-sec);
+  max-width: 340px;
+  line-height: 1.6;
+}
+
+/* ── Tela de erro / encerramento ─────────────────────────── */
+.tela-bloqueio {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 16px;
+  padding: 40px 0;
+}
+
+.bloqueio-icone { font-size: 56px; }
+.bloqueio-titulo { font-size: 22px; font-weight: 700; }
+.bloqueio-texto  { font-size: 15px; color: var(--texto-sec); max-width: 320px; }
+
+/* ── Loading ─────────────────────────────────────────────── */
+.loading-wrap {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  color: var(--texto-sec);
+  font-size: 16px;
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid var(--borda);
+  border-top-color: var(--primaria);
+  border-radius: 50%;
+  animation: spin .8s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Instrução inicial ───────────────────────────────────── */
+.instrucao-card {
+  background: var(--superficie);
+  border: 1px solid var(--borda);
+  border-radius: var(--raio);
+  padding: 24px 20px;
+  margin-bottom: 20px;
+}
+
+.instrucao-titulo {
+  font-size: 20px;
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+
+.instrucao-lista {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.instrucao-lista li {
+  display: flex;
+  gap: 10px;
+  font-size: 15px;
+  color: var(--texto-sec);
+  align-items: flex-start;
+}
+
+.instrucao-lista li span:first-child { font-size: 18px; flex-shrink: 0; }
+
+.btn-iniciar {
+  width: 100%;
+  padding: 18px;
+  font-size: 18px;
+  font-weight: 700;
+  background: var(--primaria);
+  color: #fff;
+  border-radius: var(--raio);
+  transition: background .15s;
+}
+
+.btn-iniciar:hover { background: var(--prim-hover); }
+
+/* ── Indicador de auto-save ──────────────────────────────── */
+.autosave-info {
+  text-align: center;
+  font-size: 13px;
+  color: var(--texto-sec);
+  padding: 8px 0;
+}
+
+/* ── Footer ──────────────────────────────────────────────── */
+.pesquisa-footer {
+  margin-top: auto;
+  padding-top: 32px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--texto-sec);
+  line-height: 1.8;
+}
+
+/* ── Responsive mínimo ───────────────────────────────────── */
+@media (max-width: 380px) {
+  html { font-size: 16px; }
+  .pergunta-texto { font-size: 18px; }
+  .campo-cpf { font-size: 20px; }
+}

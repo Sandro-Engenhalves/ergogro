@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#161b22">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="description" content="Consulta sobre organização do trabalho e fatores psicossociais">
+  <title>Pesquisa Psicossocial — ErgoGRO</title>
+  <link rel="stylesheet" href="css/pesquisa.css">
+</head>
+<body>
+
+  <div class="pesquisa-wrap">
+
+    <!-- Header fixo da pesquisa -->
+    <header class="pesquisa-header">
+      <div class="pesquisa-logo">Ergo<span>GRO</span></div>
+      <div class="pesquisa-empresa" id="ps-empresa-nome">Carregando...</div>
+    </header>
+
+    <!-- Conteúdo dinâmico gerado por pesquisa.js -->
+    <div id="ps-conteudo" style="flex:1;display:flex;flex-direction:column">
+      <!-- Estado inicial: loading -->
+      <div class="loading-wrap">
+        <div class="spinner"></div>
+        <span>Carregando pesquisa...</span>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="pesquisa-footer">
+      Consulta sobre organização do trabalho e fatores psicossociais<br>
+      Suas respostas são anônimas e protegidas pela LGPD.<br>
+      ErgoGRO · NR-01 / NR-17
+    </footer>
+
+  </div>
+
+  <!-- Firebase SDK (compat v9) -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+
+  <!-- Módulos ErgoGRO (sem dependência de app.js / storage.js) -->
+  <script src="js/psicossocial-perguntas.js"></script>
+  <script src="js/firebase-pesquisa.js"></script>
+  <script src="js/pesquisa.js"></script>
+
+</body>
+</html>
