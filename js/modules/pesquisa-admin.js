@@ -30,11 +30,15 @@ const ModuloPesquisaAdmin = (() => {
     engenhalves: {
       barraTopoTexto: 'ENGENHALVES — Centro de Engenharia e Segurança LTDA',
       capaLogo: () => `
-        <div style="text-align:center">
-          ${_SVGBRANDMARK(80, 80).replace('style="flex-shrink:0"', 'style="display:block;margin:0 auto 4mm"')}
-          <div style="font-size:20pt;font-weight:900;color:#0D47A1;letter-spacing:3px;line-height:1">ENGENHALVES</div>
-          <div style="font-size:7pt;color:#666;letter-spacing:1.5px;margin-top:2mm;text-transform:uppercase">Centro de Engenharia e Segurança LTDA</div>
-        </div>`,
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000"
+             width="80" height="80" style="display:block;margin:0 auto 4mm">
+          <path fill="#0D47A1" d="M500 115C287.2 115 115 287.2 115 500S287.2 885 500 885c129.1 0 243.4-63.7 313.2-161.4H641.8C600.5 748.7 551.8 762 500 762c-144.7 0-262-117.3-262-262s117.3-262 262-262c51.8 0 100.5 13.3 141.8 38.4h171.4C743.4 178.7 629.1 115 500 115z"/>
+          <path fill="#0D47A1" d="M300 333H732L795 426H300Z"/>
+          <path fill="#0D47A1" d="M248 454H752L695 546H248Z"/>
+          <path fill="#0D47A1" d="M300 574H795L732 667H300Z"/>
+        </svg>
+        <div style="font-size:20pt;font-weight:900;color:#0D47A1;letter-spacing:3px;line-height:1">ENGENHALVES</div>
+        <div style="font-size:7pt;color:#666;letter-spacing:1.5px;margin-top:2mm;text-transform:uppercase">Centro de Engenharia e Segurança LTDA</div>`,
       headerLogo: () => `
         ${_SVGBRANDMARK(28, 28)}
         <div>
@@ -50,13 +54,13 @@ const ModuloPesquisaAdmin = (() => {
       barraTopoTexto: 'KALPREVI — Soluções Ocupacionais LTDA',
       capaLogo: () => `
         <div style="text-align:center">
-          <img src="Kalprevi/logo%20kalprevi%20500%20x%20500.jpg" alt="KALPREVI"
-               style="height:22mm;width:auto;max-width:120mm;display:block;margin:0 auto 4mm">
+          <img src="Kalprevi/logo%20kalprevi.jpg" alt="KALPREVI"
+               style="height:18mm;width:auto;max-width:120mm;display:block;margin:0 auto 3mm">
           <div style="font-size:7pt;color:#666;letter-spacing:1.5px;text-transform:uppercase">Soluções Ocupacionais LTDA</div>
         </div>`,
       headerLogo: () => `
-        <img src="Kalprevi/logo%20kalprevi%20500%20x%20500.jpg" alt="KALPREVI"
-             style="height:9mm;width:auto;max-width:44mm;display:block">`,
+        <img src="Kalprevi/logo%20kalprevi.jpg" alt="KALPREVI"
+             style="height:9mm;width:auto;max-width:50mm;display:block">`,
       rodape: (nr) => `KALPREVI SOLUÇÕES OCUPACIONAIS LTDA &nbsp;|&nbsp; CNPJ: 58.682.679/0001-26<br>
         Rua Costa Carvalho, 880, Centro — União da Vitória - PR<br>
         (42) 3529-0522 &nbsp;|&nbsp; contato@kalprevi.com.br<br>
@@ -786,8 +790,9 @@ const ModuloPesquisaAdmin = (() => {
             flex: 1;
             display: flex;
             flex-direction: column;
-            align-items: stretch;
-            padding: 0 20mm;
+            align-items: center;
+            text-align: center;
+            padding: 14mm 20mm 8mm;
           }
           .rpt-capa-titulo {
             font-size: 22pt;
@@ -1093,8 +1098,8 @@ const ModuloPesquisaAdmin = (() => {
         <!-- Corpo: logo → título → espaçador → tabela junto ao rodapé -->
         <div class="rpt-capa-corpo">
 
-          <!-- Logo: centralizada na metade superior -->
-          <div id="ps-capa-logo-area" style="flex:1;display:flex;align-items:center;justify-content:center">
+          <!-- Logo: próxima ao topo, acima do título -->
+          <div id="ps-capa-logo-area" style="margin-bottom:8mm">
             <div style="text-align:center">
               <!-- Brandmark E técnico inline — renderiza sem depender de arquivo externo -->
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000"
