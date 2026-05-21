@@ -1536,13 +1536,23 @@ const ModuloPesquisaAdmin = (() => {
 
           <!-- 6. Indica AET -->
           <div class="card" style="margin-top:var(--s4)">
-            <label class="check-item" style="cursor:pointer">
-              <input type="checkbox" id="ps-it-aet"
-                ${it.necessitaAET ? 'checked' : ''}
-                onchange="ModuloPesquisaAdmin.toggleAET();ModuloPesquisaAdmin.agendarAutoSave()">
-              <div class="check-box">✓</div>
-              <span style="font-weight:600">Indica necessidade de Análise Ergonômica do Trabalho (AET)</span>
-            </label>
+            <!-- Tela: checkbox interativo -->
+            <div class="nao-imprimir">
+              <label class="check-item" style="cursor:pointer">
+                <input type="checkbox" id="ps-it-aet"
+                  ${it.necessitaAET ? 'checked' : ''}
+                  onchange="ModuloPesquisaAdmin.toggleAET();ModuloPesquisaAdmin.agendarAutoSave()">
+                <div class="check-box">✓</div>
+                <span style="font-weight:600">Indica necessidade de Análise Ergonômica do Trabalho (AET)</span>
+              </label>
+            </div>
+            <!-- Impressão: texto condicional (sincronizado em imprimir()) -->
+            <div class="so-imprimir" id="ps-print-aet">
+              ${it.necessitaAET
+                ? '<p style="font-size:9pt;font-weight:700;color:#0D47A1">⚠ Indica necessidade de Análise Ergonômica do Trabalho (AET)</p>'
+                : ''}
+            </div>
+            <!-- Justificativa: visível em ambos quando preenchida -->
             <div id="ps-it-aet-div" style="${it.necessitaAET ? 'margin-top:var(--s3)' : 'display:none'}">
               <textarea id="ps-it-aet-just" class="campo-tecnico" rows="2"
                 placeholder="Justifique a indicação de AET..."
@@ -1695,6 +1705,17 @@ const ModuloPesquisaAdmin = (() => {
         fatDiv.innerHTML = '<p style="font-size:9pt;color:#555;font-style:italic">Nenhum fator de risco identificado.</p>';
       }
     }
+
+    /* AET */
+    const aetDiv = document.getElementById('ps-print-aet');
+    const aetChecked = document.getElementById('ps-it-aet')?.checked;
+    if (aetDiv) {
+      aetDiv.innerHTML = aetChecked
+        ? '<p style="font-size:9pt;font-weight:700;color:#0D47A1">⚠ Indica necessidade de Análise Ergonômica do Trabalho (AET)</p>'
+        : '';
+    }
+    const aetJustDiv = document.getElementById('ps-it-aet-div');
+    if (aetJustDiv) aetJustDiv.style.display = aetChecked ? '' : 'none';
 
     /* 7.4 Recomendações */
     const recDiv = document.getElementById('ps-print-recs');
