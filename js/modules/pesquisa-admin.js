@@ -15,6 +15,54 @@ const ModuloPesquisaAdmin = (() => {
   let _secaoAtual      = 'campanhas';
   let _campanhaAberta  = null; /* campanha selecionada */
   let _monitorUnsubscribe = null;
+  let _empresaImpressao = 'engenhalves'; /* 'engenhalves' | 'kalprevi' */
+  let _nrLaudoAtual     = '';            /* atualizado em _htmlRelatorio */
+
+  /* ── Config de marca por empresa prestadora ─────────────── */
+  const _SVGBRANDMARK = (w, h) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000" width="${w}" height="${h}" style="flex-shrink:0">
+    <path fill="#0D47A1" d="M500 115C287.2 115 115 287.2 115 500S287.2 885 500 885c129.1 0 243.4-63.7 313.2-161.4H641.8C600.5 748.7 551.8 762 500 762c-144.7 0-262-117.3-262-262s117.3-262 262-262c51.8 0 100.5 13.3 141.8 38.4h171.4C743.4 178.7 629.1 115 500 115z"/>
+    <path fill="#0D47A1" d="M300 333H732L795 426H300Z"/>
+    <path fill="#0D47A1" d="M248 454H752L695 546H248Z"/>
+    <path fill="#0D47A1" d="M300 574H795L732 667H300Z"/>
+  </svg>`;
+
+  const _EMPRESAS_CONFIG = {
+    engenhalves: {
+      barraTopoTexto: 'ENGENHALVES — Centro de Engenharia e Segurança LTDA',
+      capaLogo: () => `
+        <div style="text-align:center">
+          ${_SVGBRANDMARK(80, 80).replace('style="flex-shrink:0"', 'style="display:block;margin:0 auto 4mm"')}
+          <div style="font-size:20pt;font-weight:900;color:#0D47A1;letter-spacing:3px;line-height:1">ENGENHALVES</div>
+          <div style="font-size:7pt;color:#666;letter-spacing:1.5px;margin-top:2mm;text-transform:uppercase">Centro de Engenharia e Segurança LTDA</div>
+        </div>`,
+      headerLogo: () => `
+        ${_SVGBRANDMARK(28, 28)}
+        <div>
+          <div style="font-size:11pt;font-weight:900;color:#0D47A1;letter-spacing:1px;line-height:1">ENGENHALVES</div>
+          <div style="font-size:6pt;color:#777;letter-spacing:.5px">CENTRO DE ENGENHARIA E SEGURANÇA LTDA</div>
+        </div>`,
+      rodape: (nr) => `ENGENHALVES — Centro de Engenharia &amp; Segurança LTDA<br>
+        Estrada Braulina Pigatto, 2320, CEP 84607-303 — Bom Jesus, União da Vitória - PR<br>
+        (42) 99928-8177 &nbsp;|&nbsp; atendimento@engenhalves.com.br<br>
+        <span style="font-size:7pt">Documento técnico de uso exclusivo do cliente &middot; ${nr}</span>`,
+    },
+    kalprevi: {
+      barraTopoTexto: 'KALPREVI — Soluções Ocupacionais LTDA',
+      capaLogo: () => `
+        <div style="text-align:center">
+          <img src="Kalprevi/logo%20kalprevi%20500%20x%20500.jpg" alt="KALPREVI"
+               style="height:22mm;width:auto;max-width:120mm;display:block;margin:0 auto 4mm">
+          <div style="font-size:7pt;color:#666;letter-spacing:1.5px;text-transform:uppercase">Soluções Ocupacionais LTDA</div>
+        </div>`,
+      headerLogo: () => `
+        <img src="Kalprevi/logo%20kalprevi%20500%20x%20500.jpg" alt="KALPREVI"
+             style="height:9mm;width:auto;max-width:44mm;display:block">`,
+      rodape: (nr) => `KALPREVI SOLUÇÕES OCUPACIONAIS LTDA &nbsp;|&nbsp; CNPJ: 58.682.679/0001-26<br>
+        Rua Costa Carvalho, 880, Centro — União da Vitória - PR<br>
+        (42) 3529-0522 &nbsp;|&nbsp; contato@kalprevi.com.br<br>
+        <span style="font-size:7pt">Documento técnico de uso exclusivo do cliente &middot; ${nr}</span>`,
+    },
+  };
 
   const SECOES = [
     { id: 'campanhas',     icone: '📋', label: 'Campanhas'    },
@@ -660,7 +708,8 @@ const ModuloPesquisaAdmin = (() => {
     const protetores = r.consolidado.filter(d => d.nivel === 'favoravel').map(d => d.nome);
 
     /* Variáveis do rodapé e capa */
-    const _nrLaudo     = `AFP-${(c.empresaNome||'ERG').replace(/\s+/g,'').slice(0,4).toUpperCase()}-${new Date().getFullYear()}`;
+    _nrLaudoAtual      = `AFP-${(c.empresaNome||'ERG').replace(/\s+/g,'').slice(0,4).toUpperCase()}-${new Date().getFullYear()}`;
+    const _nrLaudo     = _nrLaudoAtual;
     const _dataEmissao = _fd(r.geradoEm);
     const _responsavel = it.responsavel || proj?.responsavelTecnico || '';
     const _registro    = it.registro    || proj?.registroProfissional || '';
@@ -1037,7 +1086,7 @@ const ModuloPesquisaAdmin = (() => {
       <!-- ── CAPA (visível só na impressão) ──── -->
       <div class="rpt-capa">
         <!-- Barra superior azul -->
-        <div class="rpt-capa-barra-topo">
+        <div class="rpt-capa-barra-topo" id="ps-capa-barra-topo">
           ENGENHALVES — Centro de Engenharia e Segurança LTDA
         </div>
 
@@ -1045,7 +1094,7 @@ const ModuloPesquisaAdmin = (() => {
         <div class="rpt-capa-corpo">
 
           <!-- Logo: centralizada na metade superior -->
-          <div style="flex:1;display:flex;align-items:center;justify-content:center">
+          <div id="ps-capa-logo-area" style="flex:1;display:flex;align-items:center;justify-content:center">
             <div style="text-align:center">
               <!-- Brandmark E técnico inline — renderiza sem depender de arquivo externo -->
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000"
@@ -1196,7 +1245,7 @@ const ModuloPesquisaAdmin = (() => {
 
         <!-- Header do relatório (só impressão, primeira página de conteúdo) -->
         <div class="rpt-header so-imprimir">
-          <div class="rpt-header-logo" style="display:flex;align-items:center;gap:6pt">
+          <div id="ps-header-logo-area" class="rpt-header-logo" style="display:flex;align-items:center;gap:6pt">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000"
                  width="28" height="28" style="flex-shrink:0">
               <path fill="#0D47A1" d="M500 115C287.2 115 115 287.2 115 500S287.2 885 500 885c129.1 0 243.4-63.7 313.2-161.4H641.8C600.5 748.7 551.8 762 500 762c-144.7 0-262-117.3-262-262s117.3-262 262-262c51.8 0 100.5 13.3 141.8 38.4h171.4C743.4 178.7 629.1 115 500 115z"/>
@@ -1226,7 +1275,8 @@ const ModuloPesquisaAdmin = (() => {
 
         <!-- Ações -->
         <div class="nao-imprimir" style="display:flex;gap:var(--s3);flex-wrap:wrap;margin-bottom:var(--s5)">
-          <button class="btn btn-primario" onclick="ModuloPesquisaAdmin.imprimir()">🖨️ Imprimir / PDF</button>
+          <button class="btn btn-primario" onclick="ModuloPesquisaAdmin.imprimir('engenhalves')">🖨️ Engenhalves</button>
+          <button class="btn btn-primario" onclick="ModuloPesquisaAdmin.imprimir('kalprevi')" style="background:#1a5c2a">🖨️ Kalprevi</button>
           <button class="btn btn-secundario" onclick="ModuloPesquisaAdmin.trocarSecao('monitor')">📊 Monitoramento</button>
         </div>
 
@@ -1676,7 +1726,7 @@ const ModuloPesquisaAdmin = (() => {
                 </td>
               </tr>
             </table>
-            <div style="text-align:center;font-size:8pt;color:#888;margin-top:10pt;border-top:1px solid #eee;padding-top:6pt">
+            <div id="ps-rodape-empresa" style="text-align:center;font-size:8pt;color:#888;margin-top:10pt;border-top:1px solid #eee;padding-top:6pt">
               ENGENHALVES — Centro de Engenharia &amp; Segurança LTDA<br>
               Estrada Braulina Pigatto, 2320, CEP 84607-303 — Bom Jesus, União da Vitória - PR<br>
               (42) 99928-8177 &nbsp;|&nbsp; atendimento@engenhalves.com.br<br>
@@ -1701,6 +1751,17 @@ const ModuloPesquisaAdmin = (() => {
   ══════════════════════════════════════════════════════════ */
 
   function _sincronizarParaImpressao() {
+    /* ── Marca da empresa prestadora ──────────────────────── */
+    const cfg = _EMPRESAS_CONFIG[_empresaImpressao] || _EMPRESAS_CONFIG.engenhalves;
+    const elBarraTopo = document.getElementById('ps-capa-barra-topo');
+    if (elBarraTopo) elBarraTopo.textContent = cfg.barraTopoTexto;
+    const elCapaLogo = document.getElementById('ps-capa-logo-area');
+    if (elCapaLogo) elCapaLogo.innerHTML = cfg.capaLogo();
+    const elHeaderLogo = document.getElementById('ps-header-logo-area');
+    if (elHeaderLogo) elHeaderLogo.innerHTML = cfg.headerLogo();
+    const elRodape = document.getElementById('ps-rodape-empresa');
+    if (elRodape) elRodape.innerHTML = cfg.rodape(_nrLaudoAtual);
+
     /* 7.1 Contexto */
     const ctxDiv = document.getElementById('ps-print-contexto');
     if (ctxDiv) {
@@ -1800,7 +1861,8 @@ const ModuloPesquisaAdmin = (() => {
     }
   }
 
-  function imprimir() {
+  function imprimir(empresa) {
+    if (empresa) _empresaImpressao = empresa;
     _sincronizarParaImpressao();
     window.print();
   }
