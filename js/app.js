@@ -207,46 +207,74 @@ const App = (() => {
   }
 
   /* ── Dashboard — lista de projetos ──────────────────────── */
+  const _fd = iso => { if (!iso) return ''; try { const [a,m,d] = iso.slice(0,10).split('-'); return `${d}/${m}/${a}`; } catch { return iso; } };
+  const TIPO_LABEL_P = { aep:'AEP', psicossocial:'Psicossocial', aet:'AET', integrado:'Integrado' };
+
+  function _htmlProjetoItem(lista) {
+    if (lista.length === 0) return `
+      <div class="empty-state">
+        <div class="empty-icon">🔍</div>
+        <p><strong>Nenhum projeto encontrado.</strong></p>
+        <p style="font-size:var(--txt-sm)">Tente outros termos ou limpe os filtros.</p>
+      </div>`;
+    return lista.map(p => {
+      const emp       = Storage.buscarEmpresa(p.empresaId);
+      const avs       = Storage.listarPorProjeto(p.id);
+      const acoesPend = avs.reduce((n, a) => n + (a.planoAcao?.filter(x => x.status==='pendente').length || 0), 0);
+      return `
+        <div class="item-projeto" onclick="App.abrirProjeto('${p.id}')">
+          <div class="item-projeto-icon">📁</div>
+          <div class="item-info">
+            <div class="item-empresa">${p.nome || 'Projeto sem nome'}</div>
+            <div class="item-meta">
+              <span class="badge-tipo badge-tipo-${p.tipo==='integrado'?'aep':p.tipo}">${TIPO_LABEL_P[p.tipo]||p.tipo}</span>
+              ${emp ? `<span>🏢 ${emp.nome}</span>` : ''}
+              ${p.dataInicio ? `<span>${_fd(p.dataInicio)}</span>` : ''}
+              <span class="badge ${p.status==='concluido'?'badge-sucesso':'badge-info'}">
+                ${p.status==='concluido'?'Concluído':'Em andamento'}
+              </span>
+              <span style="font-size:var(--txt-xs);color:var(--texto-sec)">
+                ${avs.length} av. · ${acoesPend} ações pend.
+              </span>
+            </div>
+          </div>
+          <div onclick="event.stopPropagation()">
+            <button class="btn-icone" onclick="App.confirmarExclusaoProjeto('${p.id}')">🗑️</button>
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  function filtrarProjetos() {
+    const busca  = (document.getElementById('dash-busca')?.value  || '').toLowerCase().trim();
+    const tipo   =  document.getElementById('dash-tipo')?.value   || '';
+    const status =  document.getElementById('dash-status')?.value || '';
+    const todos  = Storage.listarProjetos();
+
+    const filtrados = todos.filter(p => {
+      if (tipo   && p.tipo !== tipo) return false;
+      if (status && (status === 'concluido' ? p.status !== 'concluido' : p.status === 'concluido')) return false;
+      if (busca) {
+        const emp = Storage.buscarEmpresa(p.empresaId);
+        const txt = ((p.nome || '') + ' ' + (emp?.nome || '')).toLowerCase();
+        if (!txt.includes(busca)) return false;
+      }
+      return true;
+    });
+
+    const res = document.getElementById('dash-resultado');
+    if (res) res.textContent = filtrados.length === todos.length
+      ? `Projetos de Laudo (${todos.length})`
+      : `${filtrados.length} de ${todos.length} projeto(s)`;
+
+    const lista = document.getElementById('dashboard-lista');
+    if (lista) lista.innerHTML = _htmlProjetoItem(filtrados);
+  }
+
   function _renderizarDashboard() {
     const container = document.getElementById('tela-dashboard');
     const stats     = Storage.estatisticas();
     const projetos  = Storage.listarProjetos();
-    const _fd = iso => { if (!iso) return ''; try { const [a,m,d] = iso.slice(0,10).split('-'); return `${d}/${m}/${a}`; } catch { return iso; } };
-    const TIPO_LABEL_P = { aep:'AEP', psicossocial:'Psicossocial', aet:'AET', integrado:'Integrado' };
-
-    const listaHTML = projetos.length === 0
-      ? `<div class="empty-state">
-           <div class="empty-icon">📁</div>
-           <p><strong>Nenhum projeto de laudo criado.</strong></p>
-           <p style="font-size:var(--txt-sm)">Cadastre uma empresa e crie o primeiro projeto.</p>
-         </div>`
-      : projetos.map(p => {
-          const emp = Storage.buscarEmpresa(p.empresaId);
-          const avs = Storage.listarPorProjeto(p.id);
-          const acoesPend = avs.reduce((n, a) => n + (a.planoAcao?.filter(x => x.status==='pendente').length || 0), 0);
-          return `
-            <div class="item-projeto" onclick="App.abrirProjeto('${p.id}')">
-              <div class="item-projeto-icon">📁</div>
-              <div class="item-info">
-                <div class="item-empresa">${p.nome || 'Projeto sem nome'}</div>
-                <div class="item-meta">
-                  <span class="badge-tipo badge-tipo-${p.tipo==='integrado'?'aep':p.tipo}">${TIPO_LABEL_P[p.tipo]||p.tipo}</span>
-                  ${emp ? `<span>🏢 ${emp.nome}</span>` : ''}
-                  ${p.dataInicio ? `<span>${_fd(p.dataInicio)}</span>` : ''}
-                  <span class="badge ${p.status==='concluido'?'badge-sucesso':'badge-info'}">
-                    ${p.status==='concluido'?'Concluído':'Em andamento'}
-                  </span>
-                  <span style="font-size:var(--txt-xs);color:var(--texto-sec)">
-                    ${avs.length} av. · ${acoesPend} ações pend.
-                  </span>
-                </div>
-              </div>
-              <div onclick="event.stopPropagation()">
-                <button class="btn-icone" onclick="App.confirmarExclusaoProjeto('${p.id}')">🗑️</button>
-              </div>
-            </div>
-          `;
-        }).join('');
 
     container.innerHTML = `
       <div class="container" style="padding-top:var(--s4)">
@@ -285,11 +313,44 @@ const App = (() => {
           + Novo Projeto de Laudo
         </button>
 
-        <!-- Lista de projetos -->
-        <div style="font-weight:600;margin-bottom:var(--s3)">
+        <!-- Busca e filtros -->
+        <div style="margin-bottom:var(--s4)">
+          <input type="search" id="dash-busca"
+            placeholder="🔍  Buscar por projeto ou empresa..."
+            oninput="App.filtrarProjetos()"
+            style="width:100%;padding:var(--s3) var(--s4);border-radius:var(--raio);
+                   border:1px solid var(--borda);background:var(--superficie-alt);
+                   color:var(--texto);font-size:var(--txt-sm);box-sizing:border-box;
+                   margin-bottom:var(--s2)">
+          <div style="display:flex;gap:var(--s2);flex-wrap:wrap">
+            <select id="dash-tipo" onchange="App.filtrarProjetos()"
+              style="flex:1;min-width:130px;padding:var(--s2) var(--s3);border-radius:var(--raio);
+                     border:1px solid var(--borda);background:var(--superficie-alt);color:var(--texto);
+                     font-size:var(--txt-sm)">
+              <option value="">Todos os tipos</option>
+              <option value="aep">AEP</option>
+              <option value="psicossocial">Psicossocial</option>
+              <option value="aet">AET</option>
+              <option value="integrado">Integrado</option>
+            </select>
+            <select id="dash-status" onchange="App.filtrarProjetos()"
+              style="flex:1;min-width:130px;padding:var(--s2) var(--s3);border-radius:var(--raio);
+                     border:1px solid var(--borda);background:var(--superficie-alt);color:var(--texto);
+                     font-size:var(--txt-sm)">
+              <option value="">Todos os status</option>
+              <option value="em_andamento">Em andamento</option>
+              <option value="concluido">Concluído</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Contagem + lista -->
+        <div id="dash-resultado" style="font-weight:600;margin-bottom:var(--s3)">
           Projetos de Laudo (${projetos.length})
         </div>
-        ${listaHTML}
+        <div id="dashboard-lista">
+          ${_htmlProjetoItem(projetos)}
+        </div>
       </div>
 
       <!-- Modal: Novo Projeto -->
@@ -614,7 +675,7 @@ const App = (() => {
   return {
     init, navegarPara,
     /* Projetos */
-    abrirFormNovoProjeto, criarProjeto, abrirProjeto, obterProjetoAtual, confirmarExclusaoProjeto,
+    abrirFormNovoProjeto, criarProjeto, abrirProjeto, obterProjetoAtual, confirmarExclusaoProjeto, filtrarProjetos,
     /* Wizard de escopo (passo 2 da criação) */
     _importarSetoresSelecionados, _abrirProjetoEmBranco,
     /* Avaliações */
