@@ -1653,7 +1653,9 @@ const ModuloPesquisaAdmin = (() => {
             </table>
             <div style="text-align:center;font-size:8pt;color:#888;margin-top:10pt;border-top:1px solid #eee;padding-top:6pt">
               ENGENHALVES — Centro de Engenharia &amp; Segurança LTDA<br>
-              Documento técnico de uso exclusivo do cliente · ${_nrLaudo}
+              Estrada Braulina Pigatto, 2320, CEP 84607-303 — Bom Jesus, União da Vitória - PR<br>
+              (42) 99928-8177 &nbsp;|&nbsp; atendimento@engenhalves.com.br<br>
+              <span style="font-size:7pt">Documento técnico de uso exclusivo do cliente &middot; ${_nrLaudo}</span>
             </div>
           </div>
         </div>
