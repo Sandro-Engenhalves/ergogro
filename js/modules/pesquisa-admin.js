@@ -944,6 +944,11 @@ const ModuloPesquisaAdmin = (() => {
           .badge-aviso   { background:#fff3cd !important; color:#856404 !important; border-color:#ffeeba !important; }
           .badge-alto    { background:#f8d7da !important; color:#721c24 !important; border-color:#f5c6cb !important; }
 
+          /* ── Placeholder invisível no PDF ──────── */
+          .campo-tecnico::placeholder,
+          textarea::placeholder,
+          input::placeholder { color: transparent !important; }
+
           /* ── Análise técnica: inputs como texto ─ */
           .campo-tecnico {
             border: none !important;
@@ -1623,12 +1628,14 @@ const ModuloPesquisaAdmin = (() => {
                 ? `<p style="font-size:9pt;line-height:1.6;margin-bottom:8pt">${it.conclusao}</p>`
                 : `<p style="font-size:9pt;color:#555;font-style:italic">Conclusão técnica não preenchida.</p>`
               }
-              ${it.necessitaAET ? `
-                <div style="border:1px solid #0D47A1;background:#e8f0fb;padding:6pt 10pt;border-radius:3pt;margin-top:6pt;font-size:9pt">
-                  <strong>⚠ Indica necessidade de Análise Ergonômica do Trabalho (AET)</strong>
-                  ${it.justificativaAET ? `<br><span style="font-size:8pt">${it.justificativaAET}</span>` : ''}
-                </div>
-              ` : ''}
+              <div id="ps-print-aet-conclusion">
+                ${it.necessitaAET ? `
+                  <div style="border:1px solid #0D47A1;background:#e8f0fb;padding:6pt 10pt;border-radius:3pt;margin-top:6pt;font-size:9pt">
+                    <strong>⚠ Indica necessidade de Análise Ergonômica do Trabalho (AET)</strong>
+                    ${it.justificativaAET ? `<br><span style="font-size:8pt">${it.justificativaAET}</span>` : ''}
+                  </div>
+                ` : ''}
+              </div>
             </div>
           </div>
 
@@ -1709,13 +1716,29 @@ const ModuloPesquisaAdmin = (() => {
     }
 
     /* AET */
-    const aetDiv = document.getElementById('ps-print-aet');
     const aetChecked = document.getElementById('ps-it-aet')?.checked;
+    const aetJust   = (document.getElementById('ps-it-aet-just')?.value || '').trim();
+
+    /* AET em 7.6 */
+    const aetDiv = document.getElementById('ps-print-aet');
     if (aetDiv) {
       aetDiv.innerHTML = aetChecked
         ? '<p style="font-size:9pt;font-weight:700;color:#0D47A1">⚠ Indica necessidade de Análise Ergonômica do Trabalho (AET)</p>'
         : '';
     }
+
+    /* AET na conclusão (seção 9) */
+    const aetConcDiv = document.getElementById('ps-print-aet-conclusion');
+    if (aetConcDiv) {
+      aetConcDiv.innerHTML = aetChecked
+        ? `<div style="border:1px solid #0D47A1;background:#e8f0fb;padding:6pt 10pt;border-radius:3pt;margin-top:6pt;font-size:9pt">
+             <strong>⚠ Indica necessidade de Análise Ergonômica do Trabalho (AET)</strong>
+             ${aetJust ? `<br><span style="font-size:8pt">${aetJust}</span>` : ''}
+           </div>`
+        : '';
+    }
+
+    /* Oculta div de justificativa se AET não marcado */
     const aetJustDiv = document.getElementById('ps-it-aet-div');
     if (aetJustDiv) aetJustDiv.style.display = aetChecked ? '' : 'none';
 
