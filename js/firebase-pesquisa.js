@@ -91,6 +91,11 @@ async function hashCPF(cpf) {
     .map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
+function _mascaraCPF(n) {
+  /* Exibe primeiros 3 e últimos 2 dígitos — identificável pelo RH, não reversível */
+  return `${n.slice(0, 3)}.***.***-${n.slice(9, 11)}`;
+}
+
 function validarCPF(cpf) {
   const n = cpf.replace(/\D/g, '');
   if (n.length !== 11 || /^(\d)\1{10}$/.test(n)) return false;
@@ -177,7 +182,7 @@ async function importarCPFs(campanhaId, linhas) {
 
     try {
       const hash = await hashCPF(n);
-      validos.push({ hash, setor });
+      validos.push({ hash, setor, cpfMascarado: _mascaraCPF(n) });
     } catch { erros.push(cpfRaw); }
   }
 
@@ -342,6 +347,34 @@ async function calcularRelatorio(campanhaId, minRespostasSetor = 5) {
     minRespostasSetor,
     geradoEm: new Date().toISOString(),
   };
+}
+
+/* ─────────────────────────────────────────────────────────
+   PENDENTES — quem ainda não respondeu
+   Compara hashes autorizados vs. hashes que têm resposta.
+───────────────────────────────────────────────────────── */
+
+async function listarPendentes(campanhaId) {
+  const campanha = await buscarCampanha(campanhaId);
+  if (!campanha) throw new Error('Campanha não encontrada');
+
+  const autorizados = campanha.cpfsAutorizados || [];
+  if (autorizados.length === 0) return [];
+
+  /* Busca todos os registros de resposta da campanha (rascunho ou finalizado) */
+  const snap = await _db_().collection('ergogro_respostas')
+    .where('campanhaId', '==', campanhaId)
+    .get();
+
+  const respondidos = new Set(snap.docs.map(d => d.data().cpfHash));
+
+  return autorizados
+    .filter(p => !respondidos.has(p.hash))
+    .map(p => ({
+      cpfMascarado: p.cpfMascarado || '***.***.***-**',
+      setor:        p.setor || '(sem setor)',
+    }))
+    .sort((a, b) => (a.setor).localeCompare(b.setor));
 }
 
 /* ─────────────────────────────────────────────────────────

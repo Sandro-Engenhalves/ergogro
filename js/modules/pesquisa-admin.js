@@ -518,6 +518,8 @@ const ModuloPesquisaAdmin = (() => {
         <div id="ps-monitor-conteudo">
           <div class="loading-inline">Aguardando dados...</div>
         </div>
+        <!-- Painel de pendentes fica fora do monitor-conteudo para não ser substituído -->
+        <div id="ps-pendentes-painel"></div>
         <div style="height:var(--s6)"></div>
       </div>
     `;
@@ -591,6 +593,18 @@ const ModuloPesquisaAdmin = (() => {
             <span>Aguardando respostas. Esta página atualiza automaticamente.</span>
           </div>
         `}
+
+        ${total > 0 && resp < total ? `
+          <button class="btn btn-secundario" style="width:100%;margin-top:var(--s3)"
+                  onclick="ModuloPesquisaAdmin.verPendentes()">
+            👤 Pendentes — ${total - resp} não responderam
+          </button>
+        ` : total > 0 && resp >= total ? `
+          <div class="aviso-tecnico" style="margin-top:var(--s3);border-color:var(--sucesso)">
+            <span>✅</span>
+            <span>Todos os participantes responderam!</span>
+          </div>
+        ` : ''}
       `;
     });
   }
@@ -1747,6 +1761,93 @@ const ModuloPesquisaAdmin = (() => {
   }
 
   /* ══════════════════════════════════════════════════════════
+     PENDENTES — quem ainda não respondeu
+  ══════════════════════════════════════════════════════════ */
+
+  async function verPendentes() {
+    const c = _campanhaAberta;
+    if (!c?.id) return;
+
+    const painel = document.getElementById('ps-pendentes-painel');
+    if (!painel) return;
+
+    painel.innerHTML = `<div class="loading-inline" style="padding:var(--s4)">Carregando pendentes...</div>`;
+
+    try {
+      const pendentes = await listarPendentes(c.id);
+      _pendentesAtual = pendentes;
+
+      if (pendentes.length === 0) {
+        painel.innerHTML = `
+          <div class="aviso-tecnico" style="margin-top:var(--s3);border-color:var(--sucesso)">
+            <span>✅</span><span>Todos os participantes já responderam!</span>
+          </div>`;
+        return;
+      }
+
+      /* Agrupa por setor */
+      const porSetor = {};
+      pendentes.forEach(p => {
+        if (!porSetor[p.setor]) porSetor[p.setor] = [];
+        porSetor[p.setor].push(p);
+      });
+
+      const setoresHTML = Object.entries(porSetor).map(([setor, lista]) => `
+        <div style="margin-bottom:var(--s4)">
+          <div style="font-size:var(--txt-xs);font-weight:700;color:var(--texto-sec);
+                      text-transform:uppercase;letter-spacing:.5px;margin-bottom:var(--s2)">
+            📍 ${setor} — ${lista.length} pendente(s)
+          </div>
+          ${lista.map(p => `
+            <div style="display:flex;align-items:center;padding:var(--s2) 0;
+                        border-bottom:1px solid var(--borda);font-family:monospace;
+                        font-size:var(--txt-sm);color:var(--texto)">
+              ${p.cpfMascarado}
+            </div>
+          `).join('')}
+        </div>
+      `).join('');
+
+      painel.innerHTML = `
+        <div class="card" style="margin-top:var(--s4)">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--s3)">
+            <div class="card-titulo">👤 Pendentes (${pendentes.length})</div>
+            <button class="btn btn-secundario btn-sm"
+                    onclick="ModuloPesquisaAdmin.exportarPendentesCSV()">
+              ⬇️ Exportar CSV
+            </button>
+          </div>
+          <div style="font-size:var(--txt-xs);color:var(--texto-sec);margin-bottom:var(--s4)">
+            CPFs mascarados — identifique na sua lista de RH.
+            Novos imports incluirão CPF mascarado automaticamente.
+          </div>
+          ${setoresHTML}
+        </div>`;
+    } catch (e) {
+      painel.innerHTML = `
+        <div class="aviso-tecnico aviso" style="margin-top:var(--s3)">
+          <span>⚠️</span><span>Erro ao carregar pendentes: ${e.message}</span>
+        </div>`;
+    }
+  }
+
+  function exportarPendentesCSV() {
+    if (!_pendentesAtual.length) return;
+    const nome   = (_campanhaAberta?.nome || 'pesquisa').replace(/\s+/g, '-');
+    const linhas = [
+      'CPF Mascarado,Setor',
+      ..._pendentesAtual.map(p => `"${p.cpfMascarado}","${p.setor}"`),
+    ];
+    const blob = new Blob(['﻿' + linhas.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = `pendentes-${nome}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  /* ══════════════════════════════════════════════════════════
      IMPRESSÃO — sincroniza DOM → so-imprimir antes de imprimir
   ══════════════════════════════════════════════════════════ */
 
@@ -2038,7 +2139,8 @@ const ModuloPesquisaAdmin = (() => {
 
   /* ── Análise técnica: auto-save e save manual ───────────── */
 
-  let _autoSaveTimer = null;
+  let _autoSaveTimer  = null;
+  let _pendentesAtual = [];
 
   function agendarAutoSave() {
     clearTimeout(_autoSaveTimer);
@@ -2163,5 +2265,7 @@ const ModuloPesquisaAdmin = (() => {
     gerarInterpretacao,
     salvarInterpretacaoTecnica,
     imprimir,
+    verPendentes,
+    exportarPendentesCSV,
   };
 })();
