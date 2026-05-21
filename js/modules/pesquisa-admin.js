@@ -791,8 +791,9 @@ const ModuloPesquisaAdmin = (() => {
             display: flex;
             flex-direction: column;
             align-items: center;
+            justify-content: space-between;
             text-align: center;
-            padding: 14mm 20mm 8mm;
+            padding: 10mm 20mm 8mm;
           }
           .rpt-capa-titulo {
             font-size: 22pt;
@@ -1095,26 +1096,23 @@ const ModuloPesquisaAdmin = (() => {
           ENGENHALVES — Centro de Engenharia e Segurança LTDA
         </div>
 
-        <!-- Corpo: logo → título → espaçador → tabela junto ao rodapé -->
+        <!-- Corpo: space-between distribui logo / título / tabela nos 3 terços -->
         <div class="rpt-capa-corpo">
 
-          <!-- Logo: próxima ao topo, acima do título -->
-          <div id="ps-capa-logo-area" style="margin-bottom:8mm">
-            <div style="text-align:center">
-              <!-- Brandmark E técnico inline — renderiza sem depender de arquivo externo -->
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000"
-                   width="80" height="80" style="display:block;margin:0 auto 4mm">
-                <path fill="#0D47A1" d="M500 115C287.2 115 115 287.2 115 500S287.2 885 500 885c129.1 0 243.4-63.7 313.2-161.4H641.8C600.5 748.7 551.8 762 500 762c-144.7 0-262-117.3-262-262s117.3-262 262-262c51.8 0 100.5 13.3 141.8 38.4h171.4C743.4 178.7 629.1 115 500 115z"/>
-                <path fill="#0D47A1" d="M300 333H732L795 426H300Z"/>
-                <path fill="#0D47A1" d="M248 454H752L695 546H248Z"/>
-                <path fill="#0D47A1" d="M300 574H795L732 667H300Z"/>
-              </svg>
-              <div style="font-size:20pt;font-weight:900;color:#0D47A1;letter-spacing:3px;line-height:1">ENGENHALVES</div>
-              <div style="font-size:7pt;color:#666;letter-spacing:1.5px;margin-top:2mm;text-transform:uppercase">Centro de Engenharia e Segurança LTDA</div>
-            </div>
+          <!-- Logo: terço superior (space-between) -->
+          <div id="ps-capa-logo-area" style="text-align:center">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000"
+                 width="80" height="80" style="display:block;margin:0 auto 4mm">
+              <path fill="#0D47A1" d="M500 115C287.2 115 115 287.2 115 500S287.2 885 500 885c129.1 0 243.4-63.7 313.2-161.4H641.8C600.5 748.7 551.8 762 500 762c-144.7 0-262-117.3-262-262s117.3-262 262-262c51.8 0 100.5 13.3 141.8 38.4h171.4C743.4 178.7 629.1 115 500 115z"/>
+              <path fill="#0D47A1" d="M300 333H732L795 426H300Z"/>
+              <path fill="#0D47A1" d="M248 454H752L695 546H248Z"/>
+              <path fill="#0D47A1" d="M300 574H795L732 667H300Z"/>
+            </svg>
+            <div style="font-size:20pt;font-weight:900;color:#0D47A1;letter-spacing:3px;line-height:1">ENGENHALVES</div>
+            <div style="font-size:7pt;color:#666;letter-spacing:1.5px;margin-top:2mm;text-transform:uppercase">Centro de Engenharia e Segurança LTDA</div>
           </div>
 
-          <!-- Título e subtítulo: centro da página -->
+          <!-- Título e subtítulo: terço central (space-between) -->
           <div style="text-align:center">
             <div class="rpt-capa-titulo">Avaliação de Fatores Psicossociais</div>
             <div class="rpt-capa-subtitulo">
@@ -1123,10 +1121,7 @@ const ModuloPesquisaAdmin = (() => {
             <div class="rpt-capa-linha"></div>
           </div>
 
-          <!-- Espaçador empurra a tabela para o fundo -->
-          <div style="flex:1"></div>
-
-          <!-- Tabela de identificação: próxima ao rodapé -->
+          <!-- Tabela de identificação: terço inferior (space-between) -->
           <table class="rpt-capa-tabela" style="margin-bottom:8mm">
             <tr>
               <td class="rpt-capa-td-label">Projeto</td>
@@ -1869,7 +1864,14 @@ const ModuloPesquisaAdmin = (() => {
   function imprimir(empresa) {
     if (empresa) _empresaImpressao = empresa;
     _sincronizarParaImpressao();
-    window.print();
+
+    /* Aguarda imagens da capa/header carregarem antes de abrir o diálogo */
+    const imgs = [...document.querySelectorAll('#ps-capa-logo-area img, #ps-header-logo-area img')];
+    const pendentes = imgs.filter(img => !img.complete);
+    if (pendentes.length === 0) { window.print(); return; }
+    let n = 0;
+    const proximo = () => { if (++n >= pendentes.length) window.print(); };
+    pendentes.forEach(img => { img.onload = proximo; img.onerror = proximo; });
   }
 
   /* ══════════════════════════════════════════════════════════
