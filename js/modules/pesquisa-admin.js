@@ -952,7 +952,6 @@ const ModuloPesquisaAdmin = (() => {
           /* ── Análise técnica: inputs como texto ─ */
           .campo-tecnico {
             border: none !important;
-            border-bottom: 1px solid #ccc !important;
             background: transparent !important;
             resize: none !important;
             color: #000 !important;
@@ -961,6 +960,25 @@ const ModuloPesquisaAdmin = (() => {
             width: 100% !important;
             font-family: Arial !important;
           }
+          /* Inputs de texto/data: borda inferior visível (campo de assinatura) */
+          input[type="text"].campo-tecnico,
+          input[type="date"].campo-tecnico {
+            border-bottom: 1px solid #bbb !important;
+          }
+          /* Inputs vazios: sem borda (evita linha solta) */
+          input[type="text"].campo-tecnico:placeholder-shown,
+          input[type="date"].campo-tecnico:placeholder-shown {
+            border-bottom: none !important;
+          }
+          /* Textareas: sem borda — o separador de card já delimita */
+          textarea.campo-tecnico { border: none !important; }
+
+          /* ── Ocultar elementos genuinamente vazios ── */
+          div:empty { display: none !important; }
+
+          /* ── Cards sem conteúdo visível em print ─── */
+          .card-print-empty { display: none !important; border: none !important; }
+
           label input[type="radio"], label input[type="checkbox"] { display: none !important; }
 
           /* ── Canvas (radar) ─────────────────────── */
@@ -1540,7 +1558,7 @@ const ModuloPesquisaAdmin = (() => {
           </div>
 
           <!-- 6. Indica AET -->
-          <div class="card" style="margin-top:var(--s4)">
+          <div class="card" id="ps-aet-card" style="margin-top:var(--s4)">
             <!-- Tela: checkbox interativo -->
             <div class="nao-imprimir">
               <label class="check-item" style="cursor:pointer">
@@ -1741,6 +1759,18 @@ const ModuloPesquisaAdmin = (() => {
     /* Oculta div de justificativa se AET não marcado */
     const aetJustDiv = document.getElementById('ps-it-aet-div');
     if (aetJustDiv) aetJustDiv.style.display = aetChecked ? '' : 'none';
+
+    /* Oculta o card AET inteiro quando não marcado (evita linha solta) */
+    const aetCard = document.getElementById('ps-aet-card');
+    if (aetCard) {
+      if (!aetChecked) aetCard.classList.add('card-print-empty');
+      else aetCard.classList.remove('card-print-empty');
+    }
+    /* Restaura após impressão */
+    window.addEventListener('afterprint', () => {
+      document.querySelectorAll('.card-print-empty')
+        .forEach(el => el.classList.remove('card-print-empty'));
+    }, { once: true });
 
     /* 7.4 Recomendações */
     const recDiv = document.getElementById('ps-print-recs');
