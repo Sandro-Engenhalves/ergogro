@@ -97,6 +97,8 @@ const ModuloAEP = (() => {
 
   const ORDEM_BLOCOS = ['organizacao', 'cargas', 'mobiliario', 'maquinas', 'ambiente', 'cognitiva', 'psicossocial'];
   let _blocoAtivo = 'organizacao';
+  let _empresaImpressaoAEP = 'engenhalves';
+  let _nrAEPAtual = '';
 
   /* ── Seções do módulo AEP ────────────────────────────────── */
   const SECOES = [
@@ -332,6 +334,57 @@ const ModuloAEP = (() => {
     }
   };
 
+  /* ── SVG brandmark Engenhalves ───────────────────────────── */
+  const _SVG_E = (w, h) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000" width="${w}" height="${h}" style="flex-shrink:0">
+    <path fill="#0D47A1" d="M500 115C287.2 115 115 287.2 115 500S287.2 885 500 885c129.1 0 243.4-63.7 313.2-161.4H641.8C600.5 748.7 551.8 762 500 762c-144.7 0-262-117.3-262-262s117.3-262 262-262c51.8 0 100.5 13.3 141.8 38.4h171.4C743.4 178.7 629.1 115 500 115z"/>
+    <path fill="#0D47A1" d="M300 333H732L795 426H300Z"/>
+    <path fill="#0D47A1" d="M248 454H752L695 546H248Z"/>
+    <path fill="#0D47A1" d="M300 574H795L732 667H300Z"/>
+  </svg>`;
+
+  /* ── Config de marca (Engenhalves / Kalprevi) ─────────── */
+  const _EMPRESAS_AEP = {
+    engenhalves: {
+      barraTopoTexto: 'ENGENHALVES — Centro de Engenharia e Segurança LTDA',
+      capaLogo: () => `
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000"
+             width="80" height="80" style="display:block;margin:0 auto 4mm">
+          <path fill="#0D47A1" d="M500 115C287.2 115 115 287.2 115 500S287.2 885 500 885c129.1 0 243.4-63.7 313.2-161.4H641.8C600.5 748.7 551.8 762 500 762c-144.7 0-262-117.3-262-262s117.3-262 262-262c51.8 0 100.5 13.3 141.8 38.4h171.4C743.4 178.7 629.1 115 500 115z"/>
+          <path fill="#0D47A1" d="M300 333H732L795 426H300Z"/>
+          <path fill="#0D47A1" d="M248 454H752L695 546H248Z"/>
+          <path fill="#0D47A1" d="M300 574H795L732 667H300Z"/>
+        </svg>
+        <div style="font-size:20pt;font-weight:900;color:#0D47A1;letter-spacing:3px;line-height:1">ENGENHALVES</div>
+        <div style="font-size:7pt;color:#666;letter-spacing:1.5px;margin-top:2mm;text-transform:uppercase">Centro de Engenharia e Segurança LTDA</div>`,
+      headerLogo: () => `
+        ${_SVG_E(28, 28)}
+        <div>
+          <div style="font-size:11pt;font-weight:900;color:#0D47A1;letter-spacing:1px;line-height:1">ENGENHALVES</div>
+          <div style="font-size:6pt;color:#777;letter-spacing:.5px">CENTRO DE ENGENHARIA E SEGURANÇA LTDA</div>
+        </div>`,
+      rodape: (nr) => `ENGENHALVES — Centro de Engenharia &amp; Segurança LTDA<br>
+        Estrada Braulina Pigatto, 2320, CEP 84607-303 — Bom Jesus, União da Vitória - PR<br>
+        (42) 99928-8177 &nbsp;|&nbsp; atendimento@engenhalves.com.br<br>
+        <span style="font-size:7pt">Documento técnico de uso exclusivo do cliente &middot; ${nr}</span>`,
+    },
+    kalprevi: {
+      barraTopoTexto: 'KALPREVI — Soluções Ocupacionais LTDA',
+      capaLogo: () => `
+        <div style="text-align:center">
+          <img src="Kalprevi/logo%20kalprevi.jpg" alt="KALPREVI"
+               style="height:18mm;width:auto;max-width:120mm;display:block;margin:0 auto 3mm">
+          <div style="font-size:7pt;color:#666;letter-spacing:1.5px;text-transform:uppercase">Soluções Ocupacionais LTDA</div>
+        </div>`,
+      headerLogo: () => `
+        <img src="Kalprevi/logo%20kalprevi.jpg" alt="KALPREVI"
+             style="height:9mm;width:auto;max-width:50mm;display:block">`,
+      rodape: (nr) => `KALPREVI SOLUÇÕES OCUPACIONAIS LTDA &nbsp;|&nbsp; CNPJ: 58.682.679/0001-26<br>
+        Rua Costa Carvalho, 880, Centro — União da Vitória - PR<br>
+        (42) 3529-0522 &nbsp;|&nbsp; contato@kalprevi.com.br<br>
+        <span style="font-size:7pt">Documento técnico de uso exclusivo do cliente &middot; ${nr}</span>`,
+    },
+  };
+
   /* ══════════════════════════════════════════════════════════
      SHELL E NAVEGAÇÃO
   ══════════════════════════════════════════════════════════ */
@@ -385,6 +438,7 @@ const ModuloAEP = (() => {
       _carregarAnalise();
     } else if (secao === 'relatorio') {
       el.innerHTML = _htmlRelatorioAEP();
+      window.addEventListener('beforeprint', _sincronizarMarcaAEP);
     }
   }
 
@@ -1119,25 +1173,224 @@ const ModuloAEP = (() => {
   ══════════════════════════════════════════════════════════ */
 
   function _htmlRelatorioAEP() {
-    const av      = App.obterAvaliacaoAtual();
-    const riscos  = calcularRiscoGeral(av);
-    const analise = av?.aep?.analise || {};
-    const posto   = av?.aep?.posto   || {};
+    const av       = App.obterAvaliacaoAtual();
+    const riscos   = calcularRiscoGeral(av);
+    const analise  = av?.aep?.analise || {};
+    const posto    = av?.aep?.posto   || {};
+    const score    = MOTOR_AEP.calcularScore(av);
+    const nivelSug = MOTOR_AEP.sugerirNivel(score.valor);
 
     const NIVEL_LABEL = { baixo: '🟢 Baixo', medio: '🟡 Médio', alto: '🔴 Alto', critico: '🚨 Crítico' };
+    const NIVEL_PRINT = { baixo: 'Baixo', medio: 'Médio', alto: 'Alto', critico: 'Crítico' };
 
     const naoConformes = obterNaoConformes(av);
+    const expsPresentes = (posto.exposicoesEstruturadas || []).filter(e => e.presente === 'sim');
 
-    /* Exposições presentes para o relatório */
-    const expsPresentes = (posto.exposicoesEstruturadas || [])
-      .filter(e => e.presente === 'sim')
-      .map(e => EXPOSICOES.find(x => x.id === e.id)?.label || e.id);
+    /* Número do laudo e data */
+    _nrAEPAtual  = `AEP-${(av.empresa?.nome||'ERG').replace(/\s+/g,'').slice(0,4).toUpperCase()}-${new Date().getFullYear()}`;
+    const _dataEmissao = _formatarData(new Date().toISOString().slice(0,10));
+    const _responsavel = av.empresa?.responsavelTecnico || '';
+    const _registro    = av.empresa?.registroProfissional || '';
+
+    /* Resumo por bloco para a tabela */
+    const blocoResumoHTML = ORDEM_BLOCOS.map(chave => {
+      const bloco = BLOCOS[chave];
+      const resp  = av?.aep?.[chave] || {};
+      const r     = (() => {
+        let resp2 = 0, nc = 0, alt = 0, med = 0, bx = 0;
+        bloco.itens.forEach(item => {
+          const rt = resp[item.id];
+          if (rt?.resposta) resp2++;
+          if (rt?.resposta === 'nao') {
+            nc++;
+            if (rt.risco === 'alto') alt++;
+            else if (rt.risco === 'medio') med++;
+            else bx++;
+          }
+        });
+        return { resp: resp2, nc, alt, med, bx, total: bloco.itens.length };
+      })();
+      return `<tr>
+        <td>${bloco.icone} ${bloco.titulo}</td>
+        <td style="text-align:center">${r.resp}/${r.total}</td>
+        <td style="text-align:center">${r.nc || '—'}</td>
+        <td style="text-align:center">${r.alt || '—'}</td>
+        <td style="text-align:center">${r.med || '—'}</td>
+      </tr>`;
+    }).join('');
 
     return `
+      <!-- ══ CSS DE IMPRESSÃO PADRÃO ENGENHALVES ══ -->
+      <style>
+        @media print {
+          @page { size: A4 portrait; margin: 18mm 12mm 14mm; }
+          @page :first { margin: 0 12mm; }
+          * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+          #app-header, #nav-principal, .subnav-abas,
+          .nao-imprimir, .btn, #toast { display: none !important; }
+          body {
+            background: #fff !important; color: #000 !important;
+            font-family: Arial, Helvetica, sans-serif !important;
+            font-size: 9pt !important; line-height: 1.4 !important; margin: 0 !important;
+          }
+          .rpt-capa {
+            display: flex !important; flex-direction: column;
+            justify-content: space-between; align-items: stretch;
+            min-height: 297mm; padding: 0; text-align: center;
+            page-break-after: always; break-after: always; background: #fff;
+          }
+          .rpt-capa-barra-topo {
+            background: #0D47A1; color: #fff; padding: 10pt 16pt;
+            font-size: 8pt; font-weight: 700; letter-spacing: 1pt;
+            text-transform: uppercase; text-align: center;
+          }
+          .rpt-capa-corpo {
+            flex: 1; display: flex; flex-direction: column;
+            align-items: center; justify-content: space-between;
+            text-align: center; padding: 10mm 20mm 8mm;
+          }
+          .rpt-capa-titulo {
+            font-size: 22pt; font-weight: 900; color: #0D47A1;
+            text-transform: uppercase; letter-spacing: 1.5px;
+            margin-bottom: 4mm; line-height: 1.2;
+          }
+          .rpt-capa-subtitulo { font-size: 10pt; color: #555; margin-bottom: 12mm; letter-spacing: .3pt; }
+          .rpt-capa-linha { width: 40mm; height: 2px; background: #0D47A1; margin: 0 auto 10mm; }
+          .rpt-capa-tabela { width: 100%; max-width: 130mm; border-collapse: collapse; font-size: 9pt; text-align: left; }
+          .rpt-capa-tabela td { padding: 4pt 8pt; border: none !important; border-bottom: 1px solid #e0e0e0 !important; background: transparent !important; color: #222; }
+          .rpt-capa-td-label { font-weight: 700; color: #0D47A1 !important; width: 44%; }
+          .rpt-capa-barra-rodape { background: #0D47A1; color: #fff; padding: 8pt 16pt; font-size: 8pt; text-align: center; line-height: 1.6; }
+          .rpt-sumario { page-break-after: always; break-after: always; padding: 0; }
+          .rpt-sumario-titulo { display: block !important; font-size: 14pt; font-weight: 900; color: #fff !important; background: #0D47A1 !important; padding: 8pt 12pt !important; text-transform: uppercase; letter-spacing: 3pt; margin: 0 0 10mm !important; }
+          .rpt-sumario-lista { padding: 0; }
+          .rpt-sumario-item { display: flex !important; align-items: baseline !important; padding: 5pt 14pt !important; font-size: 10pt; color: #111; border: none !important; background: transparent !important; }
+          .rpt-sumario-item:nth-child(even) { background: #f5f7fa !important; }
+          .rpt-sumario-item.sumario-sub { padding: 3pt 14pt 3pt 34pt !important; font-size: 9pt; color: #444; }
+          .rpt-sumario-num { font-weight: 700; color: #0D47A1 !important; min-width: 24pt; flex-shrink: 0; }
+          .rpt-sumario-nome { flex-shrink: 0; white-space: nowrap; }
+          .rpt-sumario-pontilhado { flex: 1; border-bottom: 1pt dotted #bbb; margin: 0 8pt 3pt; }
+          .rpt-sumario-pag { color: #555; min-width: 18pt; text-align: right; flex-shrink: 0; }
+          .rpt-sumario-sep { height: 2pt; background: #0D47A1 !important; border: none !important; margin: 4pt 0 !important; display: block !important; }
+          .so-imprimir { display: block !important; }
+          .nao-imprimir { display: none !important; }
+          .rpt-header { display: flex !important; height: 14mm; background: #fff; border-bottom: 2px solid #0D47A1; padding: 0; align-items: center; justify-content: space-between; margin-bottom: 8pt; }
+          .rpt-header-logo { display: flex; align-items: center; gap: 6pt; }
+          .rpt-header-info { font-size: 7pt; color: #555; text-align: right; line-height: 1.5; }
+          .rpt-footer { display: block !important; border-top: 1px solid #0D47A1; margin-top: 20pt; padding-top: 6pt; font-size: 7.5pt; color: #444; text-align: center; line-height: 1.6; }
+          .rpt-conteudo { margin: 0 !important; padding: 0 !important; }
+          .rpt-secao h3, .relatorio-secao h3 {
+            background: #0D47A1 !important; color: #fff !important;
+            padding: 5pt 9pt !important; font-size: 9pt !important;
+            font-weight: 700 !important; text-transform: uppercase !important;
+            letter-spacing: .5pt !important; margin: 0 0 6pt !important;
+            border-radius: 0 !important; page-break-after: avoid !important;
+          }
+          table { width: 100% !important; border-collapse: collapse !important; font-size: 8pt !important; margin-bottom: 6pt !important; }
+          th { background: #0D47A1 !important; color: #fff !important; padding: 3pt 6pt !important; font-weight: 600 !important; text-align: left !important; border: 1px solid #0D47A1 !important; }
+          td { padding: 3pt 6pt !important; border: 1px solid #ccc !important; color: #111 !important; }
+          tr:nth-child(even) td { background: #f0f4f8 !important; }
+          .card { border: none !important; border-bottom: 1px solid #e8e8e8 !important; background: #fff !important; border-radius: 0 !important; padding: 6pt 0 !important; margin-bottom: 8pt !important; color: #000 !important; }
+          .badge { border: 1px solid #ccc !important; font-size: 7pt !important; padding: 1pt 4pt !important; }
+          .badge-alto    { background:#f8d7da !important; color:#721c24 !important; border-color:#f5c6cb !important; }
+          .badge-medio   { background:#fff3cd !important; color:#856404 !important; border-color:#ffeeba !important; }
+          .badge-baixo   { background:#d4edda !important; color:#155724 !important; border-color:#c3e6cb !important; }
+          textarea::placeholder, input::placeholder { color: transparent !important; }
+          textarea.campo-tecnico { border: none !important; }
+          div:empty { display: none !important; }
+          .card { page-break-inside: avoid !important; break-inside: avoid !important; }
+          tr { page-break-inside: avoid !important; break-inside: avoid !important; }
+          .relatorio-secao h3 { page-break-after: avoid !important; break-after: avoid !important; }
+          .rpt-capa { page-break-after: always; break-after: always; }
+          .rpt-capa, .rpt-header, .rpt-footer { display: none; }
+        }
+        @media screen {
+          .rpt-capa, .rpt-sumario { display: none !important; }
+          .so-imprimir { display: none !important; }
+        }
+      </style>
+
+      <!-- ── CAPA ─────────────────────────────────────────── -->
+      <div class="rpt-capa">
+        <div class="rpt-capa-barra-topo" id="aep-capa-barra-topo">
+          ENGENHALVES — Centro de Engenharia e Segurança LTDA
+        </div>
+        <div class="rpt-capa-corpo">
+          <div id="aep-capa-logo-area" style="text-align:center">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000"
+                 width="80" height="80" style="display:block;margin:0 auto 4mm">
+              <path fill="#0D47A1" d="M500 115C287.2 115 115 287.2 115 500S287.2 885 500 885c129.1 0 243.4-63.7 313.2-161.4H641.8C600.5 748.7 551.8 762 500 762c-144.7 0-262-117.3-262-262s117.3-262 262-262c51.8 0 100.5 13.3 141.8 38.4h171.4C743.4 178.7 629.1 115 500 115z"/>
+              <path fill="#0D47A1" d="M300 333H732L795 426H300Z"/>
+              <path fill="#0D47A1" d="M248 454H752L695 546H248Z"/>
+              <path fill="#0D47A1" d="M300 574H795L732 667H300Z"/>
+            </svg>
+            <div style="font-size:20pt;font-weight:900;color:#0D47A1;letter-spacing:3px;line-height:1">ENGENHALVES</div>
+            <div style="font-size:7pt;color:#666;letter-spacing:1.5px;margin-top:2mm;text-transform:uppercase">Centro de Engenharia e Segurança LTDA</div>
+          </div>
+          <div style="text-align:center">
+            <div class="rpt-capa-titulo">Avaliação Ergonômica Preliminar</div>
+            <div class="rpt-capa-subtitulo">Laudo Técnico de Ergonomia — NR-17 &middot; GRO-PGR</div>
+            <div class="rpt-capa-linha"></div>
+          </div>
+          <table class="rpt-capa-tabela" style="margin-bottom:8mm">
+            <tr><td class="rpt-capa-td-label">Empresa / Cliente</td><td>${av.empresa?.nome || '—'}</td></tr>
+            <tr><td class="rpt-capa-td-label">Setor Avaliado</td><td>${av.setor || '—'}</td></tr>
+            <tr><td class="rpt-capa-td-label">Função Avaliada</td><td>${av.funcao || '—'}</td></tr>
+            <tr><td class="rpt-capa-td-label">Data da Avaliação</td><td>${_formatarData(av.empresa?.dataAvaliacao) || '—'}</td></tr>
+            <tr><td class="rpt-capa-td-label">Responsável Técnico</td><td>${_responsavel || '—'}</td></tr>
+            <tr><td class="rpt-capa-td-label">Registro Profissional</td><td>${_registro || '—'}</td></tr>
+          </table>
+        </div>
+        <div class="rpt-capa-barra-rodape">
+          Documento gerado em ${_dataEmissao} &mdash; Confidencial &nbsp;|&nbsp; ${_nrAEPAtual}
+        </div>
+      </div>
+
+      <!-- ── SUMÁRIO ───────────────────────────────────────── -->
+      <div class="rpt-sumario so-imprimir">
+        <div class="rpt-sumario-titulo">Sumário</div>
+        <div class="rpt-sumario-lista">
+          <div class="rpt-sumario-item"><span class="rpt-sumario-num">1.</span><span class="rpt-sumario-nome">Informações Gerais</span><span class="rpt-sumario-pontilhado"></span><span class="rpt-sumario-pag">3</span></div>
+          <div class="rpt-sumario-item"><span class="rpt-sumario-num">2.</span><span class="rpt-sumario-nome">Objetivo</span><span class="rpt-sumario-pontilhado"></span><span class="rpt-sumario-pag">3</span></div>
+          <div class="rpt-sumario-item"><span class="rpt-sumario-num">3.</span><span class="rpt-sumario-nome">Metodologia</span><span class="rpt-sumario-pontilhado"></span><span class="rpt-sumario-pag">4</span></div>
+          <div class="rpt-sumario-item"><span class="rpt-sumario-num">4.</span><span class="rpt-sumario-nome">Normas Aplicáveis</span><span class="rpt-sumario-pontilhado"></span><span class="rpt-sumario-pag">4</span></div>
+          <div class="rpt-sumario-sep"></div>
+          <div class="rpt-sumario-item"><span class="rpt-sumario-num">5.</span><span class="rpt-sumario-nome">Posto de Trabalho</span><span class="rpt-sumario-pontilhado"></span><span class="rpt-sumario-pag">5</span></div>
+          <div class="rpt-sumario-item"><span class="rpt-sumario-num">6.</span><span class="rpt-sumario-nome">Checklist NR-17</span><span class="rpt-sumario-pontilhado"></span><span class="rpt-sumario-pag">5</span></div>
+          <div class="rpt-sumario-item sumario-sub"><span class="rpt-sumario-num">6.1</span><span class="rpt-sumario-nome">Resumo por Bloco</span><span class="rpt-sumario-pontilhado"></span><span class="rpt-sumario-pag">5</span></div>
+          <div class="rpt-sumario-item sumario-sub"><span class="rpt-sumario-num">6.2</span><span class="rpt-sumario-nome">Não Conformidades</span><span class="rpt-sumario-pontilhado"></span><span class="rpt-sumario-pag">6</span></div>
+          <div class="rpt-sumario-item"><span class="rpt-sumario-num">7.</span><span class="rpt-sumario-nome">Score de Criticidade</span><span class="rpt-sumario-pontilhado"></span><span class="rpt-sumario-pag">6</span></div>
+          <div class="rpt-sumario-sep"></div>
+          <div class="rpt-sumario-item"><span class="rpt-sumario-num">8.</span><span class="rpt-sumario-nome">Análise Técnica</span><span class="rpt-sumario-pontilhado"></span><span class="rpt-sumario-pag">7</span></div>
+          <div class="rpt-sumario-item"><span class="rpt-sumario-num">9.</span><span class="rpt-sumario-nome">Recomendações Técnicas</span><span class="rpt-sumario-pontilhado"></span><span class="rpt-sumario-pag">7</span></div>
+          <div class="rpt-sumario-item"><span class="rpt-sumario-num">10.</span><span class="rpt-sumario-nome">Indicação Técnica (AET)</span><span class="rpt-sumario-pontilhado"></span><span class="rpt-sumario-pag">8</span></div>
+          <div class="rpt-sumario-item"><span class="rpt-sumario-num">11.</span><span class="rpt-sumario-nome">Plano de Ação</span><span class="rpt-sumario-pontilhado"></span><span class="rpt-sumario-pag">8</span></div>
+          <div class="rpt-sumario-item"><span class="rpt-sumario-num">12.</span><span class="rpt-sumario-nome">Conclusão e Assinatura</span><span class="rpt-sumario-pontilhado"></span><span class="rpt-sumario-pag">9</span></div>
+        </div>
+      </div>
+
+      <!-- ── CONTEÚDO ──────────────────────────────────────── -->
       <div class="container">
-        <div style="margin-top:var(--s4);text-align:center;margin-bottom:var(--s5)">
+
+        <!-- Header (imprime em cada página de conteúdo) -->
+        <div class="rpt-header so-imprimir">
+          <div class="rpt-header-logo" id="aep-header-logo-area">
+            ${_SVG_E(28, 28)}
+            <div>
+              <div style="font-size:11pt;font-weight:900;color:#0D47A1;letter-spacing:1px;line-height:1">ENGENHALVES</div>
+              <div style="font-size:6pt;color:#777;letter-spacing:.5px">CENTRO DE ENGENHARIA E SEGURANÇA LTDA</div>
+            </div>
+          </div>
+          <div class="rpt-header-info">
+            Avaliação Ergonômica Preliminar — AEP<br>
+            ${av.empresa?.nome || ''} · ${_formatarData(av.empresa?.dataAvaliacao)}<br>
+            ${_nrAEPAtual}
+          </div>
+        </div>
+
+        <!-- Cabeçalho de tela -->
+        <div class="nao-imprimir" style="margin:var(--s4) 0 var(--s5);text-align:center">
           <div style="font-size:var(--txt-xs);color:var(--texto-sec);text-transform:uppercase;letter-spacing:.5px">
-            Avaliação Ergonômica Preliminar — AEP
+            Avaliação Ergonômica Preliminar — NR-17 / GRO-PGR
           </div>
           <div style="font-size:var(--txt-xl);font-weight:700">Relatório Técnico</div>
           <div style="font-size:var(--txt-sm);color:var(--texto-sec)">
@@ -1145,93 +1398,237 @@ const ModuloAEP = (() => {
           </div>
         </div>
 
-        <div style="display:flex;gap:var(--s3);flex-wrap:wrap;margin-bottom:var(--s5)">
-          <button class="btn btn-primario" onclick="ModuloAEP.imprimirRelatorio()">🖨️ Imprimir PDF</button>
+        <!-- Botões de ação -->
+        <div class="nao-imprimir" style="display:flex;gap:var(--s3);flex-wrap:wrap;margin-bottom:var(--s5)">
+          <button class="btn btn-primario" onclick="ModuloAEP.imprimirRelatorio('engenhalves')">🖨️ Engenhalves</button>
+          <button class="btn btn-primario" onclick="ModuloAEP.imprimirRelatorio('kalprevi')" style="background:#1a5c2a">🖨️ Kalprevi</button>
           <button class="btn btn-secundario" onclick="ModuloAEP.exportarJSON()">📤 Exportar JSON</button>
         </div>
 
-        <div class="relatorio-resumo-risco">
-          <div class="resumo-risco-card alto">
-            <div class="numero">${riscos.alto}</div><div class="label">Risco Alto</div>
-          </div>
-          <div class="resumo-risco-card medio">
-            <div class="numero">${riscos.medio}</div><div class="label">Risco Médio</div>
-          </div>
-          <div class="resumo-risco-card baixo">
-            <div class="numero">${riscos.baixo}</div><div class="label">Risco Baixo</div>
+        <!-- Resumo de riscos (tela) -->
+        <div class="relatorio-resumo-risco nao-imprimir">
+          <div class="resumo-risco-card alto"><div class="numero">${riscos.alto}</div><div class="label">Risco Alto</div></div>
+          <div class="resumo-risco-card medio"><div class="numero">${riscos.medio}</div><div class="label">Risco Médio</div></div>
+          <div class="resumo-risco-card baixo"><div class="numero">${riscos.baixo}</div><div class="label">Risco Baixo</div></div>
+        </div>
+
+        <!-- 1. Informações Gerais -->
+        <div class="relatorio-secao">
+          <h3>1. Informações Gerais</h3>
+          <div style="overflow-x:auto">
+            <table class="tabela-simples">
+              <tbody>
+                <tr><td style="font-weight:600;width:40%">Empresa / Cliente</td><td>${av.empresa?.nome || '—'}</td></tr>
+                <tr><td style="font-weight:600">CNPJ</td><td>${av.empresa?.cnpj || '—'}</td></tr>
+                <tr><td style="font-weight:600">Setor Avaliado</td><td>${av.setor || '—'}</td></tr>
+                <tr><td style="font-weight:600">Função Avaliada</td><td>${av.funcao || '—'}</td></tr>
+                <tr><td style="font-weight:600">Nº de Trabalhadores</td><td>${av.numTrabalhadores || '—'}</td></tr>
+                <tr><td style="font-weight:600">Data da Avaliação</td><td>${_formatarData(av.empresa?.dataAvaliacao) || '—'}</td></tr>
+                <tr><td style="font-weight:600">N° do Laudo</td><td>${_nrAEPAtual}</td></tr>
+                <tr><td style="font-weight:600">Data de Emissão</td><td>${_dataEmissao}</td></tr>
+                <tr><td style="font-weight:600">Responsável Técnico</td><td>${_responsavel || '—'}</td></tr>
+                <tr><td style="font-weight:600">Registro Profissional</td><td>${_registro || '—'}</td></tr>
+              </tbody>
+            </table>
           </div>
         </div>
 
+        <!-- 2. Objetivo -->
         <div class="relatorio-secao">
-          <h3>Identificação</h3>
+          <h3>2. Objetivo</h3>
           <div class="card">
-            ${_linhaInfo('Empresa', av.empresa?.nome)}
-            ${_linhaInfo('CNPJ', av.empresa?.cnpj)}
-            ${_linhaInfo('Setor', av.setor)}
-            ${_linhaInfo('Função', av.funcao)}
-            ${_linhaInfo('Nº Trabalhadores', av.numTrabalhadores)}
-            ${_linhaInfo('Data', _formatarData(av.empresa?.dataAvaliacao))}
-            ${_linhaInfo('Responsável', av.empresa?.responsavelTecnico)}
-            ${_linhaInfo('Registro', av.empresa?.registroProfissional)}
+            <p style="font-size:var(--txt-sm)">
+              A presente Avaliação Ergonômica Preliminar — AEP tem por objetivo identificar os fatores de risco
+              ergonômico presentes no posto de trabalho avaliado, em atendimento às disposições da
+              <strong>NR-17 — Ergonomia</strong> e ao <strong>GRO/PGR — Gerenciamento de Riscos Ocupacionais</strong>
+              (Portaria MTP nº 672/2021). Os resultados subsidiam as ações do Programa de Gerenciamento de Riscos
+              e fundamentam a necessidade de intervenções ergonômicas ou de Análise Ergonômica do Trabalho — AET.
+            </p>
           </div>
         </div>
 
-        ${posto.atividadeReal ? `
+        <!-- 3. Metodologia -->
         <div class="relatorio-secao">
-          <h3>Caracterização do Posto</h3>
+          <h3>3. Metodologia</h3>
           <div class="card">
-            ${_linhaInfo('Perfil', PERFIS_POSTO.find(p => p.id === posto.perfilPosto)?.label || posto.perfilPosto)}
+            <p style="font-size:var(--txt-sm)">
+              A avaliação foi conduzida por meio de inspeção in loco do posto de trabalho, com aplicação de
+              checklist estruturado baseado na <strong>NR-17</strong>, composto por
+              <strong>${ORDEM_BLOCOS.reduce((n,c) => n + BLOCOS[c].itens.length, 0)} itens</strong> distribuídos
+              em ${ORDEM_BLOCOS.length} blocos temáticos: Organização do Trabalho, Levantamento e Transporte de
+              Cargas, Mobiliário, Máquinas e Equipamentos, Condições Ambientais, Demandas Cognitivas e Aspectos
+              Psicossociais.
+            </p>
+            <p style="font-size:var(--txt-sm);margin-top:var(--s3)">
+              Complementarmente, foram avaliadas as exposições ergonômicas do posto (fatores físicos,
+              organizacionais e cognitivos), com caracterização de intensidade, frequência e duração de cada
+              exposição. Um <strong>Motor de Criticidade</strong> integrado calcula automaticamente um
+              Score de Criticidade (0–100), ponderando os domínios: Físico (35%), Organizacional (25%),
+              Cognitivo (20%) e Psicossocial (20%).
+            </p>
+          </div>
+        </div>
+
+        <!-- 4. Normas Aplicáveis -->
+        <div class="relatorio-secao">
+          <h3>4. Normas Aplicáveis</h3>
+          <div style="overflow-x:auto">
+            <table class="tabela-simples">
+              <thead><tr><th>Norma / Referência</th><th>Descrição</th></tr></thead>
+              <tbody>
+                <tr><td>NR-17</td><td>Ergonomia — Portaria MTE nº 876/2021</td></tr>
+                <tr><td>NR-01</td><td>Disposições Gerais e Gerenciamento de Riscos Ocupacionais — Portaria MTP nº 672/2021</td></tr>
+                <tr><td>NIOSH (1994)</td><td>Equação NIOSH para Levantamento Manual de Cargas</td></tr>
+                <tr><td>ISO 11228</td><td>Ergonomics — Manual Handling</td></tr>
+                <tr><td>COPSOQ-III</td><td>Copenhagen Psychosocial Questionnaire, 3ª Edição (Kristensen et al., 2019)</td></tr>
+                <tr><td>LGPD — Lei nº 13.709/2018</td><td>Lei Geral de Proteção de Dados Pessoais</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- 5. Posto de Trabalho -->
+        ${posto.atividadeReal || posto.perfilPosto ? `
+        <div class="relatorio-secao">
+          <h3>5. Posto de Trabalho</h3>
+          <div class="card">
+            ${posto.perfilPosto ? `${_linhaInfo('Perfil', PERFIS_POSTO.find(p => p.id === posto.perfilPosto)?.label || posto.perfilPosto)}` : ''}
             ${_linhaInfo('Tipo de atividade', posto.tipoAtividade)}
             ${_linhaInfo('Turno', posto.turno)}
-            ${_linhaInfo('Ciclo', posto.cicloTrabalho)}
-            ${expsPresentes.length ? _linhaInfo('Exposições identificadas', expsPresentes.join('; ')) : ''}
-            ${posto.atividadeReal ? `<div style="margin-top:var(--s3)"><strong style="font-size:var(--txt-sm)">Atividade Real:</strong><p style="font-size:var(--txt-sm);margin-top:var(--s2)">${posto.atividadeReal}</p></div>` : ''}
+            ${_linhaInfo('Ciclo de trabalho', posto.cicloTrabalho)}
+            ${_linhaInfo('Ferramentas / Equipamentos', posto.ferramentas)}
+            ${posto.atividadeReal ? `<div style="margin-top:var(--s3)"><strong style="font-size:var(--txt-sm)">Atividade Real Observada:</strong><p style="font-size:var(--txt-sm);margin-top:var(--s2)">${posto.atividadeReal}</p></div>` : ''}
+            ${expsPresentes.length ? `
+              <div style="margin-top:var(--s3)">
+                <strong style="font-size:var(--txt-sm)">Exposições Identificadas (${expsPresentes.length}):</strong>
+                <div style="overflow-x:auto;margin-top:var(--s2)">
+                  <table class="tabela-simples">
+                    <thead><tr><th>Exposição</th><th>Intensidade</th><th>Frequência</th><th>Duração</th></tr></thead>
+                    <tbody>
+                      ${expsPresentes.map(e => {
+                        const def = EXPOSICOES.find(x => x.id === e.id);
+                        return `<tr>
+                          <td style="font-size:var(--txt-xs)">${def?.label || e.id}</td>
+                          <td style="font-size:var(--txt-xs)">${e.intensidade || '—'}</td>
+                          <td style="font-size:var(--txt-xs)">${e.frequencia || '—'}</td>
+                          <td style="font-size:var(--txt-xs)">${e.duracao || '—'}</td>
+                        </tr>`;
+                      }).join('')}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ` : ''}
           </div>
         </div>` : ''}
 
-        ${naoConformes.length > 0 ? `
+        <!-- 6. Checklist NR-17 -->
         <div class="relatorio-secao">
-          <h3>Não Conformidades Identificadas</h3>
+          <h3>6. Checklist NR-17</h3>
+          <h4 style="font-size:var(--txt-sm);font-weight:600;margin:var(--s3) 0 var(--s2);color:var(--texto-sec)">6.1 Resumo por Bloco</h4>
+          <div style="overflow-x:auto">
+            <table class="tabela-simples">
+              <thead><tr><th>Bloco</th><th>Respondidos</th><th>Não Conf.</th><th>Alto</th><th>Médio</th></tr></thead>
+              <tbody>${blocoResumoHTML}</tbody>
+            </table>
+          </div>
+          ${naoConformes.length > 0 ? `
+          <h4 style="font-size:var(--txt-sm);font-weight:600;margin:var(--s4) 0 var(--s2);color:var(--texto-sec)">6.2 Não Conformidades Identificadas</h4>
           <div style="overflow-x:auto">
             <table class="tabela-simples">
               <thead><tr><th>Bloco</th><th>Item</th><th>Risco</th></tr></thead>
               <tbody>
                 ${naoConformes.map(nc => `
                   <tr>
-                    <td style="white-space:nowrap">${nc.blocoTitulo}</td>
-                    <td style="font-size:var(--txt-xs)">${nc.itemTexto.slice(0, 80)}${nc.itemTexto.length > 80 ? '…' : ''}</td>
-                    <td><span class="badge badge-${nc.risco || 'medio'}">${NIVEL_LABEL[nc.risco] || nc.risco}</span></td>
+                    <td style="white-space:nowrap;font-size:var(--txt-xs)">${nc.blocoTitulo}</td>
+                    <td style="font-size:var(--txt-xs)">${nc.itemTexto.slice(0, 90)}${nc.itemTexto.length > 90 ? '…' : ''}</td>
+                    <td><span class="badge badge-${nc.risco || 'medio'}">${NIVEL_PRINT[nc.risco] || nc.risco}</span></td>
                   </tr>
                 `).join('')}
               </tbody>
             </table>
-          </div>
-        </div>` : ''}
+          </div>` : `<p style="font-size:var(--txt-sm);color:var(--texto-sec);margin-top:var(--s3)">Nenhuma não conformidade registrada.</p>`}
+        </div>
 
+        <!-- 7. Score de Criticidade -->
+        <div class="relatorio-secao">
+          <h3>7. Score de Criticidade</h3>
+          <div class="card">
+            <div style="display:flex;align-items:center;gap:var(--s5);flex-wrap:wrap">
+              <div style="text-align:center;flex-shrink:0">
+                <div style="font-size:3rem;font-weight:900;color:${MOTOR_AEP.corNivel(nivelSug)};line-height:1">${score.valor}</div>
+                <div style="font-size:var(--txt-xs);color:var(--texto-sec)">/&nbsp;100</div>
+                <div style="font-weight:700;font-size:var(--txt-sm);color:${MOTOR_AEP.corNivel(nivelSug)};margin-top:var(--s1)">${NIVEL_LABEL[nivelSug]}</div>
+              </div>
+              <div style="flex:1;min-width:160px">
+                ${['fisica','organizacional','cognitiva','psicossocial'].map(dom => {
+                  const val = Math.round((score.componentes[dom] || 0) * 100);
+                  const label = { fisica: 'Físico', organizacional: 'Organizacional', cognitiva: 'Cognitivo', psicossocial: 'Psicossocial' };
+                  return `
+                    <div style="margin-bottom:var(--s2)">
+                      <div style="display:flex;justify-content:space-between;font-size:var(--txt-xs);margin-bottom:2px">
+                        <span style="color:var(--texto-sec)">${label[dom]}</span><span style="font-weight:600">${val}%</span>
+                      </div>
+                      <div style="background:var(--borda);border-radius:99px;height:5px">
+                        <div style="background:${MOTOR_AEP.corNivel(nivelSug)};border-radius:99px;height:5px;width:${val}%"></div>
+                      </div>
+                    </div>`;
+                }).join('')}
+              </div>
+            </div>
+            <p style="font-size:var(--txt-xs);color:var(--texto-sec);margin-top:var(--s3)">
+              Score calculado automaticamente pelo Motor de Criticidade ErgoGRO com base no checklist NR-17 e exposições estruturadas.
+              Pesos: Físico 35% · Organizacional 25% · Cognitivo 20% · Psicossocial 20%.
+            </p>
+          </div>
+        </div>
+
+        <!-- 8. Análise Técnica -->
         ${analise.analiseTecnica ? `
         <div class="relatorio-secao">
-          <h3>Análise Técnica</h3>
+          <h3>8. Análise Técnica</h3>
           <div class="card">
-            ${analise.nivelRiscoGeral ? `<div style="margin-bottom:var(--s3)"><strong>Nível de Risco: </strong><span class="badge badge-${analise.nivelRiscoGeral === 'baixo' ? 'baixo' : analise.nivelRiscoGeral === 'medio' ? 'medio' : 'alto'}">${NIVEL_LABEL[analise.nivelRiscoGeral] || analise.nivelRiscoGeral}</span></div>` : ''}
+            ${analise.nivelRiscoGeral ? `
+              <div style="margin-bottom:var(--s3)">
+                <strong>Nível de Risco Classificado: </strong>
+                <span class="badge badge-${analise.nivelRiscoGeral === 'baixo' ? 'baixo' : analise.nivelRiscoGeral === 'medio' ? 'medio' : 'alto'}">${NIVEL_LABEL[analise.nivelRiscoGeral]}</span>
+                ${analise.prioridadeIntervencao ? `<span style="font-size:var(--txt-xs);color:var(--texto-sec);margin-left:var(--s3)">Prioridade: ${analise.prioridadeIntervencao}</span>` : ''}
+              </div>` : ''}
             <p style="font-size:var(--txt-sm)">${analise.analiseTecnica}</p>
+            ${analise.justificativaRisco ? `<p style="font-size:var(--txt-sm);margin-top:var(--s3);color:var(--texto-sec)"><em>${analise.justificativaRisco}</em></p>` : ''}
           </div>
         </div>` : ''}
 
+        <!-- 9. Recomendações -->
         ${analise.recomendacoes ? `
         <div class="relatorio-secao">
-          <h3>Recomendações Técnicas</h3>
+          <h3>9. Recomendações Técnicas</h3>
           <div class="card"><p style="font-size:var(--txt-sm);white-space:pre-wrap">${analise.recomendacoes}</p></div>
         </div>` : ''}
 
-        ${analise.indicaAET ? `
-        <div class="aviso-tecnico aviso">
-          <span>⚠️</span>
-          <span><strong>Esta AEP indica necessidade de AET.</strong> ${analise.justificativaAET || ''}</span>
-        </div>` : ''}
+        <!-- 10. Indicação de AET -->
+        <div class="relatorio-secao">
+          <h3>10. Indicação Técnica</h3>
+          <div class="card">
+            ${analise.indicaAET ? `
+              <div class="aviso-tecnico aviso" style="margin:0">
+                <span>⚠️</span>
+                <span><strong>Esta AEP indica necessidade de AET (Análise Ergonômica do Trabalho).</strong>
+                ${analise.justificativaAET ? `<br><span style="font-size:var(--txt-sm)">${analise.justificativaAET}</span>` : ''}
+                </span>
+              </div>` : `
+              <p style="font-size:var(--txt-sm)">
+                Com base nos dados levantados, esta AEP <strong>não indica necessidade imediata de AET</strong>,
+                devendo as ações corretivas ser implementadas conforme as recomendações técnicas acima.
+              </p>`}
+            ${analise.prazoRetorno ? `<p style="font-size:var(--txt-sm);margin-top:var(--s3)"><strong>Prazo de Reavaliação:</strong> ${_formatarData(analise.prazoRetorno)}</p>` : ''}
+          </div>
+        </div>
 
+        <!-- 11. Plano de Ação -->
         ${av.planoAcao?.length > 0 ? `
         <div class="relatorio-secao">
-          <h3>Plano de Ação (${av.planoAcao.length} ação(ões))</h3>
+          <h3>11. Plano de Ação (${av.planoAcao.length} ação(ões))</h3>
           <div style="overflow-x:auto">
             <table class="tabela-simples">
               <thead><tr><th>#</th><th>Ação</th><th>Responsável</th><th>Prazo</th><th>Status</th></tr></thead>
@@ -1239,7 +1636,7 @@ const ModuloAEP = (() => {
                 ${av.planoAcao.map((a, i) => `
                   <tr>
                     <td>${i+1}</td>
-                    <td style="font-size:var(--txt-xs)">${a.descricao?.slice(0,60)}${a.descricao?.length > 60 ? '…' : ''}</td>
+                    <td style="font-size:var(--txt-xs)">${a.descricao?.slice(0,70)}${(a.descricao?.length||0) > 70 ? '…' : ''}</td>
                     <td style="font-size:var(--txt-xs)">${a.responsavel || '—'}</td>
                     <td style="font-size:var(--txt-xs)">${_formatarData(a.prazo)}</td>
                     <td><span class="status-chip status-${a.status}">${a.status}</span></td>
@@ -1250,18 +1647,77 @@ const ModuloAEP = (() => {
           </div>
         </div>` : ''}
 
-        <div style="text-align:center;padding:var(--s6) 0;color:var(--texto-sec);font-size:var(--txt-xs)">
-          ErgoGRO — AEP conforme NR-17 / GRO-PGR · Documento técnico de uso profissional
+        <!-- 12. Conclusão e Assinatura -->
+        <div class="relatorio-secao">
+          <h3>12. Conclusão e Assinatura</h3>
+          <div class="card">
+            <p style="font-size:var(--txt-sm)">
+              A presente Avaliação Ergonômica Preliminar foi elaborada com base em inspeção in loco,
+              aplicação de checklist estruturado (NR-17) e análise das exposições ergonômicas do posto.
+              Os resultados e recomendações têm caráter técnico e devem ser implementados com o
+              acompanhamento de profissional habilitado em Segurança do Trabalho.
+            </p>
+            <p style="font-size:var(--txt-sm);margin-top:var(--s3)">
+              Este documento integra o Programa de Gerenciamento de Riscos — PGR da empresa
+              <strong>${av.empresa?.nome || '[empresa]'}</strong> e deverá ser revisado nas condições
+              previstas na NR-01 e NR-17.
+            </p>
+          </div>
+          <!-- Assinatura (só impressão) -->
+          <div class="so-imprimir" style="margin-top:20pt">
+            <table style="width:100%;border-collapse:collapse;font-size:9pt">
+              <tr>
+                <td style="width:50%;padding:0 20pt 0 0;border:none">
+                  <div style="border-bottom:1px solid #000;height:32pt;margin-bottom:4pt"></div>
+                  <div style="font-weight:600">${_responsavel || 'Responsável Técnico'}</div>
+                  <div style="color:#555">${_registro || 'Registro Profissional'}</div>
+                </td>
+                <td style="width:50%;padding:0 0 0 20pt;border:none;text-align:right">
+                  <div style="font-size:8pt;color:#555">Data de Emissão</div>
+                  <div style="font-weight:600">${_dataEmissao}</div>
+                  <div style="font-size:7pt;color:#888;margin-top:4pt">${_nrAEPAtual}</div>
+                </td>
+              </tr>
+            </table>
+          </div>
         </div>
+
+        <!-- Rodapé empresa (só impressão, última página) -->
+        <div class="rpt-footer so-imprimir" id="aep-rodape-empresa">
+          ENGENHALVES — Centro de Engenharia &amp; Segurança LTDA<br>
+          Estrada Braulina Pigatto, 2320, CEP 84607-303 — Bom Jesus, União da Vitória - PR<br>
+          (42) 99928-8177 &nbsp;|&nbsp; atendimento@engenhalves.com.br<br>
+          <span style="font-size:7pt">Documento técnico de uso exclusivo do cliente &middot; ${_nrAEPAtual}</span>
+        </div>
+
       </div>
     `;
   }
 
-  function imprimirRelatorio() {
+  function _sincronizarMarcaAEP() {
+    const cfg = _EMPRESAS_AEP[_empresaImpressaoAEP] || _EMPRESAS_AEP.engenhalves;
+    const el1 = document.getElementById('aep-capa-barra-topo');
+    if (el1) el1.textContent = cfg.barraTopoTexto;
+    const el2 = document.getElementById('aep-capa-logo-area');
+    if (el2) el2.innerHTML = cfg.capaLogo();
+    const el3 = document.getElementById('aep-header-logo-area');
+    if (el3) el3.innerHTML = cfg.headerLogo();
+    const el4 = document.getElementById('aep-rodape-empresa');
+    if (el4) el4.innerHTML = cfg.rodape(_nrAEPAtual);
+  }
+
+  function imprimirRelatorio(empresa) {
     _salvarAnalise();
     const av = App.obterAvaliacaoAtual();
     if (av) Storage.salvar(av);
-    window.print();
+    if (empresa) _empresaImpressaoAEP = empresa;
+    _sincronizarMarcaAEP();
+    const imgs = [...document.querySelectorAll('#aep-capa-logo-area img, #aep-header-logo-area img')];
+    const pendentes = imgs.filter(img => !img.complete);
+    if (pendentes.length === 0) { window.print(); return; }
+    let n = 0;
+    const proximo = () => { if (++n >= pendentes.length) window.print(); };
+    pendentes.forEach(img => { img.onload = proximo; img.onerror = proximo; });
   }
 
   function exportarJSON() {
