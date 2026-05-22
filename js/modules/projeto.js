@@ -14,6 +14,8 @@
 const ModuloProjeto = (() => {
 
   let _secaoAtual = 'visao-geral';
+  let _empresaImpressaoProj = 'engenhalves';
+  let _nrProjetoAtual = '';
 
   /* Wizard interno para criar avaliação */
   let _wiz = { setorId: null, funcaoId: null, tipo: null };
@@ -30,6 +32,57 @@ const ModuloProjeto = (() => {
   const TIPO_LABEL = { aep:'AEP', psicossocial:'Psicossocial', aet:'AET' };
   const TIPO_ICON  = { aep:'📋', psicossocial:'🧠', aet:'🔬' };
   const _fd = iso => { if (!iso) return ''; try { const [a,m,d] = iso.slice(0,10).split('-'); return `${d}/${m}/${a}`; } catch { return iso; } };
+
+  /* ── SVG brandmark Engenhalves ───────────────────────────── */
+  const _SVG_EP = (w, h) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000" width="${w}" height="${h}" style="flex-shrink:0">
+    <path fill="#0D47A1" d="M500 115C287.2 115 115 287.2 115 500S287.2 885 500 885c129.1 0 243.4-63.7 313.2-161.4H641.8C600.5 748.7 551.8 762 500 762c-144.7 0-262-117.3-262-262s117.3-262 262-262c51.8 0 100.5 13.3 141.8 38.4h171.4C743.4 178.7 629.1 115 500 115z"/>
+    <path fill="#0D47A1" d="M300 333H732L795 426H300Z"/>
+    <path fill="#0D47A1" d="M248 454H752L695 546H248Z"/>
+    <path fill="#0D47A1" d="M300 574H795L732 667H300Z"/>
+  </svg>`;
+
+  /* ── Config de marca (Engenhalves / Kalprevi) ─────────── */
+  const _EMPRESAS_PROJ = {
+    engenhalves: {
+      barraTopoTexto: 'ENGENHALVES — Centro de Engenharia e Segurança LTDA',
+      capaLogo: () => `
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000"
+             width="80" height="80" style="display:block;margin:0 auto 4mm">
+          <path fill="#0D47A1" d="M500 115C287.2 115 115 287.2 115 500S287.2 885 500 885c129.1 0 243.4-63.7 313.2-161.4H641.8C600.5 748.7 551.8 762 500 762c-144.7 0-262-117.3-262-262s117.3-262 262-262c51.8 0 100.5 13.3 141.8 38.4h171.4C743.4 178.7 629.1 115 500 115z"/>
+          <path fill="#0D47A1" d="M300 333H732L795 426H300Z"/>
+          <path fill="#0D47A1" d="M248 454H752L695 546H248Z"/>
+          <path fill="#0D47A1" d="M300 574H795L732 667H300Z"/>
+        </svg>
+        <div style="font-size:20pt;font-weight:900;color:#0D47A1;letter-spacing:3px;line-height:1">ENGENHALVES</div>
+        <div style="font-size:7pt;color:#666;letter-spacing:1.5px;margin-top:2mm;text-transform:uppercase">Centro de Engenharia e Segurança LTDA</div>`,
+      headerLogo: () => `
+        ${_SVG_EP(28, 28)}
+        <div>
+          <div style="font-size:11pt;font-weight:900;color:#0D47A1;letter-spacing:1px;line-height:1">ENGENHALVES</div>
+          <div style="font-size:6pt;color:#777;letter-spacing:.5px">CENTRO DE ENGENHARIA E SEGURANÇA LTDA</div>
+        </div>`,
+      rodape: (nr) => `ENGENHALVES — Centro de Engenharia &amp; Segurança LTDA<br>
+        Estrada Braulina Pigatto, 2320, CEP 84607-303 — Bom Jesus, União da Vitória - PR<br>
+        (42) 99928-8177 &nbsp;|&nbsp; atendimento@engenhalves.com.br<br>
+        <span style="font-size:7pt">Documento técnico de uso exclusivo do cliente &middot; ${nr}</span>`,
+    },
+    kalprevi: {
+      barraTopoTexto: 'KALPREVI — Soluções Ocupacionais LTDA',
+      capaLogo: () => `
+        <div style="text-align:center">
+          <img src="Kalprevi/logo%20kalprevi.jpg" alt="KALPREVI"
+               style="height:18mm;width:auto;max-width:120mm;display:block;margin:0 auto 3mm">
+          <div style="font-size:7pt;color:#666;letter-spacing:1.5px;text-transform:uppercase">Soluções Ocupacionais LTDA</div>
+        </div>`,
+      headerLogo: () => `
+        <img src="Kalprevi/logo%20kalprevi.jpg" alt="KALPREVI"
+             style="height:9mm;width:auto;max-width:50mm;display:block">`,
+      rodape: (nr) => `KALPREVI SOLUÇÕES OCUPACIONAIS LTDA &nbsp;|&nbsp; CNPJ: 58.682.679/0001-26<br>
+        Rua Costa Carvalho, 880, Centro — União da Vitória - PR<br>
+        (42) 3529-0522 &nbsp;|&nbsp; contato@kalprevi.com.br<br>
+        <span style="font-size:7pt">Documento técnico de uso exclusivo do cliente &middot; ${nr}</span>`,
+    },
+  };
 
   /* ── Renderiza o shell do projeto ────────────────────────── */
   function renderizar(secao) {
@@ -67,7 +120,7 @@ const ModuloProjeto = (() => {
     else if (secao === 'avaliacoes')  el.innerHTML = _htmlAvaliacoes();
     else if (secao === 'pesquisas')   ModuloPesquisaAdmin.renderizar();
     else if (secao === 'plano')       el.innerHTML = _htmlPlano();
-    else if (secao === 'relatorio')   el.innerHTML = _htmlRelatorio();
+    else if (secao === 'relatorio')   { el.innerHTML = _htmlRelatorio(); window.addEventListener('beforeprint', _sincronizarMarcaProjeto); }
   }
 
   function _salvarSecaoAtual() {
@@ -773,6 +826,8 @@ const ModuloProjeto = (() => {
     const emp     = Storage.buscarEmpresa(proj.empresaId);
     const setores = Storage.listarSetores(proj.id);
     const avs     = Storage.listarPorProjeto(proj.id);
+    _nrProjetoAtual = `LAUDO-${(emp?.nome||proj.nome||'ERG').replace(/\s+/g,'').slice(0,4).toUpperCase()}-${new Date().getFullYear()}`;
+    const _dataEmissao = _fd(new Date().toISOString().slice(0,10));
 
     /* Totais gerais */
     const totalAlt  = avs.reduce((n, a) => n + (ModuloAEP?.calcularRiscoGeral(a)?.alto  || 0), 0);
@@ -818,69 +873,207 @@ const ModuloProjeto = (() => {
       `;
     }).join('');
 
+    const nSec = proj.objetivo ? { esc: 3, plano: 4, conc: 5 } : { esc: 2, plano: 3, conc: 4 };
+
     /* Conclusão técnica (editável) */
     return `
-      <div class="container">
-        <!-- Cabeçalho -->
-        <div style="margin-top:var(--s4);text-align:center;margin-bottom:var(--s5)">
-          <div style="font-size:var(--txt-xs);color:var(--texto-sec);text-transform:uppercase;letter-spacing:.5px">
-            Projeto de Laudo Técnico
+      <!-- ══ CSS DE IMPRESSÃO PADRÃO ENGENHALVES ══ -->
+      <style>
+        @media print {
+          @page { size: A4 portrait; margin: 18mm 12mm 14mm; }
+          @page :first { margin: 0 12mm; }
+          * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+          #app-header, #nav-principal, .subnav-abas,
+          .nao-imprimir, .btn, #toast { display: none !important; }
+          body { background:#fff !important; color:#000 !important; font-family:Arial,Helvetica,sans-serif !important; font-size:9pt !important; line-height:1.4 !important; margin:0 !important; }
+          .rpt-capa { display:flex !important; flex-direction:column; justify-content:space-between; align-items:stretch; min-height:297mm; padding:0; text-align:center; page-break-after:always; break-after:always; background:#fff; }
+          .rpt-capa-barra-topo { background:#0D47A1; color:#fff; padding:10pt 16pt; font-size:8pt; font-weight:700; letter-spacing:1pt; text-transform:uppercase; text-align:center; }
+          .rpt-capa-corpo { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:space-between; text-align:center; padding:10mm 20mm 8mm; }
+          .rpt-capa-titulo { font-size:22pt; font-weight:900; color:#0D47A1; text-transform:uppercase; letter-spacing:1.5px; margin-bottom:4mm; line-height:1.2; }
+          .rpt-capa-subtitulo { font-size:10pt; color:#555; margin-bottom:12mm; letter-spacing:.3pt; }
+          .rpt-capa-linha { width:40mm; height:2px; background:#0D47A1; margin:0 auto 10mm; }
+          .rpt-capa-tabela { width:100%; max-width:130mm; border-collapse:collapse; font-size:9pt; text-align:left; }
+          .rpt-capa-tabela td { padding:4pt 8pt; border:none !important; border-bottom:1px solid #e0e0e0 !important; background:transparent !important; color:#222; }
+          .rpt-capa-td-label { font-weight:700; color:#0D47A1 !important; width:44%; }
+          .rpt-capa-barra-rodape { background:#0D47A1; color:#fff; padding:8pt 16pt; font-size:8pt; text-align:center; line-height:1.6; }
+          .rpt-sumario { page-break-after:always; break-after:always; padding:0; }
+          .rpt-sumario-titulo { display:block !important; font-size:14pt; font-weight:900; color:#fff !important; background:#0D47A1 !important; padding:8pt 12pt !important; text-transform:uppercase; letter-spacing:3pt; margin:0 0 10mm !important; }
+          .rpt-sumario-item { display:flex !important; align-items:baseline !important; padding:5pt 14pt !important; font-size:10pt; color:#111; border:none !important; background:transparent !important; }
+          .rpt-sumario-item:nth-child(even) { background:#f5f7fa !important; }
+          .rpt-sumario-num { font-weight:700; color:#0D47A1 !important; min-width:24pt; flex-shrink:0; }
+          .rpt-sumario-nome { flex-shrink:0; white-space:nowrap; }
+          .rpt-sumario-pontilhado { flex:1; border-bottom:1pt dotted #bbb; margin:0 8pt 3pt; }
+          .rpt-sumario-pag { color:#555; min-width:18pt; text-align:right; flex-shrink:0; }
+          .rpt-sumario-sep { height:2pt; background:#0D47A1 !important; border:none !important; margin:4pt 0 !important; display:block !important; }
+          .so-imprimir { display:block !important; }
+          .nao-imprimir { display:none !important; }
+          .rpt-header { display:flex !important; height:14mm; background:#fff; border-bottom:2px solid #0D47A1; padding:0; align-items:center; justify-content:space-between; margin-bottom:8pt; }
+          .rpt-header-logo { display:flex; align-items:center; gap:6pt; }
+          .rpt-header-info { font-size:7pt; color:#555; text-align:right; line-height:1.5; }
+          .rpt-footer { display:block !important; border-top:1px solid #0D47A1; margin-top:20pt; padding-top:6pt; font-size:7.5pt; color:#444; text-align:center; line-height:1.6; }
+          .rpt-secao h3, .relatorio-secao h3 { background:#0D47A1 !important; color:#fff !important; padding:5pt 9pt !important; font-size:9pt !important; font-weight:700 !important; text-transform:uppercase !important; letter-spacing:.5pt !important; margin:0 0 6pt !important; border-radius:0 !important; page-break-after:avoid !important; }
+          table { width:100% !important; border-collapse:collapse !important; font-size:8pt !important; margin-bottom:6pt !important; }
+          th { background:#0D47A1 !important; color:#fff !important; padding:3pt 6pt !important; font-weight:600 !important; text-align:left !important; border:1px solid #0D47A1 !important; }
+          td { padding:3pt 6pt !important; border:1px solid #ccc !important; color:#111 !important; }
+          tr:nth-child(even) td { background:#f0f4f8 !important; }
+          .card { border:none !important; border-bottom:1px solid #e8e8e8 !important; background:#fff !important; border-radius:0 !important; padding:6pt 0 !important; margin-bottom:8pt !important; color:#000 !important; }
+          .badge { border:1px solid #ccc !important; font-size:7pt !important; padding:1pt 4pt !important; }
+          .badge-alto { background:#f8d7da !important; color:#721c24 !important; border-color:#f5c6cb !important; }
+          .badge-medio { background:#fff3cd !important; color:#856404 !important; border-color:#ffeeba !important; }
+          .badge-baixo { background:#d4edda !important; color:#155724 !important; border-color:#c3e6cb !important; }
+          textarea::placeholder, input::placeholder { color:transparent !important; }
+          textarea { border:none !important; background:transparent !important; resize:none !important; color:#000 !important; width:100% !important; font-family:Arial !important; font-size:8pt !important; }
+          div:empty { display:none !important; }
+          .card { page-break-inside:avoid !important; break-inside:avoid !important; }
+          tr { page-break-inside:avoid !important; break-inside:avoid !important; }
+          .relatorio-secao h3 { page-break-after:avoid !important; break-after:avoid !important; }
+          .rpt-capa { page-break-after:always; break-after:always; }
+          .rpt-capa, .rpt-header, .rpt-footer { display:none; }
+          label input[type="checkbox"], label input[type="radio"] { display:none !important; }
+        }
+        @media screen {
+          .rpt-capa, .rpt-sumario { display:none !important; }
+          .so-imprimir { display:none !important; }
+        }
+      </style>
+
+      <!-- ── CAPA ─────────────────────────────────────────── -->
+      <div class="rpt-capa">
+        <div class="rpt-capa-barra-topo" id="proj-capa-barra-topo">
+          ENGENHALVES — Centro de Engenharia e Segurança LTDA
+        </div>
+        <div class="rpt-capa-corpo">
+          <div id="proj-capa-logo-area" style="text-align:center">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000"
+                 width="80" height="80" style="display:block;margin:0 auto 4mm">
+              <path fill="#0D47A1" d="M500 115C287.2 115 115 287.2 115 500S287.2 885 500 885c129.1 0 243.4-63.7 313.2-161.4H641.8C600.5 748.7 551.8 762 500 762c-144.7 0-262-117.3-262-262s117.3-262 262-262c51.8 0 100.5 13.3 141.8 38.4h171.4C743.4 178.7 629.1 115 500 115z"/>
+              <path fill="#0D47A1" d="M300 333H732L795 426H300Z"/>
+              <path fill="#0D47A1" d="M248 454H752L695 546H248Z"/>
+              <path fill="#0D47A1" d="M300 574H795L732 667H300Z"/>
+            </svg>
+            <div style="font-size:20pt;font-weight:900;color:#0D47A1;letter-spacing:3px;line-height:1">ENGENHALVES</div>
+            <div style="font-size:7pt;color:#666;letter-spacing:1.5px;margin-top:2mm;text-transform:uppercase">Centro de Engenharia e Segurança LTDA</div>
           </div>
-          <div style="font-size:var(--txt-xl);font-weight:700">${proj.nome || 'Laudo Técnico'}</div>
-          <div style="font-size:var(--txt-sm);color:var(--texto-sec)">
-            ${emp?.nome || ''} · ${_fd(proj.dataInicio)}
+          <div style="text-align:center">
+            <div class="rpt-capa-titulo">${proj.nome || 'Laudo Técnico Ergonômico'}</div>
+            <div class="rpt-capa-subtitulo">Relatório Técnico Consolidado — NR-17 &middot; GRO-PGR</div>
+            <div class="rpt-capa-linha"></div>
+          </div>
+          <table class="rpt-capa-tabela" style="margin-bottom:8mm">
+            <tr><td class="rpt-capa-td-label">Empresa / Cliente</td><td>${emp?.nome || '—'}</td></tr>
+            <tr><td class="rpt-capa-td-label">CNPJ</td><td>${emp?.cnpj || '—'}</td></tr>
+            <tr><td class="rpt-capa-td-label">Cidade / Estado</td><td>${[emp?.cidade, emp?.estado].filter(Boolean).join('/') || '—'}</td></tr>
+            <tr><td class="rpt-capa-td-label">Data de Emissão</td><td>${_dataEmissao}</td></tr>
+            <tr><td class="rpt-capa-td-label">Responsável Técnico</td><td>${proj.responsavelTecnico || '—'}</td></tr>
+            <tr><td class="rpt-capa-td-label">Registro Profissional</td><td>${proj.registroProfissional || '—'}</td></tr>
+          </table>
+        </div>
+        <div class="rpt-capa-barra-rodape">
+          Documento gerado em ${_dataEmissao} &mdash; Confidencial &nbsp;|&nbsp; ${_nrProjetoAtual}
+        </div>
+      </div>
+
+      <!-- ── SUMÁRIO ───────────────────────────────────────── -->
+      <div class="rpt-sumario so-imprimir">
+        <div class="rpt-sumario-titulo">Sumário</div>
+        <div>
+          <div class="rpt-sumario-item"><span class="rpt-sumario-num">1.</span><span class="rpt-sumario-nome">Identificação do Projeto</span><span class="rpt-sumario-pontilhado"></span><span class="rpt-sumario-pag">3</span></div>
+          ${proj.objetivo ? `<div class="rpt-sumario-item"><span class="rpt-sumario-num">2.</span><span class="rpt-sumario-nome">Objetivo</span><span class="rpt-sumario-pontilhado"></span><span class="rpt-sumario-pag">3</span></div>` : ''}
+          <div class="rpt-sumario-sep"></div>
+          <div class="rpt-sumario-item"><span class="rpt-sumario-num">${nSec.esc}.</span><span class="rpt-sumario-nome">Escopo — Setores e Avaliações</span><span class="rpt-sumario-pontilhado"></span><span class="rpt-sumario-pag">4</span></div>
+          ${totalAcoes > 0 ? `<div class="rpt-sumario-item"><span class="rpt-sumario-num">${nSec.plano}.</span><span class="rpt-sumario-nome">Plano de Ação</span><span class="rpt-sumario-pontilhado"></span><span class="rpt-sumario-pag">5</span></div>` : ''}
+          <div class="rpt-sumario-sep"></div>
+          <div class="rpt-sumario-item"><span class="rpt-sumario-num">${nSec.conc}.</span><span class="rpt-sumario-nome">Conclusão Técnica</span><span class="rpt-sumario-pontilhado"></span><span class="rpt-sumario-pag">6</span></div>
+          <div class="rpt-sumario-item"><span class="rpt-sumario-num">${nSec.conc + 1}.</span><span class="rpt-sumario-nome">Assinatura</span><span class="rpt-sumario-pontilhado"></span><span class="rpt-sumario-pag">7</span></div>
+        </div>
+      </div>
+
+      <!-- ── CONTEÚDO ──────────────────────────────────────── -->
+      <div class="container">
+
+        <!-- Header de impressão -->
+        <div class="rpt-header so-imprimir">
+          <div class="rpt-header-logo" id="proj-header-logo-area">
+            ${_SVG_EP(28, 28)}
+            <div>
+              <div style="font-size:11pt;font-weight:900;color:#0D47A1;letter-spacing:1px;line-height:1">ENGENHALVES</div>
+              <div style="font-size:6pt;color:#777;letter-spacing:.5px">CENTRO DE ENGENHARIA E SEGURANÇA LTDA</div>
+            </div>
+          </div>
+          <div class="rpt-header-info">
+            ${proj.nome || 'Laudo Técnico'} — Relatório Consolidado<br>
+            ${emp?.nome || ''} · ${_dataEmissao}<br>
+            ${_nrProjetoAtual}
           </div>
         </div>
 
-        <div style="display:flex;gap:var(--s3);flex-wrap:wrap;margin-bottom:var(--s5)">
-          <button class="btn btn-primario" onclick="ModuloProjeto.imprimir()">🖨️ Imprimir PDF</button>
+        <!-- Cabeçalho de tela -->
+        <div class="nao-imprimir" style="margin:var(--s4) 0 var(--s5);text-align:center">
+          <div style="font-size:var(--txt-xs);color:var(--texto-sec);text-transform:uppercase;letter-spacing:.5px">Projeto de Laudo Técnico</div>
+          <div style="font-size:var(--txt-xl);font-weight:700">${proj.nome || 'Laudo Técnico'}</div>
+          <div style="font-size:var(--txt-sm);color:var(--texto-sec)">${emp?.nome || ''} · ${_fd(proj.dataInicio)}</div>
+        </div>
+
+        <!-- Botões -->
+        <div class="nao-imprimir" style="display:flex;gap:var(--s3);flex-wrap:wrap;margin-bottom:var(--s5)">
+          <button class="btn btn-primario" onclick="ModuloProjeto.imprimir('engenhalves')">🖨️ Engenhalves</button>
+          <button class="btn btn-primario" onclick="ModuloProjeto.imprimir('kalprevi')" style="background:#1a5c2a">🖨️ Kalprevi</button>
           <button class="btn btn-secundario" onclick="ModuloProjeto.exportarProjeto()">📤 Exportar Projeto</button>
         </div>
 
-        <!-- Resumo -->
-        <div class="relatorio-resumo-risco">
+        <!-- Resumo de riscos (tela) -->
+        <div class="relatorio-resumo-risco nao-imprimir">
           <div class="resumo-risco-card alto"><div class="numero">${totalAlt}</div><div class="label">Risco Alto</div></div>
           <div class="resumo-risco-card medio"><div class="numero">${totalMed}</div><div class="label">Risco Médio</div></div>
           <div class="resumo-risco-card baixo"><div class="numero">${totalBx}</div><div class="label">Risco Baixo</div></div>
         </div>
 
-        <!-- Identificação -->
+        <!-- 1. Identificação -->
         <div class="relatorio-secao">
           <h3>1. Identificação do Projeto</h3>
-          <div class="card">
-            ${_li('Empresa', emp?.nome)} ${_li('CNPJ', emp?.cnpj)}
-            ${_li('Cidade / Estado', [emp?.cidade, emp?.estado].filter(Boolean).join('/'))}
-            ${_li('Projeto', proj.nome)}
-            ${_li('Tipo', { aep:'AEP', psicossocial:'Fatores Psicossociais', aet:'AET', integrado:'Integrado (AEP+FP+AET)' }[proj.tipo]||proj.tipo)}
-            ${_li('Data de Início', _fd(proj.dataInicio))}
-            ${_li('Data de Conclusão', _fd(proj.dataFim))}
-            ${_li('Responsável Técnico', proj.responsavelTecnico)}
-            ${_li('Registro', proj.registroProfissional)}
+          <div style="overflow-x:auto">
+            <table class="tabela-simples">
+              <tbody>
+                <tr><td style="font-weight:600;width:40%">Empresa / Cliente</td><td>${emp?.nome || '—'}</td></tr>
+                <tr><td style="font-weight:600">CNPJ</td><td>${emp?.cnpj || '—'}</td></tr>
+                <tr><td style="font-weight:600">Cidade / Estado</td><td>${[emp?.cidade, emp?.estado].filter(Boolean).join('/') || '—'}</td></tr>
+                <tr><td style="font-weight:600">Projeto</td><td>${proj.nome || '—'}</td></tr>
+                <tr><td style="font-weight:600">Tipo</td><td>${{ aep:'AEP', psicossocial:'Fatores Psicossociais', aet:'AET', integrado:'Integrado (AEP+FP+AET)' }[proj.tipo] || proj.tipo || '—'}</td></tr>
+                <tr><td style="font-weight:600">N° do Laudo</td><td>${_nrProjetoAtual}</td></tr>
+                <tr><td style="font-weight:600">Data de Emissão</td><td>${_dataEmissao}</td></tr>
+                <tr><td style="font-weight:600">Data de Início</td><td>${_fd(proj.dataInicio) || '—'}</td></tr>
+                <tr><td style="font-weight:600">Data de Conclusão</td><td>${_fd(proj.dataFim) || '—'}</td></tr>
+                <tr><td style="font-weight:600">Responsável Técnico</td><td>${proj.responsavelTecnico || '—'}</td></tr>
+                <tr><td style="font-weight:600">Registro Profissional</td><td>${proj.registroProfissional || '—'}</td></tr>
+              </tbody>
+            </table>
           </div>
         </div>
 
-        <!-- Objetivo -->
+        <!-- 2. Objetivo -->
         ${proj.objetivo ? `
         <div class="relatorio-secao">
           <h3>2. Objetivo</h3>
           <div class="card"><p style="font-size:var(--txt-sm)">${proj.objetivo}</p></div>
         </div>` : ''}
 
-        <!-- Escopo: setores e funções -->
+        <!-- Escopo -->
         <div class="relatorio-secao">
-          <h3>${proj.objetivo ? '3' : '2'}. Escopo — Setores e Avaliações</h3>
+          <h3>${nSec.esc}. Escopo — Setores e Avaliações</h3>
           <div class="card">
             ${_li('Total de Setores', setores.length)}
             ${_li('Total de Avaliações', avs.length)}
             ${_li('Ações no Plano', totalAcoes)}
+            ${_li('Riscos Altos', totalAlt || '0')}
+            ${_li('Riscos Médios', totalMed || '0')}
           </div>
           <div style="margin-top:var(--s3)">${secoesPorSetor}</div>
         </div>
 
-        <!-- Plano de ação resumido -->
+        <!-- Plano de ação -->
         ${totalAcoes > 0 ? `
         <div class="relatorio-secao">
-          <h3>${proj.objetivo ? '4' : '3'}. Plano de Ação</h3>
+          <h3>${nSec.plano}. Plano de Ação</h3>
           <div style="overflow-x:auto">
             <table class="tabela-simples">
               <thead><tr><th>#</th><th>Ação</th><th>Setor</th><th>Função</th><th>Prior.</th><th>Responsável</th><th>Prazo</th><th>Status</th></tr></thead>
@@ -888,17 +1081,17 @@ const ModuloProjeto = (() => {
                 ${(() => {
                   let n = 0;
                   return avs.flatMap(av => {
-                    const s = av.setorId ? Storage.buscarSetor(av.setorId) : null;
+                    const s = av.setorId  ? Storage.buscarSetor(av.setorId)   : null;
                     const f = av.funcaoId ? Storage.buscarFuncao(av.funcaoId) : null;
                     return (av.planoAcao || []).map(acao => `<tr>
                       <td>${++n}</td>
-                      <td style="font-size:var(--txt-xs)">${acao.descricao?.slice(0,50)||''}…</td>
+                      <td style="font-size:var(--txt-xs)">${(acao.descricao||'').slice(0,50)}…</td>
                       <td style="font-size:var(--txt-xs)">${s?.nome||'—'}</td>
                       <td style="font-size:var(--txt-xs)">${f?.nome||'—'}</td>
-                      <td><span class="badge badge-${acao.prioridade==='alta'?'alto':acao.prioridade==='media'?'medio':'baixo'}">${acao.prioridade}</span></td>
+                      <td><span class="badge badge-${acao.prioridade==='alta'?'alto':acao.prioridade==='media'?'medio':'baixo'}">${acao.prioridade||'—'}</span></td>
                       <td style="font-size:var(--txt-xs)">${acao.responsavel||'—'}</td>
                       <td style="font-size:var(--txt-xs)">${_fd(acao.prazo)}</td>
-                      <td style="font-size:var(--txt-xs)">${acao.status}</td>
+                      <td style="font-size:var(--txt-xs)">${acao.status||'—'}</td>
                     </tr>`);
                   }).join('');
                 })()}
@@ -909,30 +1102,63 @@ const ModuloProjeto = (() => {
 
         <!-- Conclusão técnica -->
         <div class="relatorio-secao">
-          <h3>Conclusão Técnica</h3>
+          <h3>${nSec.conc}. Conclusão Técnica</h3>
           <div class="card">
-            <div class="grupo-campo">
+            <div class="grupo-campo nao-imprimir">
               <textarea id="proj-conclusao" rows="6"
                 placeholder="Redija a conclusão técnica consolidada do projeto: principais achados, nível de risco geral, recomendações gerais e perspectivas de acompanhamento..."
                 onblur="ModuloProjeto.onConclusaoChange(this.value)"
               >${proj.conclusaoTecnica || ''}</textarea>
             </div>
-            <label class="check-item" style="cursor:pointer">
+            <!-- Versão impressão da conclusão -->
+            <div class="so-imprimir">
+              <p style="font-size:9pt;white-space:pre-wrap">${proj.conclusaoTecnica || 'Conclusão técnica não registrada.'}</p>
+            </div>
+            <label class="check-item nao-imprimir" style="cursor:pointer;margin-top:var(--s3)">
               <input type="checkbox" id="proj-aet" ${proj.necessitaAET?'checked':''}
                      onchange="ModuloProjeto.onNecessitaAETChange(this.checked)">
               <div class="check-box">✓</div>
               <span>Este projeto indica necessidade de AET para alguma função</span>
             </label>
-            <button class="btn btn-primario" style="margin-top:var(--s3)" onclick="ModuloProjeto.salvarConclusao()">
+            ${proj.necessitaAET ? `
+            <div class="so-imprimir aviso-tecnico aviso" style="margin-top:var(--s3)">
+              <span>⚠️</span><span><strong>Este projeto indica necessidade de AET para uma ou mais funções avaliadas.</strong></span>
+            </div>` : ''}
+            <button class="btn btn-primario nao-imprimir" style="margin-top:var(--s3)" onclick="ModuloProjeto.salvarConclusao()">
               💾 Salvar Conclusão
             </button>
           </div>
         </div>
 
-        <div style="text-align:center;padding:var(--s6) 0;color:var(--texto-sec);font-size:var(--txt-xs)">
-          ErgoGRO · Projeto de Laudo Técnico · NR-17 / GRO-PGR<br>
-          Documento técnico de uso profissional — não substitui laudo assinado por profissional habilitado
+        <!-- Assinatura (só impressão) -->
+        <div class="relatorio-secao so-imprimir">
+          <h3>${nSec.conc + 1}. Assinatura</h3>
+          <div style="margin-top:12pt">
+            <table style="width:100%;border-collapse:collapse;font-size:9pt">
+              <tr>
+                <td style="width:50%;padding:0 20pt 0 0;border:none">
+                  <div style="border-bottom:1px solid #000;height:32pt;margin-bottom:4pt"></div>
+                  <div style="font-weight:600">${proj.responsavelTecnico || 'Responsável Técnico'}</div>
+                  <div style="color:#555">${proj.registroProfissional || 'Registro Profissional'}</div>
+                </td>
+                <td style="width:50%;padding:0 0 0 20pt;border:none;text-align:right">
+                  <div style="font-size:8pt;color:#555">Data de Emissão</div>
+                  <div style="font-weight:600">${_dataEmissao}</div>
+                  <div style="font-size:7pt;color:#888;margin-top:4pt">${_nrProjetoAtual}</div>
+                </td>
+              </tr>
+            </table>
+          </div>
         </div>
+
+        <!-- Rodapé empresa (só impressão) -->
+        <div class="rpt-footer so-imprimir" id="proj-rodape-empresa">
+          ENGENHALVES — Centro de Engenharia &amp; Segurança LTDA<br>
+          Estrada Braulina Pigatto, 2320, CEP 84607-303 — Bom Jesus, União da Vitória - PR<br>
+          (42) 99928-8177 &nbsp;|&nbsp; atendimento@engenhalves.com.br<br>
+          <span style="font-size:7pt">Documento técnico de uso exclusivo do cliente &middot; ${_nrProjetoAtual}</span>
+        </div>
+
       </div>
     `;
   }
@@ -964,9 +1190,28 @@ const ModuloProjeto = (() => {
     App.mostrarToast('Conclusão salva','sucesso');
   }
 
-  function imprimir() {
+  function _sincronizarMarcaProjeto() {
+    const cfg = _EMPRESAS_PROJ[_empresaImpressaoProj] || _EMPRESAS_PROJ.engenhalves;
+    const el1 = document.getElementById('proj-capa-barra-topo');
+    if (el1) el1.textContent = cfg.barraTopoTexto;
+    const el2 = document.getElementById('proj-capa-logo-area');
+    if (el2) el2.innerHTML = cfg.capaLogo();
+    const el3 = document.getElementById('proj-header-logo-area');
+    if (el3) el3.innerHTML = cfg.headerLogo();
+    const el4 = document.getElementById('proj-rodape-empresa');
+    if (el4) el4.innerHTML = cfg.rodape(_nrProjetoAtual);
+  }
+
+  function imprimir(empresa) {
     salvarConclusao();
-    window.print();
+    if (empresa) _empresaImpressaoProj = empresa;
+    _sincronizarMarcaProjeto();
+    const imgs = [...document.querySelectorAll('#proj-capa-logo-area img, #proj-header-logo-area img')];
+    const pendentes = imgs.filter(img => !img.complete);
+    if (pendentes.length === 0) { window.print(); return; }
+    let n = 0;
+    const proximo = () => { if (++n >= pendentes.length) window.print(); };
+    pendentes.forEach(img => { img.onload = proximo; img.onerror = proximo; });
   }
 
   function exportarProjeto() {
