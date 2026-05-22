@@ -593,7 +593,15 @@ const ModuloAEP = (() => {
           </div>
 
           <div class="grupo-campo">
-            <label for="posto-layout">Descrição do Layout do Posto</label>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--s1)">
+              <label for="posto-layout" style="margin:0">Descrição do Layout do Posto</label>
+              <button id="cv-btn-posto-layout"
+                      onclick="ClaudeVision.analisar('posto-layout','layout')"
+                      title="Fotografar o posto — IA descreve o layout"
+                      style="font-size:var(--txt-xs);padding:3px 9px;border-radius:var(--r2);border:1px solid var(--borda);background:var(--fundo);color:var(--texto-sec);cursor:pointer;white-space:nowrap">
+                📷 IA
+              </button>
+            </div>
             <textarea id="posto-layout" rows="3"
               placeholder="Descreva o arranjo físico do posto: bancada, cadeira, monitor, materiais..."
             >${p.layout || ''}</textarea>
@@ -608,6 +616,15 @@ const ModuloAEP = (() => {
             Inclua variações, imprevistos e adaptações observadas.</span>
           </div>
           <div class="grupo-campo">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--s1)">
+              <span style="font-size:var(--txt-sm);color:var(--texto-sec)">Descrição da atividade</span>
+              <button id="cv-btn-posto-atividade-real"
+                      onclick="ClaudeVision.analisar('posto-atividade-real','atividadeReal')"
+                      title="Fotografar o trabalhador em atividade — IA descreve as posturas e movimentos"
+                      style="font-size:var(--txt-xs);padding:3px 9px;border-radius:var(--r2);border:1px solid var(--borda);background:var(--fundo);color:var(--texto-sec);cursor:pointer;white-space:nowrap">
+                📷 IA
+              </button>
+            </div>
             <textarea id="posto-atividade-real" rows="5"
               placeholder="Descreva com base em observação direta: sequência de tarefas, posturas assumidas, esforços realizados, interações com equipamentos e outros trabalhadores..."
             >${p.atividadeReal || ''}</textarea>
@@ -628,15 +645,28 @@ const ModuloAEP = (() => {
         <div class="card">
           <div class="card-titulo" style="margin-bottom:var(--s4)">Evidências e Observações</div>
           <div class="grupo-campo">
-            <label for="posto-evidencias">Observações Técnicas e Evidências Coletadas</label>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--s1)">
+              <label for="posto-evidencias" style="margin:0">Observações Técnicas e Evidências</label>
+              <button id="cv-btn-posto-evidencias"
+                      onclick="ClaudeVision.analisar('posto-evidencias','evidencias')"
+                      title="Fotografar evidência — IA descreve a não conformidade"
+                      style="font-size:var(--txt-xs);padding:3px 9px;border-radius:var(--r2);border:1px solid var(--borda);background:var(--fundo);color:var(--texto-sec);cursor:pointer;white-space:nowrap">
+                📷 IA
+              </button>
+            </div>
             <textarea id="posto-evidencias" rows="4"
               placeholder="Registre fotos tiradas (nomes/referências), medições realizadas, relatos dos trabalhadores, observações técnicas adicionais..."
             >${p.evidencias || ''}</textarea>
           </div>
-          <div class="aviso-tecnico info">
-            <span>📷</span>
-            <span>Registro fotográfico: anexe as fotos ao relatório final (PDF/ZIP).
-            Referências no campo acima (ex.: "Foto 01 — postura de pescoço em extensão").</span>
+          <div class="aviso-tecnico info" style="justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:var(--s2)">
+            <div style="display:flex;gap:var(--s2);flex:1">
+              <span>📷</span>
+              <span>Os botões <strong>📷 IA</strong> fotografam e descrevem automaticamente. Fotos também podem ser anexadas ao relatório final.</span>
+            </div>
+            <button onclick="ClaudeVision.configurarChave()"
+                    style="font-size:var(--txt-xs);padding:2px 8px;border-radius:var(--r2);border:1px solid var(--borda);background:transparent;color:var(--texto-sec);cursor:pointer;flex-shrink:0">
+              ⚙ Chave IA
+            </button>
           </div>
         </div>
 
