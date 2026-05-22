@@ -538,6 +538,21 @@ const ModuloAEP = (() => {
           o checklist e alimentam o motor de criticidade automática.</span>
         </div>
 
+        <!-- Análise completa com IA -->
+        <div style="margin:var(--s4) 0;padding:var(--s4);border:2px dashed #0D47A1;border-radius:var(--r3);text-align:center;background:rgba(13,71,161,.06)">
+          <div style="font-size:var(--txt-base);font-weight:700;margin-bottom:var(--s2)">
+            📷 Análise Completa com IA
+          </div>
+          <p style="font-size:var(--txt-sm);color:var(--texto-sec);margin-bottom:var(--s3)">
+            Fotografe o posto → a IA preenche automaticamente todos os campos:<br>
+            perfil, tipo de atividade, ferramentas, layout, atividade real e exposições.
+          </p>
+          <button class="btn btn-primario" onclick="ClaudeVision.analisarCompleto()"
+                  style="font-size:var(--txt-base);padding:var(--s3) var(--s5)">
+            📷 Fotografar e Analisar Posto
+          </button>
+        </div>
+
         <div class="card">
           <div class="card-titulo" style="margin-bottom:var(--s4)">Perfil e Organização do Posto</div>
 
