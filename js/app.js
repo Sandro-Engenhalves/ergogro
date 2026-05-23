@@ -212,9 +212,9 @@ const App = (() => {
   const _fd = iso => { if (!iso) return ''; try { const [a,m,d] = iso.slice(0,10).split('-'); return `${d}/${m}/${a}`; } catch { return iso; } };
   const TIPO_LABEL_P = {
     aep:          'AEP',
+    psicossocial: 'AFP',
     aep_afp:      'AEP + AFP',
     aet:          'AET Completo',
-    psicossocial: 'Psicossocial',
     integrado:    'Integrado',
   };
 
@@ -474,10 +474,16 @@ const App = (() => {
         desc: 'Checklist NR-17 · Motor de criticidade automático · Relatório AEP',
       },
       {
+        id: 'psicossocial',
+        emoji: '🧠',
+        titulo: 'AFP — Avaliação de Fatores Psicossociais',
+        desc: 'Pesquisa COPSOQ-III anônima com trabalhadores · Relatório AFP consolidado por setor',
+      },
+      {
         id: 'aep_afp',
         emoji: '📋🧠',
-        titulo: 'AEP + AFP — Com Pesquisa Psicossocial',
-        desc: 'Tudo do AEP + pesquisa COPSOQ-III anônima com trabalhadores · Relatório AFP integrado',
+        titulo: 'AEP + AFP — Ergonômico com Pesquisa Psicossocial',
+        desc: 'Tudo do AEP + pesquisa COPSOQ-III anônima com trabalhadores · Relatórios AEP e AFP integrados',
       },
       {
         id: 'aet',
@@ -531,7 +537,7 @@ const App = (() => {
 
   function _selecionarTipo(tipo) {
     document.getElementById('np-tipo').value = tipo;
-    ['aep', 'aep_afp', 'aet'].forEach(t => {
+    ['aep', 'psicossocial', 'aep_afp', 'aet'].forEach(t => {
       const el = document.getElementById(`tipo-card-${t}`);
       if (!el) return;
       if (t === tipo) {

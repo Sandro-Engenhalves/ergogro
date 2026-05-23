@@ -31,12 +31,12 @@ const ModuloProjeto = (() => {
 
   const TIPO_LABEL = {
     aep:          'AEP',
+    psicossocial: 'AFP',
     aep_afp:      'AEP + AFP',
     aet:          'AET Completo',
-    psicossocial: 'Psicossocial',
     integrado:    'Integrado',
   };
-  const TIPO_ICON = { aep:'📋', aep_afp:'📋🧠', aet:'📋🧠🔬', psicossocial:'🧠', integrado:'📊' };
+  const TIPO_ICON = { aep:'📋', psicossocial:'🧠', aep_afp:'📋🧠', aet:'📋🧠🔬', integrado:'📊' };
   const _fd = iso => { if (!iso) return ''; try { const [a,m,d] = iso.slice(0,10).split('-'); return `${d}/${m}/${a}`; } catch { return iso; } };
 
   /* ── SVG brandmark Engenhalves ───────────────────────────── */
@@ -100,7 +100,12 @@ const ModuloProjeto = (() => {
     const proj  = App.obterProjetoAtual();
     const temAFP = _TIPOS_COM_AFP.has(proj?.tipo);
 
-    const secoesFiltradas = SECOES.filter(s => s.id !== 'pesquisas' || temAFP);
+    const soAFP = proj?.tipo === 'psicossocial';
+    const secoesFiltradas = SECOES.filter(s => {
+      if (s.id === 'pesquisas')   return temAFP;
+      if (s.id === 'avaliacoes')  return !soAFP; /* AFP puro não tem avaliações AEP */
+      return true;
+    });
 
     const abasHTML = secoesFiltradas.map(s => `
       <button class="aba-bloco ${s.id === _secaoAtual ? 'ativa' : ''}"
