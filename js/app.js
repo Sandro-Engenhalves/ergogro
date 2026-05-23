@@ -210,7 +210,13 @@ const App = (() => {
 
   /* ── Dashboard — lista de projetos ──────────────────────── */
   const _fd = iso => { if (!iso) return ''; try { const [a,m,d] = iso.slice(0,10).split('-'); return `${d}/${m}/${a}`; } catch { return iso; } };
-  const TIPO_LABEL_P = { aep:'AEP', psicossocial:'Psicossocial', aet:'AET', integrado:'Integrado' };
+  const TIPO_LABEL_P = {
+    aep:          'AEP',
+    aep_afp:      'AEP + AFP',
+    aet:          'AET Completo',
+    psicossocial: 'Psicossocial',
+    integrado:    'Integrado',
+  };
 
   function _htmlProjetoItem(lista) {
     if (lista.length === 0) return `
@@ -460,26 +466,57 @@ const App = (() => {
           </div>`;
         })();
 
+    const tipoOpts = [
+      {
+        id: 'aep',
+        emoji: '📋',
+        titulo: 'AEP — Avaliação Ergonômica Preliminar',
+        desc: 'Checklist NR-17 · Motor de criticidade automático · Relatório AEP',
+      },
+      {
+        id: 'aep_afp',
+        emoji: '📋🧠',
+        titulo: 'AEP + AFP — Com Pesquisa Psicossocial',
+        desc: 'Tudo do AEP + pesquisa COPSOQ-III anônima com trabalhadores · Relatório AFP integrado',
+      },
+      {
+        id: 'aet',
+        emoji: '📋🧠🔬',
+        titulo: 'AET Completo — Análise Ergonômica do Trabalho',
+        desc: 'AEP + AFP + AET aprofundada · Indicado quando a AEP aponta necessidade de aprofundamento técnico',
+      },
+    ];
+
     form.innerHTML = `
       ${empHTML}
       <div class="grupo-campo">
         <label>Nome do Projeto / Dossiê</label>
         <input type="text" id="np-nome" placeholder="Ex.: AEP 2026 — Engenhalves">
       </div>
-      <div class="linha-campos">
-        <div class="grupo-campo">
-          <label>Tipo</label>
-          <select id="np-tipo">
-            <option value="aep">📋 AEP</option>
-            <option value="psicossocial">🧠 Fatores Psicossociais</option>
-            <option value="aet">🔬 AET</option>
-            <option value="integrado">📊 Integrado</option>
-          </select>
+
+      <div class="grupo-campo">
+        <label>Tipo de Projeto</label>
+        <div style="display:flex;flex-direction:column;gap:var(--s2);margin-top:var(--s2)">
+          ${tipoOpts.map((t, i) => `
+            <div id="tipo-card-${t.id}"
+                 onclick="App._selecionarTipo('${t.id}')"
+                 style="padding:var(--s3) var(--s4);border-radius:var(--r3);cursor:pointer;transition:all .15s;
+                        ${i === 0
+                          ? 'border:2px solid #0D47A1;background:rgba(13,71,161,.07)'
+                          : 'border:1px solid var(--borda);background:var(--fundo)'}">
+              <div style="font-size:var(--txt-sm);font-weight:700;margin-bottom:4px">
+                ${t.emoji} ${t.titulo}
+              </div>
+              <div style="font-size:var(--txt-xs);color:var(--texto-sec)">${t.desc}</div>
+            </div>
+          `).join('')}
         </div>
-        <div class="grupo-campo">
-          <label>Data de Início</label>
-          <input type="date" id="np-inicio" value="${new Date().toISOString().slice(0,10)}">
-        </div>
+        <input type="hidden" id="np-tipo" value="aep">
+      </div>
+
+      <div class="grupo-campo">
+        <label>Data de Início</label>
+        <input type="date" id="np-inicio" value="${new Date().toISOString().slice(0,10)}">
       </div>
       <div class="grupo-campo">
         <label>Objetivo (opcional)</label>
@@ -490,6 +527,21 @@ const App = (() => {
         <button class="btn btn-secundario" onclick="document.getElementById('modal-novo-projeto').classList.add('oculto')">Cancelar</button>
       </div>
     `;
+  }
+
+  function _selecionarTipo(tipo) {
+    document.getElementById('np-tipo').value = tipo;
+    ['aep', 'aep_afp', 'aet'].forEach(t => {
+      const el = document.getElementById(`tipo-card-${t}`);
+      if (!el) return;
+      if (t === tipo) {
+        el.style.border     = '2px solid #0D47A1';
+        el.style.background = 'rgba(13,71,161,.07)';
+      } else {
+        el.style.border     = '1px solid var(--borda)';
+        el.style.background = 'var(--fundo)';
+      }
+    });
   }
 
   function abrirFormNovoProjeto(empresaId) {
@@ -766,7 +818,7 @@ const App = (() => {
   return {
     init, navegarPara,
     /* Empresas / clientes */
-    abrirEmpresa, _filtrarProjetosEmpresa,
+    abrirEmpresa, _filtrarProjetosEmpresa, _selecionarTipo,
     /* Projetos */
     abrirFormNovoProjeto, criarProjeto, abrirProjeto, obterProjetoAtual, confirmarExclusaoProjeto, filtrarProjetos,
     /* Wizard de escopo (passo 2 da criação) */

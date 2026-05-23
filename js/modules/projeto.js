@@ -29,8 +29,14 @@ const ModuloProjeto = (() => {
     { id: 'relatorio',   icone: '📄', label: 'Relatório'  },
   ];
 
-  const TIPO_LABEL = { aep:'AEP', psicossocial:'Psicossocial', aet:'AET' };
-  const TIPO_ICON  = { aep:'📋', psicossocial:'🧠', aet:'🔬' };
+  const TIPO_LABEL = {
+    aep:          'AEP',
+    aep_afp:      'AEP + AFP',
+    aet:          'AET Completo',
+    psicossocial: 'Psicossocial',
+    integrado:    'Integrado',
+  };
+  const TIPO_ICON = { aep:'📋', aep_afp:'📋🧠', aet:'📋🧠🔬', psicossocial:'🧠', integrado:'📊' };
   const _fd = iso => { if (!iso) return ''; try { const [a,m,d] = iso.slice(0,10).split('-'); return `${d}/${m}/${a}`; } catch { return iso; } };
 
   /* ── SVG brandmark Engenhalves ───────────────────────────── */
@@ -84,11 +90,19 @@ const ModuloProjeto = (() => {
     },
   };
 
+  /* Tipos que incluem a pesquisa psicossocial (AFP) */
+  const _TIPOS_COM_AFP = new Set(['aep_afp', 'aet', 'integrado', 'psicossocial']);
+
   /* ── Renderiza o shell do projeto ────────────────────────── */
   function renderizar(secao) {
     _secaoAtual = secao || _secaoAtual;
     const tela  = document.getElementById('tela-projeto');
-    const abasHTML = SECOES.map(s => `
+    const proj  = App.obterProjetoAtual();
+    const temAFP = _TIPOS_COM_AFP.has(proj?.tipo);
+
+    const secoesFiltradas = SECOES.filter(s => s.id !== 'pesquisas' || temAFP);
+
+    const abasHTML = secoesFiltradas.map(s => `
       <button class="aba-bloco ${s.id === _secaoAtual ? 'ativa' : ''}"
               data-secao="${s.id}"
               onclick="ModuloProjeto.trocarSecao('${s.id}')">
