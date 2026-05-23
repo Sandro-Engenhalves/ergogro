@@ -640,17 +640,27 @@ const ModuloProjeto = (() => {
     document.getElementById('modal-nova-av').classList.remove('oculto');
   }
 
+  /* Tipos de projeto que definem o tipo de avaliação automaticamente */
+  const _TIPO_AV_AUTO = {
+    aep:     'aep',
+    aep_afp: 'aep',
+    /* aet e integrado: usuário escolhe entre AEP e AET */
+  };
+
   function _renderizarWizardAv(proj) {
     const el = document.getElementById('modal-nav-form');
     if (!el) return;
 
-    const setores = Storage.listarSetores(proj.id);
+    const setores  = Storage.listarSetores(proj.id);
+    const tipoProj = proj?.tipo || 'aep';
+    /* Projetos de tipo único têm 2 passos; AET tem 3 */
+    const totalPassos = _TIPO_AV_AUTO[tipoProj] ? 2 : 3;
 
     if (!_wiz.setorId) {
       /* Passo 1: setor */
       el.innerHTML = `
         <div style="font-size:var(--txt-sm);color:var(--texto-sec);margin-bottom:var(--s3)">
-          Passo 1 de 3 — Selecione o setor:
+          Passo 1 de ${totalPassos} — Selecione o setor:
         </div>
         ${setores.map(s => `
           <div class="item-selecao" onclick="ModuloProjeto._wizSetSetor('${s.id}')">
@@ -671,7 +681,7 @@ const ModuloProjeto = (() => {
       const set = Storage.buscarSetor(_wiz.setorId);
       el.innerHTML = `
         <div style="font-size:var(--txt-sm);color:var(--texto-sec);margin-bottom:var(--s3)">
-          Passo 2 de 3 — Setor: <strong>${set?.nome}</strong> · Selecione a função:
+          Passo 2 de ${totalPassos} — Setor: <strong>${set?.nome}</strong> · Selecione a função:
         </div>
         ${funcoes.map(f => `
           <div class="item-selecao" onclick="ModuloProjeto._wizSetFuncao('${f.id}')">
@@ -689,16 +699,15 @@ const ModuloProjeto = (() => {
                 onclick="ModuloProjeto._wizVoltarSetor()">← Voltar</button>
       `;
     } else if (!_wiz.tipo) {
-      /* Passo 3: tipo */
+      /* Passo 3: tipo — só para AET / integrado */
       const funcao = Storage.buscarFuncao(_wiz.funcaoId);
       el.innerHTML = `
         <div style="font-size:var(--txt-sm);color:var(--texto-sec);margin-bottom:var(--s3)">
-          Passo 3 de 3 — <strong>${funcao?.nome}</strong> · Selecione o tipo:
+          Passo 3 de 3 — <strong>${funcao?.nome}</strong> · Tipo de análise:
         </div>
         ${[
-          { tipo:'aep',          icone:'📋', titulo:'AEP', desc:'Avaliação Ergonômica Preliminar — NR-17' },
-          { tipo:'psicossocial', icone:'🧠', titulo:'Fatores Psicossociais', desc:'Riscos psicossociais — COPSOQ-III' },
-          { tipo:'aet',          icone:'🔬', titulo:'AET', desc:'Análise Ergonômica do Trabalho' }
+          { tipo:'aep', icone:'📋', titulo:'AEP', desc:'Avaliação Ergonômica Preliminar — primeira etapa obrigatória' },
+          { tipo:'aet', icone:'🔬', titulo:'AET', desc:'Análise Ergonômica do Trabalho — aprofundamento indicado pela AEP' },
         ].map(op => `
           <div class="item-selecao" onclick="ModuloProjeto._wizSetTipo('${op.tipo}')">
             <div>
@@ -715,7 +724,19 @@ const ModuloProjeto = (() => {
   }
 
   function _wizSetSetor(id)  { _wiz.setorId = id; _renderizarWizardAv(App.obterProjetoAtual()); }
-  function _wizSetFuncao(id) { _wiz.funcaoId = id; _renderizarWizardAv(App.obterProjetoAtual()); }
+
+  function _wizSetFuncao(id) {
+    _wiz.funcaoId = id;
+    const proj    = App.obterProjetoAtual();
+    const tipoAuto = _TIPO_AV_AUTO[proj?.tipo];
+    if (tipoAuto) {
+      /* Projeto de tipo único — cria a avaliação diretamente, sem passo 3 */
+      _wizSetTipo(tipoAuto);
+      return;
+    }
+    _renderizarWizardAv(proj);
+  }
+
   function _wizVoltarSetor() { _wiz.setorId = null; _wiz.funcaoId = null; _renderizarWizardAv(App.obterProjetoAtual()); }
   function _wizVoltarFuncao(){ _wiz.funcaoId = null; _renderizarWizardAv(App.obterProjetoAtual()); }
 
