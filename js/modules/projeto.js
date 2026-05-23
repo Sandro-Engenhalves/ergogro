@@ -155,7 +155,19 @@ const ModuloProjeto = (() => {
   const _PERFIL_KEY = 'ergogro_perfil_tecnico';
 
   function _carregarPerfil() {
-    try { return JSON.parse(localStorage.getItem(_PERFIL_KEY) || '{}'); } catch { return {}; }
+    try {
+      const salvo = JSON.parse(localStorage.getItem(_PERFIL_KEY) || '{}');
+      if (salvo.responsavelTecnico) return salvo;
+      /* Busca nos projetos existentes se ainda não há perfil salvo */
+      const projetos = Storage.listarProjetos();
+      const comResp  = projetos.filter(p => p.responsavelTecnico)
+                               .sort((a, b) => (b.atualizadoEm || '') > (a.atualizadoEm || '') ? 1 : -1);
+      if (comResp.length) {
+        const p = comResp[0];
+        return { responsavelTecnico: p.responsavelTecnico, registroProfissional: p.registroProfissional, cargoResponsavel: p.cargoResponsavel };
+      }
+      return salvo;
+    } catch { return {}; }
   }
   function _salvarPerfil(p) {
     if (p.responsavelTecnico) localStorage.setItem(_PERFIL_KEY, JSON.stringify(p));
