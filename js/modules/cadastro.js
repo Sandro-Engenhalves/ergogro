@@ -12,28 +12,36 @@
 
 const ModuloCadastro = (() => {
 
+  let _isNovaEmpresa = false; /* controla redirecionamento após salvar */
+
   function renderizar() {
     const tela     = document.getElementById('tela-empresas');
     const empresas = Storage.listarEmpresas();
 
     tela.innerHTML = `
       <div class="container" style="padding-top:var(--s4)">
-        <div class="aviso-tecnico info" style="margin-bottom:var(--s4)">
-          <span>🏢</span>
-          <span>Cadastre empresas e defina o <strong>catálogo mestre</strong> de setores e funções.
-          Ao criar um Projeto de Laudo, você poderá importar este catálogo como ponto de partida.</span>
-        </div>
 
+        <!-- Busca -->
+        <input type="search" id="cl-busca"
+          placeholder="🔍  Buscar cliente..."
+          oninput="ModuloCadastro._filtrar()"
+          style="width:100%;padding:var(--s3) var(--s4);border-radius:var(--raio);
+                 border:1px solid var(--borda);background:var(--superficie-alt);
+                 color:var(--texto);font-size:var(--txt-sm);box-sizing:border-box;
+                 margin-bottom:var(--s3)">
+
+        <!-- Novo cliente -->
         <button class="btn-bloco" onclick="ModuloCadastro.abrirFormEmpresa()" style="margin-bottom:var(--s4)">
-          + Nova Empresa
+          + Novo Cliente
         </button>
 
+        <!-- Lista -->
         <div id="lista-empresas">
           ${empresas.length === 0
             ? `<div class="empty-state"><div class="empty-icon">🏢</div>
-               <p><strong>Nenhuma empresa cadastrada.</strong></p>
-               <p style="font-size:var(--txt-sm)">Cadastre a empresa para depois criar Projetos de Laudo.</p></div>`
-            : empresas.map(emp => _htmlCardEmpresa(emp)).join('')}
+               <p><strong>Nenhum cliente cadastrado.</strong></p>
+               <p style="font-size:var(--txt-sm)">Cadastre o primeiro cliente para criar projetos de laudo.</p></div>`
+            : empresas.map(emp => _htmlCardClienteLista(emp)).join('')}
         </div>
       </div>
 
@@ -73,6 +81,104 @@ const ModuloCadastro = (() => {
   }
 
   /* ── Card de empresa ─────────────────────────────────────── */
+  /* ── Card simples da lista de clientes ──────────────────── */
+  function _htmlCardClienteLista(emp) {
+    const projetos  = Storage.listarProjetos(emp.id);
+    const totalAvs  = projetos.reduce((n, p) => n + Storage.listarPorProjeto(p.id).length, 0);
+    const setoresMstr = Storage.listarSetoresMaster(emp.id);
+    const catalogoHTML = _htmlCatalogoInline(emp, setoresMstr);
+
+    return `
+      <div class="card" style="margin-bottom:var(--s3);padding:0;overflow:hidden">
+        <!-- Área principal clicável -->
+        <div onclick="App.abrirEmpresa('${emp.id}')"
+             style="display:flex;align-items:center;gap:var(--s3);padding:var(--s4);cursor:pointer">
+          <div class="item-projeto-icon">🏢</div>
+          <div style="flex:1">
+            <div style="font-size:var(--txt-base);font-weight:700">${emp.nome || 'Sem nome'}</div>
+            <div style="font-size:var(--txt-xs);color:var(--texto-sec)">
+              ${emp.cnpj ? `${emp.cnpj} · ` : ''}
+              ${emp.cidade ? `📍 ${emp.cidade}${emp.estado?'/'+emp.estado:''} · ` : ''}
+              ${projetos.length} projeto(s) · ${totalAvs} av.
+            </div>
+          </div>
+          <span style="color:var(--primaria);font-size:var(--txt-sm);font-weight:600;white-space:nowrap">Abrir →</span>
+        </div>
+        <!-- Barra de ações -->
+        <div onclick="event.stopPropagation()"
+             style="border-top:1px solid var(--borda);padding:var(--s2) var(--s4);
+                    display:flex;gap:var(--s2);align-items:center;flex-wrap:wrap">
+          <button class="btn btn-fantasma btn-sm"
+                  onclick="ModuloCadastro.abrirFormEmpresa('${emp.id}')">✏️ Editar dados</button>
+          <button class="btn btn-fantasma btn-sm"
+                  onclick="ModuloCadastro._toggleCatalogo('${emp.id}')">
+            📋 Catálogo (${setoresMstr.length})
+          </button>
+          <button class="btn btn-perigo btn-sm" style="margin-left:auto"
+                  onclick="ModuloCadastro.confirmarExcluir('${emp.id}')">🗑️</button>
+        </div>
+        <!-- Catálogo inline (colapsado por padrão) -->
+        <div id="catalogo-${emp.id}" class="oculto"
+             onclick="event.stopPropagation()"
+             style="border-top:1px solid var(--borda);padding:var(--s4);background:var(--superficie-alt)">
+          ${catalogoHTML}
+          <button class="btn btn-fantasma btn-sm" style="margin-top:var(--s2)"
+                  onclick="ModuloCadastro.abrirFormSetorMaster('${emp.id}')">+ Setor</button>
+        </div>
+      </div>`;
+  }
+
+  function _htmlCatalogoInline(emp, setoresMstr) {
+    if (setoresMstr.length === 0) {
+      return `<p style="font-size:var(--txt-sm);color:var(--texto-sec)">Nenhum setor no catálogo.</p>`;
+    }
+    return setoresMstr.map(s => {
+      const fns = Storage.listarFuncoesMaster(s.id);
+      return `
+        <div style="margin-bottom:var(--s3)">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--s1)">
+            <span style="font-size:var(--txt-sm);font-weight:600">📍 ${s.nome}</span>
+            <div style="display:flex;gap:var(--s1)">
+              <button class="btn btn-fantasma btn-sm"
+                      onclick="ModuloCadastro.abrirFormSetorMaster('${emp.id}','${s.id}')">✏️</button>
+              <button class="btn btn-perigo btn-sm"
+                      onclick="ModuloCadastro.excluirSetorMaster('${s.id}','${emp.id}')">🗑️</button>
+            </div>
+          </div>
+          ${fns.map(f => `
+            <div style="display:flex;align-items:center;padding:2px 0 2px var(--s4);gap:var(--s2)">
+              <span style="flex:1;font-size:var(--txt-xs)">👷 ${f.nome}</span>
+              <button class="btn btn-fantasma btn-sm"
+                      onclick="ModuloCadastro.abrirFormFuncaoMaster('${emp.id}','${s.id}','${f.id}')">✏️</button>
+              <button class="btn btn-perigo btn-sm"
+                      onclick="ModuloCadastro.excluirFuncaoMaster('${f.id}','${emp.id}')">🗑️</button>
+            </div>
+          `).join('')}
+          <button class="btn btn-fantasma btn-sm" style="margin-left:var(--s4);font-size:var(--txt-xs)"
+                  onclick="ModuloCadastro.abrirFormFuncaoMaster('${emp.id}','${s.id}')">+ Função</button>
+        </div>`;
+    }).join('');
+  }
+
+  function _toggleCatalogo(empId) {
+    document.getElementById(`catalogo-${empId}`)?.classList.toggle('oculto');
+  }
+
+  function _filtrar() {
+    const busca = (document.getElementById('cl-busca')?.value || '').toLowerCase().trim();
+    const todos = Storage.listarEmpresas();
+    const filtrados = busca
+      ? todos.filter(e => (e.nome||'').toLowerCase().includes(busca) ||
+                          (e.cidade||'').toLowerCase().includes(busca) ||
+                          (e.cnpj||'').includes(busca))
+      : todos;
+    const lista = document.getElementById('lista-empresas');
+    if (!lista) return;
+    lista.innerHTML = filtrados.length === 0
+      ? `<p style="color:var(--texto-sec);font-size:var(--txt-sm);text-align:center;padding:var(--s5)">Nenhum cliente encontrado.</p>`
+      : filtrados.map(emp => _htmlCardClienteLista(emp)).join('');
+  }
+
   function _htmlCardEmpresa(emp) {
     const projetos     = Storage.listarProjetos(emp.id);
     const setoresMstr  = Storage.listarSetoresMaster(emp.id);
@@ -186,8 +292,9 @@ const ModuloCadastro = (() => {
   ══════════════════════════════════════════════════════════ */
 
   function abrirFormEmpresa(id) {
+    _isNovaEmpresa = !id;
     const emp = id ? Storage.buscarEmpresa(id) : Storage.criarEmpresa();
-    document.getElementById('modal-emp-titulo').textContent = id ? 'Editar Empresa' : 'Nova Empresa';
+    document.getElementById('modal-emp-titulo').textContent = id ? 'Editar Cliente' : 'Novo Cliente';
     document.getElementById('modal-emp-form').innerHTML = `
       <div class="grupo-campo">
         <label>Razão Social / Nome</label>
@@ -260,11 +367,16 @@ const ModuloCadastro = (() => {
     emp.responsavelTecnico   = get('emp-responsavel');
     emp.registroProfissional = get('emp-registro');
     emp.cargo                = get('emp-cargo');
-    if (!emp.nome) { App.mostrarToast('Informe o nome da empresa','erro'); return; }
+    if (!emp.nome) { App.mostrarToast('Informe o nome do cliente','erro'); return; }
     Storage.salvarEmpresa(emp);
     fecharModal('modal-empresa');
-    App.mostrarToast('Empresa salva','sucesso');
-    renderizar();
+    App.mostrarToast('Cliente salvo','sucesso');
+    if (_isNovaEmpresa) {
+      _isNovaEmpresa = false;
+      App.abrirEmpresa(emp.id);   /* novo cliente → entra direto no ambiente */
+    } else {
+      renderizar();               /* edição → atualiza a lista */
+    }
   }
 
   function confirmarExcluir(id) {
@@ -412,6 +524,8 @@ const ModuloCadastro = (() => {
 
   return {
     renderizar,
+    /* Lista de clientes */
+    _filtrar, _toggleCatalogo,
     /* Empresa */
     abrirFormEmpresa, salvarEmpresa, confirmarExcluir,
     /* Setor mestre */

@@ -296,7 +296,6 @@ const App = (() => {
   function _renderizarDashboard() {
     const container = document.getElementById('tela-dashboard');
     const stats     = Storage.estatisticas();
-    const empresas  = Storage.listarEmpresas();
 
     container.innerHTML = `
       <div class="container" style="padding-top:var(--s4)">
@@ -330,23 +329,21 @@ const App = (() => {
           </div>
         </div>
 
-        <!-- Nova empresa -->
-        <button class="btn-bloco" onclick="App.navegarPara('empresas')" style="margin-bottom:var(--s4)">
-          + Novo Cliente / Empresa
-        </button>
-
-        <!-- Lista de clientes -->
-        <div style="font-weight:600;margin-bottom:var(--s3)">
-          Clientes (${empresas.length})
-        </div>
-        <div id="dashboard-lista">
-          ${empresas.length === 0
-            ? `<div class="empty-state">
-                 <div class="empty-icon">🏢</div>
-                 <p><strong>Nenhum cliente cadastrado.</strong></p>
-                 <p style="font-size:var(--txt-sm)">Cadastre o primeiro cliente para criar projetos de laudo.</p>
-               </div>`
-            : empresas.map(emp => _htmlCardEmpresaDash(emp)).join('')}
+        <!-- Acesso rápido -->
+        <div style="display:flex;flex-direction:column;gap:var(--s3)">
+          <button class="btn-bloco" onclick="App.navegarPara('empresas')">
+            👥 Clientes
+          </button>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--s3)">
+            <button class="btn btn-secundario" style="padding:var(--s4);font-size:var(--txt-base)"
+                    onclick="App.navegarPara('plano-geral')">
+              📌 Plano Geral
+            </button>
+            <button class="btn btn-secundario" style="padding:var(--s4);font-size:var(--txt-base)"
+                    onclick="App.navegarPara('relatorios')">
+              📋 Relatórios
+            </button>
+          </div>
         </div>
       </div>
     `;
