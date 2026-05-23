@@ -385,9 +385,82 @@ const ModuloFP = (() => {
         <button class="btn-bloco" onclick="ModuloFP.salvarAnalise()">
           💾 Salvar Análise Técnica
         </button>
+
+        <!-- Gerar Plano de Ação a partir das medidas -->
+        <button onclick="ModuloFP.gerarPlanoDeAcao()"
+                style="width:100%;margin-top:var(--s3);padding:var(--s3);
+                       background:var(--fundo-card);border:1px solid var(--primario);
+                       color:var(--primario);font-size:var(--txt-sm);font-weight:700;
+                       border-radius:var(--raio);cursor:pointer;
+                       display:flex;align-items:center;justify-content:center;gap:var(--s2)">
+          📋 Gerar Plano de Ação a partir das Medidas Preventivas
+        </button>
         <div style="height:var(--s4)"></div>
       </div>
     `;
+  }
+
+  function gerarPlanoDeAcao() {
+    const av = App.obterAvaliacaoAtual();
+    if (!av) return;
+
+    _salvarAnalise();
+
+    const medidas = av.psicossocial?.medidasPreventivas?.trim() || '';
+    if (!medidas) {
+      App.mostrarToast('Preencha as Medidas Preventivas antes de gerar o plano', 'info');
+      return;
+    }
+
+    if (!av.planoAcao) av.planoAcao = [];
+
+    /* Cada linha não-vazia vira uma ação */
+    const hoje    = new Date();
+    const addDias = n => { const d = new Date(hoje); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); };
+    const linhas  = medidas.split('\n').map(l => l.replace(/^[•\-\*\d\.]+\s*/, '').trim()).filter(l => l.length > 10);
+
+    let adicionadas = 0;
+    linhas.forEach(linha => {
+      const jaExiste = av.planoAcao.some(a => a.descricao === linha && a.origem === 'afp_medidas');
+      if (jaExiste) return;
+      av.planoAcao.push({
+        id:          Storage.gerarId('acao'),
+        descricao:   linha,
+        prioridade:  'media',
+        prazo:       addDias(180),
+        responsavel: '',
+        medida:      'organizacional',
+        status:      'pendente',
+        origem:      'afp_medidas',
+        criadaEm:    new Date().toISOString(),
+      });
+      adicionadas++;
+    });
+
+    /* Se indicou suporte especializado, adiciona ação específica */
+    if (av.psicossocial?.suporteEspecializado) {
+      const descSuporte = 'Encaminhar para suporte especializado: psicólogo do trabalho / serviço de saúde mental';
+      if (!av.planoAcao.some(a => a.descricao === descSuporte)) {
+        av.planoAcao.push({
+          id: Storage.gerarId('acao'), descricao: descSuporte,
+          prioridade: 'alta', prazo: addDias(90),
+          responsavel: '', medida: 'administrativa',
+          status: 'pendente', origem: 'afp_medidas',
+          criadaEm: new Date().toISOString(),
+        });
+        adicionadas++;
+      }
+    }
+
+    try {
+      Storage.salvar(av);
+      const msg = adicionadas > 0
+        ? `${adicionadas} ação(ões) adicionada(s) ao Plano — acesse a aba Plano para editar`
+        : 'Todas as medidas já estão no Plano de Ação';
+      App.mostrarToast(msg, adicionadas > 0 ? 'sucesso' : 'info');
+    } catch (e) {
+      App.mostrarToast('Erro: ' + e.message, 'erro');
+    }
   }
 
   function _salvarAnalise() {
@@ -543,5 +616,5 @@ const ModuloFP = (() => {
     App.mostrarToast('JSON exportado', 'sucesso');
   }
 
-  return { renderizar, trocarSecao, salvarGrupo, onCopsoqChange, salvarCOPSOQ, verResultadosCOPSOQ, salvarAnalise, exportarJSON };
+  return { renderizar, trocarSecao, salvarGrupo, onCopsoqChange, salvarCOPSOQ, verResultadosCOPSOQ, salvarAnalise, gerarPlanoDeAcao, exportarJSON };
 })();

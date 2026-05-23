@@ -874,22 +874,61 @@ Escreva 2 a 3 frases técnicas objetivas, em estilo de laudo de engenharia, desc
     const baixas = porPrioridade(todasAcoes, 'baixa');
     const concl  = todasAcoes.filter(a => a.status === 'concluido').length;
 
+    const ORIGEM_L = { aep_motor: '⚙️ AEP auto', afp_medidas: '🧠 AFP', manual: '✏️ Manual' };
+    const MEDIDA_OPTS = ['','engenharia','administrativa','organizacional','epi'];
+    const MEDIDA_L = { engenharia:'Engenharia', administrativa:'Administrativa', organizacional:'Organizacional', epi:'EPI/EPC' };
+
     const listaHTML = todasAcoes.map(acao => `
-      <div class="item-plano prioridade-${acao.prioridade}">
+      <div class="item-plano prioridade-${acao.prioridade}" id="item-acao-${acao.id}">
         <div class="item-plano-header">
-          <div>
+          <div style="flex:1">
             <div class="item-plano-titulo">${acao.descricao}</div>
-            <div class="item-plano-meta">
+            <div class="item-plano-meta" style="flex-wrap:wrap;gap:4px">
               <span class="status-chip status-${acao.status}">${STATUS_L[acao.status]||acao.status}</span>
               <span class="badge-tipo badge-tipo-${acao._tipo}">${TIPO_LABEL[acao._tipo]||acao._tipo}</span>
-              ${acao._setor ? `<span>${acao._setor}</span>` : ''}
-              ${acao._funcao ? `<span>· ${acao._funcao}</span>` : ''}
-              ${acao.responsavel ? `<span>👤 ${acao.responsavel}</span>` : ''}
-              ${acao.prazo ? `<span>📅 ${_fdl(acao.prazo)}</span>` : ''}
+              ${acao.origem ? `<span style="font-size:10px;opacity:.7">${ORIGEM_L[acao.origem]||acao.origem}</span>` : ''}
+              ${acao._setor ? `<span>📍 ${acao._setor}</span>` : ''}
+              ${acao._funcao ? `<span>👷 ${acao._funcao}</span>` : ''}
             </div>
           </div>
+          <button onclick="ModuloProjeto.excluirAcao('${acao._avId}','${acao.id}')"
+                  title="Excluir" style="flex-shrink:0;padding:4px 8px;border-radius:var(--r2);
+                  border:1px solid var(--borda);background:transparent;color:var(--texto-sec);cursor:pointer">
+            🗑️
+          </button>
         </div>
-        ${acao.medida ? `<div style="font-size:var(--txt-sm);color:var(--texto-sec);margin-top:var(--s2)"><strong style="color:var(--texto)">Medida:</strong> ${acao.medida}</div>` : ''}
+
+        <!-- Campos editáveis inline -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--s2);margin-top:var(--s3)">
+          <div class="grupo-campo" style="margin:0">
+            <label style="font-size:10px">Responsável</label>
+            <input type="text" value="${acao.responsavel || ''}" placeholder="Nome / setor"
+                   style="font-size:var(--txt-xs)"
+                   onchange="ModuloProjeto.salvarCampoAcao('${acao._avId}','${acao.id}','responsavel',this.value)">
+          </div>
+          <div class="grupo-campo" style="margin:0">
+            <label style="font-size:10px">Prazo</label>
+            <input type="date" value="${acao.prazo || ''}"
+                   style="font-size:var(--txt-xs)"
+                   onchange="ModuloProjeto.salvarCampoAcao('${acao._avId}','${acao.id}','prazo',this.value)">
+          </div>
+          <div class="grupo-campo" style="margin:0">
+            <label style="font-size:10px">Tipo de Medida</label>
+            <select style="font-size:var(--txt-xs)"
+                    onchange="ModuloProjeto.salvarCampoAcao('${acao._avId}','${acao.id}','medida',this.value)">
+              ${MEDIDA_OPTS.map(m => `<option value="${m}" ${acao.medida===m?'selected':''}>${m ? MEDIDA_L[m]||m : 'Selecione…'}</option>`).join('')}
+            </select>
+          </div>
+          <div class="grupo-campo" style="margin:0">
+            <label style="font-size:10px">Prioridade</label>
+            <select style="font-size:var(--txt-xs)"
+                    onchange="ModuloProjeto.salvarCampoAcao('${acao._avId}','${acao.id}','prioridade',this.value)">
+              ${['alta','media','baixa'].map(p => `<option value="${p}" ${acao.prioridade===p?'selected':''}>${p.charAt(0).toUpperCase()+p.slice(1)}</option>`).join('')}
+            </select>
+          </div>
+        </div>
+
+        <!-- Status -->
         <div style="margin-top:var(--s3);display:flex;gap:var(--s2);flex-wrap:wrap">
           ${['pendente','em_andamento','concluido'].map(s => `
             <button class="btn btn-sm ${acao.status===s?'btn-primario':'btn-secundario'}"
@@ -921,9 +960,102 @@ Escreva 2 a 3 frases técnicas objetivas, em estilo de laudo de engenharia, desc
             <div style="font-size:var(--txt-xs);color:var(--texto-sec)">Total</div>
           </div>
         </div>
+        <!-- Nova ação manual -->
+        <div class="card" style="margin-top:var(--s4)">
+          <div class="card-titulo" style="margin-bottom:var(--s3)">➕ Nova Ação Manual</div>
+          <div class="grupo-campo">
+            <label>Descrição da ação</label>
+            <textarea id="nova-acao-descricao" rows="2" placeholder="Descreva a ação corretiva ou preventiva..."></textarea>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--s2)">
+            <div class="grupo-campo" style="margin:0">
+              <label>Responsável</label>
+              <input type="text" id="nova-acao-resp" placeholder="Nome / setor">
+            </div>
+            <div class="grupo-campo" style="margin:0">
+              <label>Prazo</label>
+              <input type="date" id="nova-acao-prazo">
+            </div>
+            <div class="grupo-campo" style="margin:0">
+              <label>Prioridade</label>
+              <select id="nova-acao-prio">
+                <option value="alta">Alta</option>
+                <option value="media" selected>Média</option>
+                <option value="baixa">Baixa</option>
+              </select>
+            </div>
+            <div class="grupo-campo" style="margin:0">
+              <label>Tipo de Medida</label>
+              <select id="nova-acao-medida">
+                <option value="">Selecione…</option>
+                <option value="engenharia">Engenharia</option>
+                <option value="administrativa">Administrativa</option>
+                <option value="organizacional">Organizacional</option>
+                <option value="epi">EPI/EPC</option>
+              </select>
+            </div>
+          </div>
+          <button class="btn btn-primario" style="margin-top:var(--s3);width:100%"
+                  onclick="ModuloProjeto.adicionarAcaoManual()">
+            ➕ Adicionar ao Plano
+          </button>
+        </div>
+
         ${listaHTML}
       </div>
     `;
+  }
+
+  function salvarCampoAcao(avId, acaoId, campo, valor) {
+    const av = Storage.buscar(avId);
+    if (!av) return;
+    const acao = (av.planoAcao || []).find(a => a.id === acaoId);
+    if (acao) { acao[campo] = valor; Storage.salvar(av); }
+    const avAtual = App.obterAvaliacaoAtual();
+    if (avAtual?.id === avId) {
+      const a2 = (avAtual.planoAcao || []).find(a => a.id === acaoId);
+      if (a2) a2[campo] = valor;
+    }
+  }
+
+  function excluirAcao(avId, acaoId) {
+    const av = Storage.buscar(avId);
+    if (!av) return;
+    av.planoAcao = (av.planoAcao || []).filter(a => a.id !== acaoId);
+    Storage.salvar(av);
+    const avAtual = App.obterAvaliacaoAtual();
+    if (avAtual?.id === avId) avAtual.planoAcao = av.planoAcao;
+    /* Remove o item do DOM sem re-renderizar tudo */
+    document.getElementById(`item-acao-${acaoId}`)?.remove();
+    App.mostrarToast('Ação removida', 'sucesso');
+  }
+
+  function adicionarAcaoManual() {
+    const proj = App.obterProjetoAtual();
+    if (!proj) return;
+    const descricao = document.getElementById('nova-acao-descricao')?.value?.trim();
+    if (!descricao) { App.mostrarToast('Preencha a descrição da ação', 'aviso'); return; }
+
+    /* Adiciona na primeira avaliação do projeto (ou cria lista genérica no projeto) */
+    const avs = Storage.listarPorProjeto(proj.id);
+    const av  = avs[0];
+    if (!av) { App.mostrarToast('Projeto sem avaliações — crie uma avaliação primeiro', 'aviso'); return; }
+
+    if (!av.planoAcao) av.planoAcao = [];
+    av.planoAcao.push({
+      id:          Storage.gerarId('acao'),
+      descricao,
+      prioridade:  document.getElementById('nova-acao-prio')?.value  || 'media',
+      prazo:       document.getElementById('nova-acao-prazo')?.value || '',
+      responsavel: document.getElementById('nova-acao-resp')?.value?.trim() || '',
+      medida:      document.getElementById('nova-acao-medida')?.value || '',
+      status:      'pendente',
+      origem:      'manual',
+      criadaEm:    new Date().toISOString(),
+    });
+    Storage.salvar(av);
+    App.mostrarToast('Ação adicionada ao plano', 'sucesso');
+    _renderizarConteudo('plano');
   }
 
   function alterarStatusAcao(avId, acaoId, novoStatus) {
@@ -1200,22 +1332,26 @@ Escreva 2 a 3 frases técnicas objetivas, em estilo de laudo de engenharia, desc
           <h3>${nSec.plano}. Plano de Ação</h3>
           <div style="overflow-x:auto">
             <table class="tabela-simples">
-              <thead><tr><th>#</th><th>Ação</th><th>Setor</th><th>Função</th><th>Prior.</th><th>Responsável</th><th>Prazo</th><th>Status</th></tr></thead>
+              <thead><tr><th>#</th><th>Ação / Recomendação</th><th>Setor · Função</th><th>Medida</th><th>Prior.</th><th>Responsável</th><th>Prazo</th><th>Status</th></tr></thead>
               <tbody>
                 ${(() => {
+                  const PRIO_COR = { alta: '#f44336', media: '#ff9800', baixa: '#4caf50' };
+                  const PRIO_L   = { alta: 'Alta', media: 'Média', baixa: 'Baixa' };
+                  const STATUS_L = { pendente: 'Pendente', em_andamento: 'Em andamento', concluido: 'Concluído' };
+                  const MEDIDA_L = { engenharia: 'Engenharia', administrativa: 'Admin.', organizacional: 'Org.', epi: 'EPI/EPC' };
                   let n = 0;
                   return avs.flatMap(av => {
                     const s = av.setorId  ? Storage.buscarSetor(av.setorId)   : null;
                     const f = av.funcaoId ? Storage.buscarFuncao(av.funcaoId) : null;
                     return (av.planoAcao || []).map(acao => `<tr>
                       <td>${++n}</td>
-                      <td style="font-size:var(--txt-xs)">${(acao.descricao||'').slice(0,50)}…</td>
-                      <td style="font-size:var(--txt-xs)">${s?.nome||'—'}</td>
-                      <td style="font-size:var(--txt-xs)">${f?.nome||'—'}</td>
-                      <td><span class="badge badge-${acao.prioridade==='alta'?'alto':acao.prioridade==='media'?'medio':'baixo'}">${acao.prioridade||'—'}</span></td>
+                      <td style="font-size:var(--txt-xs)">${acao.descricao||'—'}</td>
+                      <td style="font-size:var(--txt-xs)">${s?.nome||'—'}${f?.nome?' · '+f.nome:''}</td>
+                      <td style="font-size:var(--txt-xs)">${MEDIDA_L[acao.medida]||'—'}</td>
+                      <td style="font-weight:700;color:${PRIO_COR[acao.prioridade]||'#888'};font-size:var(--txt-xs)">${PRIO_L[acao.prioridade]||acao.prioridade||'—'}</td>
                       <td style="font-size:var(--txt-xs)">${acao.responsavel||'—'}</td>
                       <td style="font-size:var(--txt-xs)">${_fd(acao.prazo)}</td>
-                      <td style="font-size:var(--txt-xs)">${acao.status||'—'}</td>
+                      <td style="font-size:var(--txt-xs)">${STATUS_L[acao.status]||acao.status||'—'}</td>
                     </tr>`);
                   }).join('');
                 })()}
@@ -1360,6 +1496,7 @@ Escreva 2 a 3 frases técnicas objetivas, em estilo de laudo de engenharia, desc
   return {
     renderizar, trocarSecao,
     salvarVisaoGeral, gerarObjetivoIA, onConclusaoChange, onNecessitaAETChange, salvarConclusao, imprimir, exportarProjeto,
+    salvarCampoAcao, excluirAcao, adicionarAcaoManual,
     abrirFormSetor, salvarSetor, excluirSetor,
     abrirFormFuncao, salvarFuncao, excluirFuncao,
     abrirWizardAv, _wizSetSetor, _wizSetFuncao, _wizVoltarSetor, _wizVoltarFuncao, _wizSetTipo,

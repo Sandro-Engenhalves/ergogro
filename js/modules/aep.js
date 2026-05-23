@@ -1158,6 +1158,16 @@ const ModuloAEP = (() => {
         <button class="btn-bloco" onclick="ModuloAEP.salvarAnalise()">
           💾 Salvar Análise e Conclusão
         </button>
+
+        <!-- Gerar Plano de Ação -->
+        <button onclick="ModuloAEP.gerarPlanoDeAcao()"
+                style="width:100%;margin-top:var(--s3);padding:var(--s3);
+                       background:var(--fundo-card);border:1px solid var(--primario);
+                       color:var(--primario);font-size:var(--txt-sm);font-weight:700;
+                       border-radius:var(--raio);cursor:pointer;
+                       display:flex;align-items:center;justify-content:center;gap:var(--s2)">
+          📋 Gerar Plano de Ação a partir das Recomendações
+        </button>
         <div style="height:var(--s4)"></div>
       </div>
     `;
@@ -1262,6 +1272,60 @@ const ModuloAEP = (() => {
     const textarea = document.getElementById('an-recomendacoes');
     if (textarea) textarea.value = texto.trim();
     App.mostrarToast('Recomendações inseridas', 'sucesso');
+  }
+
+  /* ══════════════════════════════════════════════════════════
+     GERAÇÃO DO PLANO DE AÇÃO A PARTIR DAS RECOMENDAÇÕES
+  ══════════════════════════════════════════════════════════ */
+
+  function gerarPlanoDeAcao() {
+    const av = App.obterAvaliacaoAtual();
+    if (!av) return;
+
+    /* Garante que a análise está salva antes de gerar o plano */
+    salvarAnalise();
+
+    const recs = MOTOR_AEP.gerarRecomendacoes(av);
+    if (!recs.length) {
+      App.mostrarToast('Nenhuma recomendação — preencha o checklist e as exposições primeiro', 'info');
+      return;
+    }
+
+    if (!av.planoAcao) av.planoAcao = [];
+
+    /* Prazo automático por prioridade */
+    const hoje    = new Date();
+    const addDias = n => { const d = new Date(hoje); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); };
+    const diasMap = { imediata: 30, alta: 90, media: 180 };
+    const prioMap = { imediata: 'alta', alta: 'alta', media: 'media' };
+
+    let adicionadas = 0;
+    recs.forEach(rec => {
+      const jaExiste = av.planoAcao.some(a => a.descricao === rec.texto && a.origem === 'aep_motor');
+      if (jaExiste) return;
+      av.planoAcao.push({
+        id:          Storage.gerarId('acao'),
+        descricao:   rec.texto,
+        prioridade:  prioMap[rec.prioridade] || 'media',
+        prazo:       addDias(diasMap[rec.prioridade] || 90),
+        responsavel: '',
+        medida:      '',
+        status:      'pendente',
+        origem:      'aep_motor',
+        criadaEm:    new Date().toISOString(),
+      });
+      adicionadas++;
+    });
+
+    try {
+      Storage.salvar(av);
+      const msg = adicionadas > 0
+        ? `${adicionadas} ação(ões) adicionada(s) ao Plano — acesse a aba Plano para editar responsáveis e prazos`
+        : 'Todas as recomendações já estão no Plano de Ação';
+      App.mostrarToast(msg, adicionadas > 0 ? 'sucesso' : 'info');
+    } catch (e) {
+      App.mostrarToast('Erro ao salvar: ' + e.message, 'erro');
+    }
   }
 
   /* ══════════════════════════════════════════════════════════
@@ -1837,26 +1901,34 @@ const ModuloAEP = (() => {
         </div>
 
         <!-- 11. Plano de Ação -->
-        ${av.planoAcao?.length > 0 ? `
-        <div class="relatorio-secao">
-          <h3>11. Plano de Ação (${av.planoAcao.length} ação(ões))</h3>
-          <div style="overflow-x:auto">
-            <table class="tabela-simples">
-              <thead><tr><th>#</th><th>Ação</th><th>Responsável</th><th>Prazo</th><th>Status</th></tr></thead>
-              <tbody>
-                ${av.planoAcao.map((a, i) => `
-                  <tr>
-                    <td>${i+1}</td>
-                    <td style="font-size:var(--txt-xs)">${a.descricao?.slice(0,70)}${(a.descricao?.length||0) > 70 ? '…' : ''}</td>
-                    <td style="font-size:var(--txt-xs)">${a.responsavel || '—'}</td>
-                    <td style="font-size:var(--txt-xs)">${_formatarData(a.prazo)}</td>
-                    <td><span class="status-chip status-${a.status}">${a.status}</span></td>
-                  </tr>
-                `).join('')}
-              </tbody>
-            </table>
-          </div>
-        </div>` : ''}
+        ${av.planoAcao?.length > 0 ? (() => {
+          const PRIO_COR  = { alta: '#f44336', media: '#ff9800', baixa: '#4caf50' };
+          const PRIO_L    = { alta: 'Alta', media: 'Média', baixa: 'Baixa' };
+          const STATUS_L  = { pendente: 'Pendente', em_andamento: 'Em andamento', concluido: 'Concluído' };
+          const MEDIDA_L  = { engenharia: 'Engenharia', administrativa: 'Administrativa', organizacional: 'Organizacional', epi: 'EPI/EPC' };
+          return `
+          <div class="relatorio-secao">
+            <h3>11. Plano de Ação (${av.planoAcao.length} ação(ões))</h3>
+            <div style="overflow-x:auto">
+              <table class="tabela-simples">
+                <thead><tr><th>#</th><th>Ação / Recomendação</th><th>Tipo de Medida</th><th>Prioridade</th><th>Responsável</th><th>Prazo</th><th>Status</th></tr></thead>
+                <tbody>
+                  ${av.planoAcao.map((a, i) => `
+                    <tr>
+                      <td>${i+1}</td>
+                      <td style="font-size:var(--txt-xs)">${a.descricao || '—'}</td>
+                      <td style="font-size:var(--txt-xs)">${MEDIDA_L[a.medida] || '—'}</td>
+                      <td><span style="font-weight:700;color:${PRIO_COR[a.prioridade]||'#888'};font-size:var(--txt-xs)">${PRIO_L[a.prioridade]||a.prioridade||'—'}</span></td>
+                      <td style="font-size:var(--txt-xs)">${a.responsavel || '—'}</td>
+                      <td style="font-size:var(--txt-xs)">${_formatarData(a.prazo)}</td>
+                      <td style="font-size:var(--txt-xs)">${STATUS_L[a.status]||a.status||'—'}</td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>
+          </div>`;
+        })() : ''}
 
         <!-- 12. Conclusão e Assinatura -->
         <div class="relatorio-secao">
@@ -2016,7 +2088,7 @@ const ModuloAEP = (() => {
     /* posto */
     salvarPosto, onExpChange,
     /* análise */
-    onAETChange, salvarAnalise, recalcularScore, aplicarNivelSugerido, usarRecomendacoesAuto, gerarAnaliseCompleta,
+    onAETChange, salvarAnalise, recalcularScore, aplicarNivelSugerido, usarRecomendacoesAuto, gerarAnaliseCompleta, gerarPlanoDeAcao,
     /* relatório */
     imprimirRelatorio, exportarJSON,
     /* cálculos (usados por outros módulos) */
