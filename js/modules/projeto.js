@@ -152,10 +152,23 @@ const ModuloProjeto = (() => {
      SEÇÃO: VISÃO GERAL
   ══════════════════════════════════════════════════════════ */
 
+  const _PERFIL_KEY = 'ergogro_perfil_tecnico';
+
+  function _carregarPerfil() {
+    try { return JSON.parse(localStorage.getItem(_PERFIL_KEY) || '{}'); } catch { return {}; }
+  }
+  function _salvarPerfil(p) {
+    if (p.responsavelTecnico) localStorage.setItem(_PERFIL_KEY, JSON.stringify(p));
+  }
+
   function _htmlVisaoGeral() {
     const proj = App.obterProjetoAtual();
     if (!proj) return '';
-    const emp = Storage.buscarEmpresa(proj.empresaId);
+    const emp    = Storage.buscarEmpresa(proj.empresaId);
+    const perfil = _carregarPerfil();
+    const respVal  = proj.responsavelTecnico   || perfil.responsavelTecnico   || '';
+    const regVal   = proj.registroProfissional || perfil.registroProfissional || '';
+    const cargoVal = proj.cargoResponsavel     || perfil.cargoResponsavel     || '';
 
     return `
       <div class="container">
@@ -217,7 +230,17 @@ const ModuloProjeto = (() => {
           </div>
 
           <div class="grupo-campo">
-            <label for="proj-objetivo">Objetivo do Projeto</label>
+            <label for="proj-objetivo" style="display:flex;align-items:center;gap:var(--s2)">
+              Objetivo do Projeto
+              <button id="btn-objetivo-ia"
+                      onclick="ModuloProjeto.gerarObjetivoIA()"
+                      title="Gerar com IA"
+                      style="font-size:var(--txt-xs);padding:2px 8px;border-radius:var(--r2);
+                             border:1px solid var(--borda);background:var(--fundo);
+                             color:var(--texto-sec);cursor:pointer;margin-left:auto">
+                🤖 Gerar
+              </button>
+            </label>
             <textarea id="proj-objetivo" rows="3"
               placeholder="Descreva o objetivo técnico do projeto de laudo..."
             >${proj.objetivo || ''}</textarea>
@@ -237,20 +260,20 @@ const ModuloProjeto = (() => {
           <div class="grupo-campo">
             <label for="proj-responsavel">Nome</label>
             <input type="text" id="proj-responsavel" placeholder="Nome completo"
-                   value="${proj.responsavelTecnico || ''}">
+                   value="${respVal}">
           </div>
           <div class="linha-campos">
             <div class="grupo-campo">
               <label for="proj-registro">Registro Profissional</label>
               <input type="text" id="proj-registro" placeholder="CREA, CRQ, CRP..."
-                     value="${proj.registroProfissional || ''}">
+                     value="${regVal}">
             </div>
             <div class="grupo-campo">
               <label for="proj-cargo">Cargo</label>
               <select id="proj-cargo">
                 <option value="">Selecione...</option>
                 ${['Engenheiro de Segurança do Trabalho','Técnico de Segurança do Trabalho','Ergonomista','Médico do Trabalho','Psicólogo do Trabalho','Fisioterapeuta do Trabalho','Outro']
-                  .map(c => `<option ${proj.cargoResponsavel===c?'selected':''}>${c}</option>`).join('')}
+                  .map(c => `<option ${cargoVal===c?'selected':''}>${c}</option>`).join('')}
               </select>
             </div>
           </div>
@@ -260,6 +283,48 @@ const ModuloProjeto = (() => {
         <div style="height:var(--s4)"></div>
       </div>
     `;
+  }
+
+  async function gerarObjetivoIA() {
+    const proj = App.obterProjetoAtual();
+    if (!proj) return;
+
+    const executar = async () => {
+      const emp = proj.empresaId ? Storage.buscarEmpresa(proj.empresaId) : null;
+      const TIPO_NOME = {
+        aep:          'Avaliação Ergonômica Preliminar (AEP) conforme NR-17',
+        psicossocial: 'Avaliação de Fatores Psicossociais (AFP / COPSOQ)',
+        aep_afp:      'Avaliação Ergonômica Preliminar + Fatores Psicossociais',
+        aet:          'Análise Ergonômica do Trabalho (AET)',
+        integrado:    'Programa Ergonômico Integrado (AEP + AFP + AET)',
+      };
+      const btn = document.getElementById('btn-objetivo-ia');
+      if (btn) { btn.disabled = true; btn.textContent = '⏳'; }
+      try {
+        const prompt = `Você é um engenheiro de segurança do trabalho. Redija o objetivo técnico para um projeto de laudo ergonômico com as seguintes características:
+
+Tipo de projeto: ${TIPO_NOME[proj.tipo] || proj.tipo}
+Empresa / Cliente: ${emp?.nome || 'não informado'}
+Atividade da empresa: ${emp?.atividadePrincipal || emp?.cnae || 'não informado'}
+
+Escreva 2 a 3 frases técnicas objetivas, em estilo de laudo de engenharia, descrevendo o objetivo do projeto. Inicie diretamente com o conteúdo técnico, sem introductions. Retorne APENAS o texto, sem formatação especial.`;
+
+        const texto = await ClaudeVision.gerarTextoIA(prompt, 512);
+        const campo = document.getElementById('proj-objetivo');
+        if (campo && texto) campo.value = texto;
+        App.mostrarToast('Objetivo gerado — revise e ajuste', 'sucesso');
+      } catch (err) {
+        App.mostrarToast('Erro ao gerar objetivo: ' + err.message, 'erro');
+      } finally {
+        if (btn) { btn.disabled = false; btn.textContent = '🤖 Gerar'; }
+      }
+    };
+
+    if (!ClaudeVision.temChave()) {
+      ClaudeVision.solicitarChaveParaChamada(executar);
+    } else {
+      await executar();
+    }
   }
 
   function salvarVisaoGeral() {
@@ -282,6 +347,7 @@ const ModuloProjeto = (() => {
     proj.responsavelTecnico   = get('proj-responsavel');
     proj.registroProfissional = get('proj-registro');
     proj.cargoResponsavel     = get('proj-cargo');
+    _salvarPerfil({ responsavelTecnico: proj.responsavelTecnico, registroProfissional: proj.registroProfissional, cargoResponsavel: proj.cargoResponsavel });
   }
 
   /* ══════════════════════════════════════════════════════════
@@ -1281,7 +1347,7 @@ const ModuloProjeto = (() => {
 
   return {
     renderizar, trocarSecao,
-    salvarVisaoGeral, onConclusaoChange, onNecessitaAETChange, salvarConclusao, imprimir, exportarProjeto,
+    salvarVisaoGeral, gerarObjetivoIA, onConclusaoChange, onNecessitaAETChange, salvarConclusao, imprimir, exportarProjeto,
     abrirFormSetor, salvarSetor, excluirSetor,
     abrirFormFuncao, salvarFuncao, excluirFuncao,
     abrirWizardAv, _wizSetSetor, _wizSetFuncao, _wizVoltarSetor, _wizVoltarFuncao, _wizSetTipo,

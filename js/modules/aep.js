@@ -970,11 +970,21 @@ const ModuloAEP = (() => {
 
     return `
       <div class="container">
-        <div class="aviso-tecnico info" style="margin-top:var(--s4)">
-          <span>🔬</span>
-          <span>Com base no checklist e nas exposições do posto, o motor de criticidade calcula
-          um score automático. Use como referência para a análise técnica.</span>
-        </div>
+        <!-- Botão principal: IA preenche tudo -->
+        <button onclick="ModuloAEP.gerarAnaliseCompleta()"
+                style="width:100%;margin-top:var(--s4);padding:var(--s4) var(--s3);
+                       background:linear-gradient(135deg,#3949ab,#1565c0);
+                       color:#fff;font-size:var(--txt-base);font-weight:700;
+                       border:none;border-radius:var(--raio);cursor:pointer;
+                       display:flex;align-items:center;justify-content:center;gap:var(--s3)">
+          <span style="font-size:1.4rem">🤖</span>
+          <div>
+            <div>Gerar Análise Completa com IA</div>
+            <div style="font-size:var(--txt-xs);font-weight:400;opacity:.85;margin-top:2px">
+              Preenche automaticamente todos os campos com base no checklist e exposições
+            </div>
+          </div>
+        </button>
 
         <!-- Score de criticidade -->
         <div class="card">
@@ -1211,6 +1221,121 @@ const ModuloAEP = (() => {
     const textarea = document.getElementById('an-recomendacoes');
     if (textarea) textarea.value = texto.trim();
     App.mostrarToast('Recomendações inseridas', 'sucesso');
+  }
+
+  /* ══════════════════════════════════════════════════════════
+     GERAÇÃO AUTOMÁTICA DA ANÁLISE (IA)
+  ══════════════════════════════════════════════════════════ */
+
+  async function gerarAnaliseCompleta() {
+    const av = App.obterAvaliacaoAtual();
+    if (!av) return;
+
+    if (!ClaudeVision.temChave()) {
+      ClaudeVision.solicitarParaAnalise();
+      return;
+    }
+
+    _mostrarOverlayAnalise();
+    try {
+      const score = MOTOR_AEP.calcularScore(av);
+      const nivel = MOTOR_AEP.sugerirNivel(score.valor);
+
+      /* Nível de risco */
+      const selNivel = document.getElementById('an-nivel-risco');
+      if (selNivel) selNivel.value = nivel;
+
+      /* Prioridade de intervenção derivada do nível */
+      const prioMap = { baixo: 'longo', medio: 'medio', alto: 'curto', critico: 'imediata' };
+      const selPrio = document.getElementById('an-prioridade');
+      if (selPrio) selPrio.value = prioMap[nivel] || 'medio';
+
+      /* Recomendações automáticas (reutiliza lógica existente) */
+      usarRecomendacoesAuto();
+
+      /* Contexto para a IA */
+      const contexto = _construirContextoAnalise(av, score, nivel);
+
+      /* Gera análise e justificativa via Claude */
+      const textos = await ClaudeVision.gerarAnaliseTexto(contexto, nivel, score.valor);
+
+      if (textos) {
+        const taField   = document.getElementById('an-analise');
+        const justField = document.getElementById('an-justificativa');
+        if (taField   && textos.analiseTecnica) taField.value   = textos.analiseTecnica;
+        if (justField && textos.justificativa)  justField.value = textos.justificativa;
+      }
+
+      salvarAnalise();
+      App.mostrarToast('Análise preenchida automaticamente — revise e ajuste conforme necessário', 'sucesso');
+    } catch (err) {
+      if (err instanceof SyntaxError) {
+        App.mostrarToast('Erro ao interpretar resposta da IA — tente novamente', 'erro');
+      } else {
+        App.mostrarToast('Erro ao gerar análise: ' + err.message, 'erro');
+      }
+    } finally {
+      _ocultarOverlayAnalise();
+    }
+  }
+
+  function _construirContextoAnalise(av, score, nivel) {
+    const nivelPt = { baixo: 'Baixo', medio: 'Médio', alto: 'Alto', critico: 'Crítico' };
+    const domPt   = { fisica: 'Físico', organizacional: 'Organizacional', cognitiva: 'Cognitivo', psicossocial: 'Psicossocial' };
+    const posto   = av?.aep?.posto || {};
+
+    let ctx = `Função: ${av.funcao || '—'}\nSetor: ${av.setor || '—'}\n`;
+    ctx += `Perfil do Posto: ${posto.perfilPosto || 'não informado'}\n`;
+    ctx += `Tipo de Atividade: ${posto.tipoAtividade || 'não informado'}\n`;
+    ctx += `Score de Criticidade: ${score.valor}/100 — Nível ${nivelPt[nivel] || nivel}\n`;
+    ctx += `Componentes do Score:\n`;
+    ['fisica', 'organizacional', 'cognitiva', 'psicossocial'].forEach(dom => {
+      const val = Math.round((score.componentes[dom] || 0) * 100);
+      ctx += `  ${domPt[dom]}: ${val}%\n`;
+    });
+
+    const naoConformes = obterNaoConformes(av);
+    if (naoConformes.length) {
+      ctx += `\nNão Conformidades identificadas no checklist (${naoConformes.length} itens):\n`;
+      naoConformes.forEach(nc => {
+        ctx += `[${nc.risco.toUpperCase()}] ${nc.blocoTitulo}: ${nc.itemTexto}\n`;
+      });
+    } else {
+      ctx += '\nNenhuma não conformidade identificada no checklist.\n';
+    }
+
+    const exps = (posto.exposicoesEstruturadas || []).filter(e => e.presente === 'sim');
+    if (exps.length) {
+      ctx += `\nExposições ergonômicas presentes (${exps.length}):\n`;
+      exps.forEach(e => {
+        const def = EXPOSICOES.find(x => x.id === e.id);
+        ctx += `${def?.label || e.id}: intensidade ${e.intensidade || '?'}, frequência ${e.frequencia || '?'}, duração ${e.duracao || '?'}\n`;
+      });
+    }
+
+    if (posto.atividadeReal) ctx += `\nAtividade real observada: ${posto.atividadeReal}\n`;
+    if (posto.evidencias)    ctx += `\nEvidências ergonômicas: ${posto.evidencias}\n`;
+
+    return ctx;
+  }
+
+  function _mostrarOverlayAnalise() {
+    if (document.getElementById('aep-analise-overlay')) return;
+    document.body.insertAdjacentHTML('beforeend', `
+      <div id="aep-analise-overlay" style="
+        position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:1500;
+        display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px">
+        <style>@keyframes aep-spin{to{transform:rotate(360deg)}}</style>
+        <div style="width:52px;height:52px;border:4px solid #fff;border-top-color:transparent;
+                    border-radius:50%;animation:aep-spin .9s linear infinite"></div>
+        <div style="color:#fff;font-size:16px;font-weight:700">Gerando análise técnica com IA…</div>
+        <div style="color:#bbb;font-size:13px">Preenchendo todos os campos da análise</div>
+      </div>
+    `);
+  }
+
+  function _ocultarOverlayAnalise() {
+    document.getElementById('aep-analise-overlay')?.remove();
   }
 
   /* ══════════════════════════════════════════════════════════
@@ -1850,7 +1975,7 @@ const ModuloAEP = (() => {
     /* posto */
     salvarPosto, onExpChange,
     /* análise */
-    onAETChange, salvarAnalise, recalcularScore, aplicarNivelSugerido, usarRecomendacoesAuto,
+    onAETChange, salvarAnalise, recalcularScore, aplicarNivelSugerido, usarRecomendacoesAuto, gerarAnaliseCompleta,
     /* relatório */
     imprimirRelatorio, exportarJSON,
     /* cálculos (usados por outros módulos) */

@@ -129,8 +129,10 @@ Preencha cada campo de texto com linguagem técnica objetiva, adequada para laud
       const p = _pendente;
       _pendente = null;
       setTimeout(() => {
-        if (p.tipo === 'completo') _dispararFileInputCompleto();
-        else _dispararFileInput(p.campoId, p.contexto);
+        if      (p.tipo === 'completo')  _dispararFileInputCompleto();
+        else if (p.tipo === 'analise')   ModuloAEP.gerarAnaliseCompleta();
+        else if (p.tipo === 'callback' && typeof p.fn === 'function') p.fn();
+        else                             _dispararFileInput(p.campoId, p.contexto);
       }, 200);
     }
   }
@@ -274,6 +276,70 @@ Preencha cada campo de texto com linguagem técnica objetiva, adequada para laud
     if (el) { el.value = val; el.dispatchEvent(new Event('blur', { bubbles: true })); }
   }
 
+  /* ══════════════════════════════════════════════════════════
+     MODO 3 — Análise técnica (texto, sem imagem)
+  ══════════════════════════════════════════════════════════ */
+
+  function solicitarParaAnalise() {
+    _pendente = { tipo: 'analise' };
+    _abrirModalChave();
+  }
+
+  /* ── Chamada de texto (sem imagem) ──────────────────────── */
+  async function _chamarAPITexto(prompt, maxTokens = 1024) {
+    const resp = await fetch(API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key':    _getKey(),
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true',
+      },
+      body: JSON.stringify({
+        model:      MODEL,
+        max_tokens: maxTokens,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({}));
+      throw new Error(err?.error?.message || `HTTP ${resp.status}`);
+    }
+    const data = await resp.json();
+    return (data.content?.[0]?.text || '').trim();
+  }
+
+  /* Chamada pública para outros módulos gerarem texto via IA */
+  async function gerarTextoIA(prompt, maxTokens = 512) {
+    return await _chamarAPITexto(prompt, maxTokens);
+  }
+
+  /* Solicita chave e chama callback depois de confirmada */
+  function solicitarChaveParaChamada(callback) {
+    _pendente = { tipo: 'callback', fn: callback };
+    _abrirModalChave();
+  }
+
+  async function gerarAnaliseTexto(contexto, nivel, scoreValor) {
+    const nivelPt = { baixo: 'Baixo', medio: 'Médio', alto: 'Alto', critico: 'Crítico' };
+
+    const prompt = `Você é um engenheiro de segurança do trabalho especialista em ergonomia, elaborando uma Avaliação Ergonômica Preliminar (AEP) conforme NR-17. Com base nos dados abaixo, gere o texto técnico de análise.
+
+DADOS DA AVALIAÇÃO:
+${contexto}
+Retorne APENAS um objeto JSON válido, sem texto adicional, sem markdown, sem blocos de código:
+{
+  "analiseTecnica": "<3-4 parágrafos técnicos correlacionando as não conformidades com os riscos ergonômicos e impactos para a saúde dos trabalhadores>",
+  "justificativa": "<2-3 frases justificando objetivamente o nível de risco ${nivelPt[nivel] || nivel} com base no score ${scoreValor}/100 e nas evidências coletadas>"
+}
+
+Use linguagem técnica adequada para laudo de engenharia. Cite a NR-17 quando pertinente. Mencione os domínios de maior criticidade.`;
+
+    const raw   = await _chamarAPITexto(prompt, 2048);
+    const texto = raw.replace(/^```json\s*/i, '').replace(/\s*```$/, '').trim();
+    return JSON.parse(texto);
+  }
+
   /* ── Overlay de carregamento (análise completa) ──────────── */
   function _mostrarOverlay() {
     if (document.getElementById('cv-overlay')) return;
@@ -368,6 +434,10 @@ Preencha cada campo de texto com linguagem técnica objetiva, adequada para laud
   return {
     analisar,
     analisarCompleto,
+    gerarAnaliseTexto,
+    gerarTextoIA,
+    solicitarParaAnalise,
+    solicitarChaveParaChamada,
     configurarChave,
     temChave,
     _confirmarChave,

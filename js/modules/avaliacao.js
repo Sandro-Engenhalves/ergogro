@@ -6,6 +6,14 @@
 
 const ModuloIdentificacao = (() => {
 
+  const _PERFIL_KEY = 'ergogro_perfil_tecnico';
+  function _carregarPerfil() {
+    try { return JSON.parse(localStorage.getItem(_PERFIL_KEY) || '{}'); } catch { return {}; }
+  }
+  function _salvarPerfil(p) {
+    if (p.responsavelTecnico) localStorage.setItem(_PERFIL_KEY, JSON.stringify(p));
+  }
+
   function renderizar(containerId) {
     const tela = document.getElementById(containerId || 'tela-avaliacao');
     if (!tela) return;
@@ -26,9 +34,10 @@ const ModuloIdentificacao = (() => {
     const nTrab       = funcao?.numTrabalhadores || av.numTrabalhadores || '';
     const descAct     = funcao?.descricaoAtividade || av.descricaoAtividade || '';
     const dataAv      = av.dataAvaliacao   || av.empresa?.dataAvaliacao  || '';
-    const respTec     = av.responsavelTecnico  || av.empresa?.responsavelTecnico   || proj?.responsavelTecnico   || '';
-    const regProf     = av.registroProfissional|| av.empresa?.registroProfissional || proj?.registroProfissional || '';
-    const cargo       = av.cargoResponsavel    || av.empresa?.cargo                || proj?.cargoResponsavel    || '';
+    const perfil      = _carregarPerfil();
+    const respTec     = av.responsavelTecnico   || av.empresa?.responsavelTecnico   || proj?.responsavelTecnico   || perfil.responsavelTecnico   || '';
+    const regProf     = av.registroProfissional || av.empresa?.registroProfissional || proj?.registroProfissional || perfil.registroProfissional || '';
+    const cargo       = av.cargoResponsavel     || av.empresa?.cargo                || proj?.cargoResponsavel    || perfil.cargoResponsavel    || '';
 
     const TIPO_NOME = { aep:'AEP — Avaliação Ergonômica Preliminar', psicossocial:'Avaliação de Fatores Psicossociais (COPSOQ-III)', aet:'AET — Análise Ergonômica do Trabalho' };
 
@@ -126,6 +135,7 @@ const ModuloIdentificacao = (() => {
     av.responsavelTecnico   = get('av-responsavel');
     av.registroProfissional = get('av-registro');
     av.cargoResponsavel     = get('av-cargo');
+    _salvarPerfil({ responsavelTecnico: av.responsavelTecnico, registroProfissional: av.registroProfissional, cargoResponsavel: av.cargoResponsavel });
     /* Espelha para campos legados */
     if (!av.empresa) av.empresa = {};
     av.empresa.dataAvaliacao         = av.dataAvaliacao;
