@@ -852,18 +852,7 @@ Escreva 2 a 3 frases técnicas objetivas, em estilo de laudo de engenharia, desc
       });
     });
 
-    if (todasAcoes.length === 0) {
-      return `
-        <div class="container">
-          <div class="empty-state" style="padding:var(--s8)">
-            <div class="empty-icon">📌</div>
-            <p>Nenhuma ação no plano ainda.</p>
-            <p style="font-size:var(--txt-sm)">Ações são adicionadas dentro de cada avaliação (AEP, FP, AET)
-            e consolidadas aqui.</p>
-          </div>
-        </div>
-      `;
-    }
+    /* Não retorna cedo — sempre mostra o formulário de nova ação */
 
     const STATUS_L = { pendente:'⏳ Pendente', em_andamento:'🔄 Em andamento', concluido:'✅ Concluído' };
     const _fdl = iso => _fd(iso);
@@ -1001,7 +990,13 @@ Escreva 2 a 3 frases técnicas objetivas, em estilo de laudo de engenharia, desc
           </button>
         </div>
 
-        ${listaHTML}
+        ${todasAcoes.length === 0 ? `
+          <div class="aviso-tecnico info" style="margin-top:var(--s4)">
+            <span>💡</span>
+            <span>Para gerar ações automaticamente: acesse uma <strong>Avaliação AEP → aba Análise → 📋 Gerar Plano de Ação</strong>,
+            ou <strong>Avaliação AFP → aba Análise → 📋 Gerar Plano de Ação</strong>.
+            As ações aparecerão consolidadas aqui.</span>
+          </div>` : listaHTML}
       </div>
     `;
   }
