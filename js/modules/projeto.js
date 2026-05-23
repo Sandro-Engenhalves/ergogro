@@ -216,6 +216,7 @@ const ModuloProjeto = (() => {
               <label for="proj-tipo">Tipo do Projeto</label>
               <select id="proj-tipo">
                 <option value="aep"          ${proj.tipo==='aep'?'selected':''}>📋 AEP — Avaliação Ergonômica Preliminar</option>
+                <option value="aep_afp"      ${proj.tipo==='aep_afp'?'selected':''}>📋🧠 AEP + AFP — Ergonômico com Psicossocial</option>
                 <option value="psicossocial" ${proj.tipo==='psicossocial'?'selected':''}>🧠 Fatores Psicossociais</option>
                 <option value="aet"          ${proj.tipo==='aet'?'selected':''}>🔬 AET — Análise Ergonômica do Trabalho</option>
                 <option value="integrado"    ${proj.tipo==='integrado'?'selected':''}>📊 Integrado (AEP + FP + AET)</option>
