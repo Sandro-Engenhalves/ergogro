@@ -26,6 +26,7 @@
        match /ergogro_avaliacoes/{id}     { allow read, write: if true; }
        match /ergogro_planos/{id}         { allow read, write: if true; }
        match /ergogro_psicossocial/{id}   { allow read, write: if true; }
+       match /ergogro_consultas_aep/{id}  { allow read, write: if true; }
      }
    }
    ─────────────────────────────────────────────────────────

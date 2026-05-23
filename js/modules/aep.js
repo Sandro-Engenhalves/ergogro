@@ -433,6 +433,7 @@ const ModuloAEP = (() => {
       _carregarPosto();
     } else if (secao === 'checklist') {
       el.innerHTML = _htmlChecklist();
+      if (typeof ConsultaAEP !== 'undefined') setTimeout(ConsultaAEP.verificarStatus, 500);
     } else if (secao === 'analise') {
       el.innerHTML = _htmlAnalise();
       _carregarAnalise();
@@ -785,6 +786,46 @@ const ModuloAEP = (() => {
       <nav class="subnav-abas" id="subnav-checklist" style="top:calc(var(--h-header) + var(--h-subnav))">
         ${abasHTML}
       </nav>
+
+      <!-- Card: Enviar Consulta por Link -->
+      <div class="container">
+        <div class="card" style="margin-top:var(--s4);border-color:var(--primario)">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:var(--s2);margin-bottom:var(--s3)">
+            <div class="card-titulo" style="margin:0">📨 Consulta Remota</div>
+            <button id="btn-importar-consulta"
+                    onclick="ConsultaAEP.importarRespostas()"
+                    style="font-size:var(--txt-xs);padding:4px 10px;border-radius:var(--r2);
+                           border:1px solid var(--borda);background:var(--fundo);
+                           color:var(--texto-sec);cursor:pointer">
+              📥 Importar Respostas
+            </button>
+          </div>
+          <div style="font-size:var(--txt-xs);color:var(--texto-sec);margin-bottom:var(--s3)">
+            Envie um link para cada responsável preencher os itens pertinentes, sem precisar de login.
+            Quando responderem, clique em <strong>Importar Respostas</strong>.
+          </div>
+          <div id="consulta-status-badge"
+               style="font-size:var(--txt-xs);color:var(--texto-sec);margin-bottom:var(--s3)"></div>
+          <div style="display:flex;gap:var(--s2);flex-wrap:wrap">
+            <button id="btn-consulta-lider"
+                    onclick="ConsultaAEP.abrirConsulta('lider')"
+                    class="btn btn-secundario" style="flex:1;font-size:var(--txt-xs)">
+              👷 Líder de Setor
+            </button>
+            <button id="btn-consulta-rh"
+                    onclick="ConsultaAEP.abrirConsulta('rh')"
+                    class="btn btn-secundario" style="flex:1;font-size:var(--txt-xs)">
+              🧑‍💼 RH
+            </button>
+            <button id="btn-consulta-tecnico"
+                    onclick="ConsultaAEP.abrirConsulta('tecnico')"
+                    class="btn btn-secundario" style="flex:1;font-size:var(--txt-xs)">
+              ⚙️ Técnico / SESMT
+            </button>
+          </div>
+        </div>
+      </div>
+
       <div id="checklist-bloco-conteudo">
         ${_htmlBloco(_blocoAtivo, av)}
       </div>
