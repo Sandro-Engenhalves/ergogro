@@ -9,6 +9,7 @@ const App = (() => {
   let _projetoAtual    = null;   /* ProjetoLaudo aberto */
   let _avaliacaoAtual  = null;   /* Avaliação aberta dentro de um projeto */
   let _projetoRascunho = null;   /* Projeto recém-criado aguardando definição de escopo */
+  let _empresaAtual    = null;   /* Empresa/cliente em foco (contexto de navegação) */
   let _telaAtual       = 'dashboard';
 
   const TELAS_PRINCIPAIS = ['dashboard', 'empresas', 'plano-geral', 'relatorios'];
@@ -197,6 +198,7 @@ const App = (() => {
     _atualizarHeader(tela, ePrincipal);
 
     if      (tela === 'dashboard')  _renderizarDashboard();
+    else if (tela === 'empresa')    _renderizarContextoEmpresa();
     else if (tela === 'empresas')   ModuloCadastro.renderizar();
     else if (tela === 'plano-geral')ModuloPlano.renderizarGeral();
     else if (tela === 'relatorios') ModuloRelatorios.renderizar();
@@ -271,14 +273,34 @@ const App = (() => {
     if (lista) lista.innerHTML = _htmlProjetoItem(filtrados);
   }
 
+  function _htmlCardEmpresaDash(emp) {
+    const projetos   = Storage.listarProjetos().filter(p => p.empresaId === emp.id);
+    const avs        = projetos.reduce((n, p) => n + Storage.listarPorProjeto(p.id).length, 0);
+    const emAndamento = projetos.filter(p => p.status !== 'concluido').length;
+    return `
+      <div class="item-projeto" onclick="App.abrirEmpresa('${emp.id}')">
+        <div class="item-projeto-icon">🏢</div>
+        <div class="item-info">
+          <div class="item-empresa">${emp.nome}</div>
+          <div class="item-meta">
+            ${emp.cidade ? `<span>📍 ${emp.cidade}${emp.estado ? '/' + emp.estado : ''}</span>` : ''}
+            <span>${projetos.length} projeto(s)</span>
+            <span>${avs} avaliação(ões)</span>
+            ${emAndamento > 0 ? `<span class="badge badge-info">${emAndamento} em andamento</span>` : ''}
+          </div>
+        </div>
+        <div style="font-size:var(--txt-sm);color:var(--primaria);font-weight:600;white-space:nowrap">Abrir →</div>
+      </div>`;
+  }
+
   function _renderizarDashboard() {
     const container = document.getElementById('tela-dashboard');
     const stats     = Storage.estatisticas();
-    const projetos  = Storage.listarProjetos();
+    const empresas  = Storage.listarEmpresas();
 
     container.innerHTML = `
       <div class="container" style="padding-top:var(--s4)">
-        <!-- Hero + stats -->
+        <!-- Hero -->
         <div style="margin-bottom:var(--s5)">
           <div style="font-size:var(--txt-xl);font-weight:700;margin-bottom:var(--s1)">
             Ergo<span style="color:var(--primaria)">GRO</span>
@@ -290,9 +312,9 @@ const App = (() => {
 
         <!-- Stats -->
         <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:var(--s2);margin-bottom:var(--s5)">
-          <div class="card" style="text-align:center;padding:var(--s3);cursor:pointer" onclick="App.navegarPara('empresas')">
+          <div class="card" style="text-align:center;padding:var(--s3)">
             <div style="font-size:22px;font-weight:700;color:var(--primaria)">${stats.empresas}</div>
-            <div style="font-size:var(--txt-xs);color:var(--texto-sec)">Empresa(s)</div>
+            <div style="font-size:var(--txt-xs);color:var(--texto-sec)">Cliente(s)</div>
           </div>
           <div class="card" style="text-align:center;padding:var(--s3)">
             <div style="font-size:22px;font-weight:700">${stats.projetos}</div>
@@ -308,49 +330,85 @@ const App = (() => {
           </div>
         </div>
 
-        <!-- Novo projeto -->
-        <button class="btn-bloco" onclick="App.abrirFormNovoProjeto()" style="margin-bottom:var(--s4)">
-          + Novo Projeto de Laudo
+        <!-- Nova empresa -->
+        <button class="btn-bloco" onclick="App.navegarPara('empresas')" style="margin-bottom:var(--s4)">
+          + Novo Cliente / Empresa
         </button>
 
-        <!-- Busca e filtros -->
-        <div style="margin-bottom:var(--s4)">
-          <input type="search" id="dash-busca"
-            placeholder="🔍  Buscar por projeto ou empresa..."
-            oninput="App.filtrarProjetos()"
-            style="width:100%;padding:var(--s3) var(--s4);border-radius:var(--raio);
-                   border:1px solid var(--borda);background:var(--superficie-alt);
-                   color:var(--texto);font-size:var(--txt-sm);box-sizing:border-box;
-                   margin-bottom:var(--s2)">
-          <div style="display:flex;gap:var(--s2);flex-wrap:wrap">
-            <select id="dash-tipo" onchange="App.filtrarProjetos()"
-              style="flex:1;min-width:130px;padding:var(--s2) var(--s3);border-radius:var(--raio);
-                     border:1px solid var(--borda);background:var(--superficie-alt);color:var(--texto);
-                     font-size:var(--txt-sm)">
-              <option value="">Todos os tipos</option>
-              <option value="aep">AEP</option>
-              <option value="psicossocial">Psicossocial</option>
-              <option value="aet">AET</option>
-              <option value="integrado">Integrado</option>
-            </select>
-            <select id="dash-status" onchange="App.filtrarProjetos()"
-              style="flex:1;min-width:130px;padding:var(--s2) var(--s3);border-radius:var(--raio);
-                     border:1px solid var(--borda);background:var(--superficie-alt);color:var(--texto);
-                     font-size:var(--txt-sm)">
-              <option value="">Todos os status</option>
-              <option value="em_andamento">Em andamento</option>
-              <option value="concluido">Concluído</option>
-            </select>
+        <!-- Lista de clientes -->
+        <div style="font-weight:600;margin-bottom:var(--s3)">
+          Clientes (${empresas.length})
+        </div>
+        <div id="dashboard-lista">
+          ${empresas.length === 0
+            ? `<div class="empty-state">
+                 <div class="empty-icon">🏢</div>
+                 <p><strong>Nenhum cliente cadastrado.</strong></p>
+                 <p style="font-size:var(--txt-sm)">Cadastre o primeiro cliente para criar projetos de laudo.</p>
+               </div>`
+            : empresas.map(emp => _htmlCardEmpresaDash(emp)).join('')}
+        </div>
+      </div>
+    `;
+  }
+
+  /* ── Contexto de empresa (entre dashboard e projeto) ─────── */
+  function abrirEmpresa(empresaId) {
+    const emp = Storage.buscarEmpresa(empresaId);
+    if (!emp) { mostrarToast('Empresa não encontrada', 'erro'); return; }
+    _empresaAtual = emp;
+    navegarPara('empresa');
+  }
+
+  function _renderizarContextoEmpresa() {
+    const el = document.getElementById('tela-empresa');
+    if (!el || !_empresaAtual) return;
+    const emp     = _empresaAtual;
+    const projetos = Storage.listarProjetos().filter(p => p.empresaId === emp.id);
+    const avs      = projetos.reduce((n, p) => n + Storage.listarPorProjeto(p.id).length, 0);
+
+    el.innerHTML = `
+      <div class="container" style="padding-top:var(--s4)">
+
+        <!-- Info rápida da empresa -->
+        <div class="card" style="margin-bottom:var(--s4)">
+          ${emp.cnpj ? `<div style="font-size:var(--txt-sm);color:var(--texto-sec)">CNPJ: ${emp.cnpj}</div>` : ''}
+          ${emp.cidade ? `<div style="font-size:var(--txt-sm);color:var(--texto-sec)">📍 ${emp.cidade}${emp.estado ? ' / ' + emp.estado : ''}</div>` : ''}
+          <div style="display:flex;gap:var(--s4);margin-top:var(--s2)">
+            <span style="font-size:var(--txt-sm)"><strong>${projetos.length}</strong> projeto(s)</span>
+            <span style="font-size:var(--txt-sm)"><strong>${avs}</strong> avaliação(ões)</span>
           </div>
         </div>
 
-        <!-- Contagem + lista -->
-        <div id="dash-resultado" style="font-weight:600;margin-bottom:var(--s3)">
-          Projetos de Laudo (${projetos.length})
+        <!-- Novo projeto -->
+        <button class="btn-bloco" onclick="App.abrirFormNovoProjeto('${emp.id}')" style="margin-bottom:var(--s4)">
+          + Novo Projeto de Laudo
+        </button>
+
+        <!-- Busca rápida dentro da empresa -->
+        <input type="search" id="emp-busca"
+          placeholder="🔍  Buscar projeto..."
+          oninput="App._filtrarProjetosEmpresa()"
+          style="width:100%;padding:var(--s3) var(--s4);border-radius:var(--raio);
+                 border:1px solid var(--borda);background:var(--superficie-alt);
+                 color:var(--texto);font-size:var(--txt-sm);box-sizing:border-box;
+                 margin-bottom:var(--s3)">
+
+        <!-- Lista de projetos -->
+        <div style="font-weight:600;margin-bottom:var(--s3)">
+          Projetos (${projetos.length})
         </div>
-        <div id="dashboard-lista">
+        <div id="emp-projetos-lista">
           ${_htmlProjetoItem(projetos)}
         </div>
+
+        <!-- Link para catálogo mestre -->
+        <div style="margin-top:var(--s5);padding-top:var(--s4);border-top:1px solid var(--borda)">
+          <button class="btn btn-secundario" onclick="App.navegarPara('empresas')">
+            📋 Catálogo Mestre e Dados da Empresa
+          </button>
+        </div>
+
       </div>
 
       <!-- Modal: Novo Projeto -->
@@ -365,24 +423,48 @@ const App = (() => {
       </div>
     `;
 
-    /* Preenche o formulário de novo projeto */
-    _preencherFormNovoProjeto();
+    _preencherFormNovoProjeto(emp.id);
   }
 
-  function _preencherFormNovoProjeto() {
-    const empresas = Storage.listarEmpresas();
-    const optsEmp  = ['<option value="">Selecione a empresa...</option>']
-      .concat(empresas.map(e => `<option value="${e.id}">${e.nome}</option>`))
-      .join('');
+  function _filtrarProjetosEmpresa() {
+    if (!_empresaAtual) return;
+    const busca    = (document.getElementById('emp-busca')?.value || '').toLowerCase().trim();
+    const projetos = Storage.listarProjetos().filter(p => p.empresaId === _empresaAtual.id);
+    const filtrados = busca
+      ? projetos.filter(p => (p.nome || '').toLowerCase().includes(busca))
+      : projetos;
+    const lista = document.getElementById('emp-projetos-lista');
+    if (lista) lista.innerHTML = _htmlProjetoItem(filtrados);
+  }
 
+  function _preencherFormNovoProjeto(empresaId) {
     const form = document.getElementById('modal-np-form');
     if (!form) return;
+
+    const empFixa = empresaId ? Storage.buscarEmpresa(empresaId) : null;
+
+    /* Campo empresa: bloqueado quando vem do contexto da empresa */
+    const empHTML = empFixa
+      ? `<div class="grupo-campo">
+           <label>Empresa / Cliente</label>
+           <input type="text" value="${empFixa.nome}" readonly
+                  style="opacity:.75;cursor:default">
+           <input type="hidden" id="np-empresa" value="${empFixa.id}">
+         </div>`
+      : (() => {
+          const empresas = Storage.listarEmpresas();
+          const opts = ['<option value="">Selecione a empresa...</option>']
+            .concat(empresas.map(e => `<option value="${e.id}">${e.nome}</option>`))
+            .join('');
+          return `<div class="grupo-campo">
+            <label>Empresa / Cliente</label>
+            <select id="np-empresa">${opts}</select>
+            <div class="campo-descricao">Não encontrou? <a href="#" onclick="App.navegarPara('empresas');return false">Cadastre a empresa primeiro</a>.</div>
+          </div>`;
+        })();
+
     form.innerHTML = `
-      <div class="grupo-campo">
-        <label>Empresa / Cliente</label>
-        <select id="np-empresa">${optsEmp}</select>
-        <div class="campo-descricao">Não encontrou? <a href="#" onclick="App.navegarPara('empresas');return false">Cadastre a empresa primeiro</a>.</div>
-      </div>
+      ${empHTML}
       <div class="grupo-campo">
         <label>Nome do Projeto / Dossiê</label>
         <input type="text" id="np-nome" placeholder="Ex.: AEP 2026 — Engenhalves">
@@ -413,9 +495,11 @@ const App = (() => {
     `;
   }
 
-  function abrirFormNovoProjeto() {
-    document.getElementById('modal-novo-projeto').classList.remove('oculto');
-    _preencherFormNovoProjeto();
+  function abrirFormNovoProjeto(empresaId) {
+    const modal = document.getElementById('modal-novo-projeto');
+    if (!modal) return;
+    modal.classList.remove('oculto');
+    _preencherFormNovoProjeto(empresaId || _empresaAtual?.id || '');
   }
 
   function criarProjeto() {
@@ -533,6 +617,10 @@ const App = (() => {
     const proj = Storage.buscarProjeto(id);
     if (!proj) { mostrarToast('Projeto não encontrado','erro'); return; }
     _projetoAtual = proj;
+    /* Mantém o contexto de empresa para o botão Voltar */
+    if (!_empresaAtual || _empresaAtual.id !== proj.empresaId) {
+      _empresaAtual = Storage.buscarEmpresa(proj.empresaId) || null;
+    }
     navegarPara('projeto', 'visao-geral');
   }
 
@@ -614,7 +702,10 @@ const App = (() => {
     btnVoltar.classList.toggle('oculto', ePrincipal);
     logo.classList.toggle('oculto', !ePrincipal);
 
-    if (emProjeto) {
+    if (tela === 'empresa') {
+      titulo.textContent = _empresaAtual?.nome || 'Empresa';
+      badge.innerHTML    = '';
+    } else if (emProjeto) {
       const emp = _projetoAtual?.empresaId ? Storage.buscarEmpresa(_projetoAtual.empresaId) : null;
       titulo.textContent = _projetoAtual?.nome || 'Projeto';
       badge.innerHTML    = emp ? `<span style="font-size:var(--txt-xs);color:var(--texto-sec)">${emp.nome.split(' ')[0]}</span>` : '';
@@ -638,6 +729,9 @@ const App = (() => {
       } else if (_telaAtual === 'projeto') {
         _avaliacaoAtual = null;
         _projetoAtual   = null;
+        navegarPara(_empresaAtual ? 'empresa' : 'dashboard');
+      } else if (_telaAtual === 'empresa') {
+        _empresaAtual = null;
         navegarPara('dashboard');
       } else {
         navegarPara('dashboard');
@@ -674,6 +768,8 @@ const App = (() => {
 
   return {
     init, navegarPara,
+    /* Empresas / clientes */
+    abrirEmpresa, _filtrarProjetosEmpresa,
     /* Projetos */
     abrirFormNovoProjeto, criarProjeto, abrirProjeto, obterProjetoAtual, confirmarExclusaoProjeto, filtrarProjetos,
     /* Wizard de escopo (passo 2 da criação) */
