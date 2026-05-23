@@ -699,6 +699,10 @@ const ModuloProjeto = (() => {
                 onclick="ModuloProjeto._wizVoltarSetor()">← Voltar</button>
       `;
     } else if (!_wiz.tipo) {
+      /* Se o projeto determina o tipo automaticamente, cria sem mostrar passo 3 */
+      const tipoAuto = _TIPO_AV_AUTO[tipoProj];
+      if (tipoAuto) { _wizSetTipo(tipoAuto); return; }
+
       /* Passo 3: tipo — só para AET / integrado */
       const funcao = Storage.buscarFuncao(_wiz.funcaoId);
       el.innerHTML = `
