@@ -642,9 +642,11 @@ const ModuloProjeto = (() => {
 
   /* Tipos de projeto que definem o tipo de avaliação automaticamente */
   const _TIPO_AV_AUTO = {
-    aep:     'aep',
-    aep_afp: 'aep',
-    /* aet e integrado: usuário escolhe entre AEP e AET */
+    aep:          'aep',
+    aep_afp:      'aep',
+    integrado:    'aep',  /* legado — trata como aep_afp */
+    psicossocial: 'aep',  /* segurança — nunca deveria criar avaliação por função, mas se chegar aqui usa AEP */
+    /* aet: usuário escolhe entre AEP e AET */
   };
 
   function _renderizarWizardAv(proj) {
