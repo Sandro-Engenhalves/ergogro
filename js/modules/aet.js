@@ -1,5 +1,5 @@
 /* ============================================================
-   ErgoGRO — Módulo: AET (Análise Ergonômica do Trabalho)
+   ErgoGRO — Módulo: AET (Análise Ergonômica do Trabalho) v6
    Seções: identificacao | demanda | atividade | diagnostico | relatorio
    ============================================================ */
 
@@ -95,8 +95,17 @@ const ModuloAET = (() => {
     const av = App.obterAvaliacaoAtual();
     const d  = av?.aet || {};
 
+    /* Aviso se criada a partir de AEP */
+    const origemAEPHtml = av?.aetOrigemAEPId ? `
+      <div class="aviso-tecnico aviso-tecnico-alto" style="margin-top:var(--s4)">
+        <span>🔗</span>
+        <span>Esta AET foi originada a partir de uma AEP que indicou necessidade de aprofundamento.
+        Os campos de demanda foram pré-preenchidos com a justificativa da AEP.</span>
+      </div>` : '';
+
     return `
       <div class="container">
+        ${origemAEPHtml}
         <div class="aviso-tecnico info" style="margin-top:var(--s4)">
           <span>📝</span>
           <span>Registre a origem e o motivo da solicitação da AET. A demanda é o ponto
@@ -222,6 +231,19 @@ const ModuloAET = (() => {
         </div>
 
         <div class="card">
+          <div class="card-titulo" style="margin-bottom:var(--s4)">Observação da Atividade</div>
+          <p style="font-size:var(--txt-sm);color:var(--texto-sec);margin-bottom:var(--s3)">
+            Registre as observações realizadas em campo: condições do ambiente, postura,
+            interações com equipamentos, ritmo observado.
+          </p>
+          <div class="grupo-campo">
+            <textarea id="aet-observacao" rows="4"
+              placeholder="Descreva as condições observadas em campo: ambiente, layout, equipamentos, interações, cadência, queixas dos trabalhadores..."
+            >${d.observacaoAtividade || ''}</textarea>
+          </div>
+        </div>
+
+        <div class="card">
           <div class="card-titulo" style="margin-bottom:var(--s4)">Variabilidades e Modos Operatórios</div>
           <div class="grupo-campo">
             <label for="aet-variabilidades">Variabilidades da Atividade</label>
@@ -285,6 +307,7 @@ const ModuloAET = (() => {
     const get = id => (document.getElementById(id) || {}).value?.trim() || '';
     av.aet.tarefaPrescrita           = get('aet-tarefa-prescrita');
     av.aet.atividadeReal             = get('aet-atividade-real');
+    av.aet.observacaoAtividade       = get('aet-observacao');
     av.aet.variabilidades            = get('aet-variabilidades');
     av.aet.modosOperatorios          = get('aet-modos-op');
     av.aet.exigenciasBiomecanicas    = get('aet-exig-bio');
@@ -355,7 +378,13 @@ const ModuloAET = (() => {
         </div>
 
         <div class="card">
-          <div class="card-titulo" style="margin-bottom:var(--s4)">Conclusão Técnica</div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--s3)">
+            <div class="card-titulo" style="margin-bottom:0">Conclusão Técnica</div>
+            <button id="btn-gerar-conclusao-aet" onclick="ModuloAET.gerarConclusaoAETIA()"
+                    style="font-size:var(--txt-xs);padding:3px 9px;border-radius:var(--raio);border:1px solid #3949ab;background:rgba(57,73,171,.15);color:#90caf9;cursor:pointer;white-space:nowrap;flex-shrink:0">
+              🤖 Gerar com IA
+            </button>
+          </div>
           <div class="grupo-campo">
             <textarea id="aet-conclusao" rows="5"
               placeholder="Redija a conclusão técnica da AET: síntese dos principais achados, resposta à demanda original, perspectivas de acompanhamento..."
@@ -462,7 +491,6 @@ const ModuloAET = (() => {
     Storage.salvar(av);
     document.getElementById('modal-aet-acao').classList.add('oculto');
     App.mostrarToast('Ação adicionada ao plano', 'sucesso');
-    /* Atualiza a lista na tela sem re-renderizar tudo */
     const lista = document.getElementById('aet-plano-lista');
     if (lista) lista.innerHTML = av.planoAcao.filter(a => a.origem === 'aet').map((a, i) => _htmlItemPlano(a, i)).join('');
   }
@@ -496,13 +524,75 @@ const ModuloAET = (() => {
   }
 
   /* ══════════════════════════════════════════════════════════
+     GERAÇÃO POR IA — CONCLUSÃO TÉCNICA
+  ══════════════════════════════════════════════════════════ */
+
+  async function gerarConclusaoAETIA() {
+    const av = App.obterAvaliacaoAtual();
+    if (!av) return;
+
+    const executar = async () => {
+      const btn = document.getElementById('btn-gerar-conclusao-aet');
+      if (btn) { btn.disabled = true; btn.textContent = '⏳ Gerando...'; }
+      try {
+        const d      = av.aet || {};
+        const proj   = av.projetoId ? Storage.buscarProjeto(av.projetoId) : null;
+        const emp    = proj ? Storage.buscarEmpresa(proj.empresaId) : null;
+        const setor  = av.setorId  ? Storage.buscarSetor(av.setorId)  : null;
+        const funcao = av.funcaoId ? Storage.buscarFuncao(av.funcaoId) : null;
+
+        const prompt = `Você é um Engenheiro de Segurança do Trabalho especialista em Ergonomia (NR-17).
+Redija a CONCLUSÃO TÉCNICA de uma AET (Análise Ergonômica do Trabalho).
+
+CONTEXTO:
+Empresa: ${emp?.nome || ''}
+Setor: ${setor?.nome || ''}
+Função: ${funcao?.nome || ''}
+Nº Trabalhadores: ${funcao?.numTrabalhadores || '—'}
+
+DEMANDA ORIGINAL: ${d.motivoSolicitacao || '—'}
+DIAGNÓSTICO ERGONÔMICO: ${d.diagnosticoErgonomico || '—'}
+EXIGÊNCIAS BIOMECÂNICAS: ${d.exigenciasBiomecanicas || '—'}
+EXIGÊNCIAS COGNITIVAS: ${d.exigenciasCognitivas || '—'}
+EXIGÊNCIAS ORGANIZACIONAIS: ${d.exigenciasOrganizacionais || '—'}
+RECOMENDAÇÕES: ${d.recomendacoes || '—'}
+
+Escreva a Conclusão Técnica em português do Brasil, entre 150 e 300 palavras.
+Inclua: síntese dos achados, nível de risco identificado, resposta à demanda original e perspectivas.
+Não use bullet points. Use parágrafos coesos. Seja técnico e objetivo.`;
+
+        App.mostrarToast('Gerando conclusão com IA...', 'info');
+        const texto = await ClaudeVision.gerarTextoIA(prompt, 512);
+        const ta = document.getElementById('aet-conclusao');
+        if (ta) { ta.value = texto; ta.dispatchEvent(new Event('input')); }
+        _salvarDiagnostico();
+        Storage.salvar(av);
+        App.mostrarToast('Conclusão gerada com IA', 'sucesso');
+      } catch (err) {
+        App.mostrarToast('Erro ao gerar: ' + err.message, 'erro');
+      } finally {
+        if (btn) { btn.disabled = false; btn.textContent = '🤖 Gerar com IA'; }
+      }
+    };
+
+    if (ClaudeVision.temChave()) {
+      await executar();
+    } else {
+      ClaudeVision.solicitarChaveParaChamada(executar);
+    }
+  }
+
+  /* ══════════════════════════════════════════════════════════
      SEÇÃO: RELATÓRIO AET
   ══════════════════════════════════════════════════════════ */
 
   function _htmlRelatorio() {
     const av = App.obterAvaliacaoAtual();
     const d  = av?.aet || {};
-    const _fd = iso => { if (!iso) return ''; try { const [a,m,d2] = iso.slice(0,10).split('-'); return `${d2}/${m}/${a}`; } catch { return iso; } };
+    const _fd = iso => {
+      if (!iso) return '';
+      try { const [a,m,dia] = iso.slice(0,10).split('-'); return `${dia}/${m}/${a}`; } catch { return iso; }
+    };
     const _li = (label, valor) => {
       if (!valor && valor !== 0) return '';
       return `<div style="display:flex;padding:var(--s2) 0;border-bottom:1px solid var(--borda)">
@@ -510,22 +600,54 @@ const ModuloAET = (() => {
         <span style="font-size:var(--txt-sm);font-weight:500">${valor}</span>
       </div>`;
     };
-    const acoesAET = av.planoAcao?.filter(a => a.origem === 'aet') || [];
+    const _p = texto => texto
+      ? `<p style="font-size:var(--txt-sm);text-align:justify;hyphens:auto;white-space:pre-wrap;margin-bottom:var(--s2)">${texto}</p>`
+      : '';
+
+    /* Lookup correto de empresa/setor/função via Storage */
+    const proj   = av?.projetoId ? Storage.buscarProjeto(av.projetoId) : null;
+    const emp    = proj ? Storage.buscarEmpresa(proj.empresaId) : null;
+    const setor  = av?.setorId  ? Storage.buscarSetor(av.setorId)  : null;
+    const funcao = av?.funcaoId ? Storage.buscarFuncao(av.funcaoId) : null;
+    const nomeEmp  = emp?.nome          || av?._empresaNome || '';
+    const cnpj     = emp?.cnpj          || '';
+    const nomeSet  = setor?.nome        || av?._setorNome   || '';
+    const nomeFun  = funcao?.nome       || av?._funcaoNome  || '';
+    const nTrab    = funcao?.numTrabalhadores || av?.numTrabalhadores || '';
+    const respTec  = av?.responsavelTecnico   || proj?.responsavelTecnico   || '';
+    const regProf  = av?.registroProfissional || proj?.registroProfissional || '';
+    const cargo    = av?.cargoResponsavel     || proj?.cargoResponsavel     || '';
+
+    const acoesAET = av?.planoAcao?.filter(a => a.origem === 'aet') || [];
     const SOLIC_L  = {
       empresa: 'Empresa', cipa: 'CIPA', sindicato: 'Sindicato',
-      trabalhador: 'Trabalhador(es)', servico_saude: 'Serviço de Saúde',
+      trabalhador: 'Trabalhador(es)', servico_saude: 'Serviço de Saúde / SESMT',
       judicial: 'Determinação judicial', propria_iniciativa: 'Iniciativa própria', outro: 'Outro'
     };
 
     return `
+      <style>
+        @media print {
+          body, #app-content { min-height: 0 !important; }
+          .subnav-abas, .btn, .btn-bloco, #btn-voltar, header, nav { display: none !important; }
+          .relatorio-secao { page-break-inside: avoid; }
+          .relatorio-secao p, .relatorio-secao .campo-tecnico {
+            text-align: justify !important; hyphens: auto !important;
+          }
+        }
+      </style>
+
       <div class="container">
         <div style="margin-top:var(--s4);text-align:center;margin-bottom:var(--s5)">
           <div style="font-size:var(--txt-xs);color:var(--texto-sec);text-transform:uppercase;letter-spacing:.5px">
-            Análise Ergonômica do Trabalho — AET
+            Análise Ergonômica do Trabalho — AET / NR-17
           </div>
           <div style="font-size:var(--txt-xl);font-weight:700">Relatório Técnico</div>
           <div style="font-size:var(--txt-sm);color:var(--texto-sec)">
-            ${av.empresa?.nome || ''} · ${av.setor || ''} · ${_fd(d.dataInicio || av.empresa?.dataAvaliacao)}
+            ${nomeEmp}${nomeEmp && nomeSet ? ' · ' : ''}${nomeSet}${nomeFun ? ' — ' + nomeFun : ''}
+          </div>
+          <div style="font-size:var(--txt-xs);color:var(--texto-sec);margin-top:var(--s1)">
+            ${_fd(d.dataInicio || av?.dataAvaliacao || '')}
           </div>
         </div>
 
@@ -537,12 +659,13 @@ const ModuloAET = (() => {
         <div class="relatorio-secao">
           <h3>1. Identificação</h3>
           <div class="card">
-            ${_li('Empresa', av.empresa?.nome)}
-            ${_li('CNPJ', av.empresa?.cnpj)}
-            ${_li('Setor / Função', [av.setor, av.funcao].filter(Boolean).join(' / '))}
-            ${_li('Nº Trabalhadores', av.numTrabalhadores)}
-            ${_li('Responsável Técnico', av.empresa?.responsavelTecnico)}
-            ${_li('Registro', av.empresa?.registroProfissional)}
+            ${_li('Empresa', nomeEmp)}
+            ${_li('CNPJ', cnpj)}
+            ${_li('Setor / Função', [nomeSet, nomeFun].filter(Boolean).join(' / '))}
+            ${_li('Nº Trabalhadores', nTrab)}
+            ${_li('Responsável Técnico', respTec)}
+            ${_li('Registro Profissional', regProf)}
+            ${_li('Cargo / Habilitação', cargo)}
             ${_li('Início da AET', _fd(d.dataInicio))}
           </div>
         </div>
@@ -550,37 +673,41 @@ const ModuloAET = (() => {
         <div class="relatorio-secao">
           <h3>2. Demanda</h3>
           <div class="card">
-            ${_li('Solicitante', SOLIC_L[d.solicitante] || d.solicitante)}
-            ${d.motivoSolicitacao ? `<p style="font-size:var(--txt-sm);margin-top:var(--s2)"><strong>Motivo:</strong> ${d.motivoSolicitacao}</p>` : ''}
-            ${d.demandaApresentada ? `<p style="font-size:var(--txt-sm);margin-top:var(--s2)"><strong>Demanda:</strong> ${d.demandaApresentada}</p>` : ''}
+            ${_li('Solicitante', SOLIC_L[d.solicitante] || d.solicitante || '')}
+            ${d.motivoSolicitacao  ? `<strong style="font-size:var(--txt-sm)">Motivo da Solicitação</strong>${_p(d.motivoSolicitacao)}` : ''}
+            ${d.demandaApresentada ? `<strong style="font-size:var(--txt-sm)">Demanda Apresentada</strong>${_p(d.demandaApresentada)}` : ''}
           </div>
         </div>
 
-        ${d.tarefaPrescrita || d.atividadeReal ? `
+        ${(d.tarefaPrescrita || d.atividadeReal || d.observacaoAtividade) ? `
         <div class="relatorio-secao">
           <h3>3. Análise da Atividade</h3>
           <div class="card">
-            ${d.tarefaPrescrita  ? `<p style="font-size:var(--txt-sm);margin-bottom:var(--s3)"><strong>Tarefa Prescrita:</strong><br>${d.tarefaPrescrita}</p>` : ''}
-            ${d.atividadeReal    ? `<p style="font-size:var(--txt-sm);margin-bottom:var(--s3)"><strong>Atividade Real:</strong><br>${d.atividadeReal}</p>` : ''}
-            ${d.variabilidades   ? `<p style="font-size:var(--txt-sm);margin-bottom:var(--s3)"><strong>Variabilidades:</strong><br>${d.variabilidades}</p>` : ''}
-            ${d.ferramentasAplicadas?.length ? `<div style="margin-top:var(--s3)"><strong style="font-size:var(--txt-sm)">Métodos aplicados:</strong>
-              <ul style="font-size:var(--txt-xs);margin:var(--s2) 0 0 var(--s4)">
+            ${d.tarefaPrescrita      ? `<strong style="font-size:var(--txt-sm)">Tarefa Prescrita</strong>${_p(d.tarefaPrescrita)}` : ''}
+            ${d.atividadeReal        ? `<strong style="font-size:var(--txt-sm)">Atividade Real</strong>${_p(d.atividadeReal)}` : ''}
+            ${d.observacaoAtividade  ? `<strong style="font-size:var(--txt-sm)">Observação em Campo</strong>${_p(d.observacaoAtividade)}` : ''}
+            ${d.variabilidades       ? `<strong style="font-size:var(--txt-sm)">Variabilidades</strong>${_p(d.variabilidades)}` : ''}
+            ${d.exigenciasBiomecanicas   ? `<strong style="font-size:var(--txt-sm)">Exigências Biomecânicas</strong>${_p(d.exigenciasBiomecanicas)}` : ''}
+            ${d.exigenciasCognitivas     ? `<strong style="font-size:var(--txt-sm)">Exigências Cognitivas</strong>${_p(d.exigenciasCognitivas)}` : ''}
+            ${d.exigenciasOrganizacionais? `<strong style="font-size:var(--txt-sm)">Exigências Organizacionais</strong>${_p(d.exigenciasOrganizacionais)}` : ''}
+            ${d.ferramentasAplicadas?.length ? `
+              <strong style="font-size:var(--txt-sm)">Métodos Aplicados</strong>
+              <ul style="font-size:var(--txt-xs);margin:var(--s1) 0 var(--s2) var(--s4)">
                 ${d.ferramentasAplicadas.map(f => `<li>${f}</li>`).join('')}
-              </ul>
-            </div>` : ''}
+              </ul>` : ''}
           </div>
         </div>` : ''}
 
         ${d.diagnosticoErgonomico ? `
         <div class="relatorio-secao">
           <h3>4. Diagnóstico Ergonômico</h3>
-          <div class="card"><p style="font-size:var(--txt-sm)">${d.diagnosticoErgonomico}</p></div>
+          <div class="card">${_p(d.diagnosticoErgonomico)}</div>
         </div>` : ''}
 
         ${d.recomendacoes ? `
         <div class="relatorio-secao">
           <h3>5. Recomendações</h3>
-          <div class="card"><p style="font-size:var(--txt-sm)">${d.recomendacoes}</p></div>
+          <div class="card">${_p(d.recomendacoes)}</div>
         </div>` : ''}
 
         ${acoesAET.length > 0 ? `
@@ -588,14 +715,15 @@ const ModuloAET = (() => {
           <h3>6. Plano de Transformação (${acoesAET.length} ação(ões))</h3>
           <div style="overflow-x:auto">
             <table class="tabela-simples">
-              <thead><tr><th>#</th><th>Ação</th><th>Responsável</th><th>Prazo</th><th>Status</th></tr></thead>
+              <thead><tr><th>#</th><th>Ação</th><th>Responsável</th><th>Prazo</th><th>Prioridade</th><th>Status</th></tr></thead>
               <tbody>
                 ${acoesAET.map((a, i) => `
                   <tr>
                     <td>${i+1}</td>
-                    <td style="font-size:var(--txt-xs)">${a.descricao?.slice(0,60)}…</td>
+                    <td style="font-size:var(--txt-xs)">${a.descricao || ''}</td>
                     <td style="font-size:var(--txt-xs)">${a.responsavel||'—'}</td>
                     <td style="font-size:var(--txt-xs)">${_fd(a.prazo)}</td>
+                    <td style="font-size:var(--txt-xs)">${a.prioridade || '—'}</td>
                     <td><span class="status-chip status-${a.status}">${a.status}</span></td>
                   </tr>
                 `).join('')}
@@ -607,12 +735,27 @@ const ModuloAET = (() => {
         ${d.conclusaoTecnica ? `
         <div class="relatorio-secao">
           <h3>7. Conclusão Técnica</h3>
-          <div class="card"><p style="font-size:var(--txt-sm)">${d.conclusaoTecnica}</p></div>
+          <div class="card">${_p(d.conclusaoTecnica)}</div>
+          ${d.necessitaReavaliacao ? `
+          <div class="aviso-tecnico aviso-tecnico-medio" style="margin-top:var(--s3)">
+            <span>🔄</span>
+            <span>Reavaliação periódica indicada${d.prazoReavaliacao ? ' · Prazo: ' + _fd(d.prazoReavaliacao) : ''}.</span>
+          </div>` : ''}
         </div>` : ''}
 
-        <div style="text-align:center;padding:var(--s6) 0;color:var(--texto-sec);font-size:var(--txt-xs)">
-          ErgoGRO · Análise Ergonômica do Trabalho (AET) · NR-17 / GRO-PGR<br>
-          Documento técnico de uso profissional exclusivo
+        <div style="margin-top:var(--s6);padding-top:var(--s4);border-top:1px solid var(--borda)">
+          <div style="display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:var(--s4)">
+            <div style="font-size:var(--txt-xs);color:var(--texto-sec)">
+              ErgoGRO · Análise Ergonômica do Trabalho (AET) · NR-17 / GRO-PGR<br>
+              Documento técnico de uso profissional exclusivo
+            </div>
+            ${respTec ? `
+            <div style="text-align:center;min-width:200px">
+              <div style="border-top:1px solid var(--texto-sec);padding-top:var(--s2);font-size:var(--txt-xs)">
+                ${respTec}${cargo ? '<br>' + cargo : ''}${regProf ? '<br>' + regProf : ''}
+              </div>
+            </div>` : ''}
+          </div>
         </div>
       </div>
     `;
@@ -621,15 +764,23 @@ const ModuloAET = (() => {
   function exportarJSON() {
     const av = App.obterAvaliacaoAtual();
     if (!av) return;
-    const blob = new Blob([Storage.exportarJSON(av.id)], { type: 'application/json' });
-    const url  = URL.createObjectURL(blob);
-    const a    = document.createElement('a');
-    a.href     = url;
-    a.download = `AET_${(av.empresa?.nome||'ergogro').replace(/\s+/g,'_')}_${(av.empresa?.dataAvaliacao||'').replace(/-/g,'')}.json`;
+    const proj   = av.projetoId ? Storage.buscarProjeto(av.projetoId) : null;
+    const emp    = proj ? Storage.buscarEmpresa(proj.empresaId) : null;
+    const blob   = new Blob([Storage.exportarJSON(av.id)], { type: 'application/json' });
+    const url    = URL.createObjectURL(blob);
+    const a      = document.createElement('a');
+    a.href       = url;
+    a.download   = `AET_${(emp?.nome||'ergogro').replace(/\s+/g,'_')}_${(av.dataAvaliacao||'').replace(/-/g,'')}.json`;
     a.click();
     URL.revokeObjectURL(url);
     App.mostrarToast('JSON exportado', 'sucesso');
   }
 
-  return { renderizar, trocarSecao, salvarDemanda, salvarAtividade, salvarDiagnostico, adicionarAcaoPlano, confirmarAcaoPlano, removerAcaoPlano, exportarJSON };
+  return {
+    renderizar, trocarSecao,
+    salvarDemanda, salvarAtividade, salvarDiagnostico,
+    adicionarAcaoPlano, confirmarAcaoPlano, removerAcaoPlano,
+    gerarConclusaoAETIA,
+    exportarJSON
+  };
 })();

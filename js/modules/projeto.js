@@ -756,7 +756,8 @@ Retorne APENAS o texto da conclusão, sem introdução, sem formatação especia
   }
 
   function _htmlItemAv(av) {
-    const funcao = av.funcaoId ? Storage.buscarFuncao(av.funcaoId) : null;
+    const funcao    = av.funcaoId ? Storage.buscarFuncao(av.funcaoId) : null;
+    const indicaAET = av.tipo === 'aep' && (av.aep?.analise?.indicaAET || av.relatorio?.necessitaAET || false);
     return `
       <div class="item-avaliacao" style="margin-bottom:var(--s2)"
            onclick="App.abrirAvaliacao('${av.id}')">
@@ -765,6 +766,7 @@ Retorne APENAS o texto da conclusão, sem introdução, sem formatação especia
           <div class="item-empresa" style="font-size:var(--txt-sm)">
             <span class="badge-tipo badge-tipo-${av.tipo}">${TIPO_LABEL[av.tipo]||av.tipo}</span>
             ${funcao ? ' · '+funcao.nome : ''}
+            ${indicaAET ? ' <span style="color:#f44336;font-size:var(--txt-xs);font-weight:700">⚠ AET indicada</span>' : ''}
           </div>
           <div class="item-meta">
             ${av.dataAvaliacao ? `<span>${_fd(av.dataAvaliacao)}</span>` : ''}
@@ -773,11 +775,44 @@ Retorne APENAS o texto da conclusão, sem introdução, sem formatação especia
             </span>
           </div>
         </div>
-        <div onclick="event.stopPropagation()">
+        <div onclick="event.stopPropagation()" style="display:flex;gap:var(--s1);align-items:center">
+          ${indicaAET ? `<button
+            style="font-size:var(--txt-xs);padding:3px 8px;border-radius:var(--raio);border:none;background:#b71c1c;color:#fff;cursor:pointer;white-space:nowrap"
+            onclick="ModuloProjeto.iniciarAETdaAEP('${av.id}')">🔬 Iniciar AET</button>` : ''}
           <button class="btn-icone" onclick="App.confirmarExclusao('${av.id}')">🗑️</button>
         </div>
       </div>
     `;
+  }
+
+  function iniciarAETdaAEP(aepAvId) {
+    const aepAv = Storage.buscar(aepAvId);
+    if (!aepAv) { App.mostrarToast('AEP não encontrada', 'erro'); return; }
+    const proj = App.obterProjetoAtual();
+    if (!proj) { App.mostrarToast('Projeto não carregado', 'erro'); return; }
+
+    /* Verifica se já existe AET para este setor/função no projeto */
+    const avs = Storage.listarPorProjeto(proj.id);
+    const aetExistente = avs.find(a =>
+      a.tipo === 'aet' && a.setorId === aepAv.setorId && a.funcaoId === aepAv.funcaoId
+    );
+    if (aetExistente) {
+      App.mostrarToast('Abrindo AET já existente para esta função', 'info');
+      App.abrirAvaliacao(aetExistente.id);
+      return;
+    }
+
+    /* Cria nova AET pré-vinculada à AEP */
+    const novaAET = Storage.criarAvaliacao('aet', proj.id, aepAv.setorId, aepAv.funcaoId);
+    novaAET.aetOrigemAEPId = aepAvId;
+    if (!novaAET.aet) novaAET.aet = {};
+    const justif = aepAv.aep?.analise?.justificativaAET || '';
+    novaAET.aet.solicitante        = 'propria_iniciativa';
+    novaAET.aet.motivoSolicitacao  = 'AET indicada pela Avaliação Ergonômica Preliminar (AEP) realizada nesta função.';
+    if (justif) novaAET.aet.demandaApresentada = justif;
+    Storage.salvar(novaAET);
+    App.mostrarToast('AET criada com base na AEP', 'sucesso');
+    App.abrirAvaliacao(novaAET.id);
   }
 
   /* Wizard de criação de avaliação (dentro do projeto) */
@@ -1943,6 +1978,7 @@ Retorne APENAS o texto da conclusão, sem introdução, sem formatação especia
     abrirFormSetor, salvarSetor, excluirSetor,
     abrirFormFuncao, salvarFuncao, excluirFuncao,
     abrirWizardAv, _wizSetSetor, _wizSetFuncao, _wizVoltarSetor, _wizVoltarFuncao, _wizSetTipo,
+    iniciarAETdaAEP,
     alterarStatusAcao, fecharModal
   };
 })();
