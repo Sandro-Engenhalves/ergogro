@@ -1001,9 +1001,12 @@ const ModuloPesquisaAdmin = (() => {
           td {
             padding: 3pt 6pt !important;
             border: 1px solid #ccc !important;
-            color: #111 !important;
+            color: #000 !important;
           }
           tr:nth-child(even) td { background: #f0f4f8 !important; }
+          /* Remove containers com overflow que criam artefatos no PDF */
+          div { overflow:visible !important; }
+          p, li { text-align:justify !important; }
 
           /* ── Cards e badges ─────────────────────── */
           .card {

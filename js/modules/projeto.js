@@ -1150,12 +1150,12 @@ Escreva 2 a 3 frases técnicas objetivas, em estilo de laudo de engenharia, desc
 
     /* ── Normas aplicáveis ── */
     const normasRows = [
-      ['NR-17 — Ergonomia', 'Portaria MTP n.º 1.467/2023'],
-      ['NR-01 — Disposições Gerais / GRO-PGR', 'Portaria MTPS n.º 3.214/1978 · Portaria MTPS n.º 6.730/2020'],
-      ...(isAFP ? [['COPSOQ-III Brasil (versão reduzida)', 'Ferramenta de Avaliação de Fatores Psicossociais']] : []),
-      ['Manual de Aplicação da NR-17', 'Secretaria de Inspeção do Trabalho — SIT/MTb'],
-      ['ABNT NBR ISO 9241-210', 'Ergonomia da interação humano-sistema'],
-    ].map(([n, r]) => `<tr><td style="font-weight:600;width:50%">${n}</td><td>${r}</td></tr>`).join('');
+      { n: 'NR-17 — Ergonomia',                    r: 'Portaria MTP n.º 1.467/2023' },
+      { n: 'NR-01 — Disposições Gerais / GRO-PGR', r: 'Portaria MTPS n.º 3.214/1978 · Portaria MTPS n.º 6.730/2020' },
+      ...(isAFP ? [{ n: 'COPSOQ-III Brasil (versão reduzida)', r: 'Ferramenta de Avaliação de Fatores Psicossociais', cls: 'rpt-secao-afp' }] : []),
+      { n: 'Manual de Aplicação da NR-17',          r: 'Secretaria de Inspeção do Trabalho — SIT/MTb' },
+      { n: 'ABNT NBR ISO 9241-210',                 r: 'Ergonomia da interação humano-sistema' },
+    ].map(({n, r, cls}) => `<tr${cls ? ` class="${cls}"` : ''}><td style="font-weight:600;width:50%">${n}</td><td>${r}</td></tr>`).join('');
 
     /* ── Tabela de escopo: setores / funções ── */
     const tabelaEscopo = setores.flatMap(s => {
@@ -1337,10 +1337,17 @@ Escreva 2 a 3 frases técnicas objetivas, em estilo de laudo de engenharia, desc
           /* Modos de impressão seletivos */
           body.rpt-modo-aep  .rpt-secao-afp { display:none !important; }
           body.rpt-modo-afp  .rpt-secao-aep { display:none !important; }
+          /* Metodologia seletiva */
+          .rpt-met-aep, .rpt-met-afp, .rpt-met-mix { display:none !important; }
+          body.rpt-modo-aep .rpt-met-aep { display:block !important; }
+          body.rpt-modo-afp .rpt-met-afp { display:block !important; }
+          body.rpt-modo-hibrido .rpt-met-mix { display:block !important; }
         }
         @media screen {
           .rpt-capa, .rpt-sumario { display:none !important; }
           .so-imprimir { display:none !important; }
+          /* Mostrar apenas texto combinado na tela */
+          .rpt-met-aep, .rpt-met-afp { display:none !important; }
         }
       </style>
 
@@ -1492,7 +1499,13 @@ Escreva 2 a 3 frases técnicas objetivas, em estilo de laudo de engenharia, desc
         <div class="relatorio-secao">
           <h3>${secMet}. Metodologia e Fundamentação Legal</h3>
           <div class="card" style="margin-bottom:var(--s3)">
-            <p style="font-size:var(--txt-sm);line-height:1.6">${metodoMap[proj.tipo] || metodoMap.aep}</p>
+            ${isMisto ? `
+              <p class="rpt-met-aep" style="font-size:var(--txt-sm);line-height:1.6">${metodoMap.aep}</p>
+              <p class="rpt-met-afp" style="font-size:var(--txt-sm);line-height:1.6">${metodoMap.psicossocial}</p>
+              <p class="rpt-met-mix" style="font-size:var(--txt-sm);line-height:1.6">${metodoMap.aep_afp}</p>
+            ` : `
+              <p style="font-size:var(--txt-sm);line-height:1.6">${metodoMap[proj.tipo] || metodoMap.aep}</p>
+            `}
           </div>
           <div style="overflow-x:auto">
             <table class="tabela-simples">
