@@ -1060,8 +1060,8 @@ body.sem-nav #toast {
 @media print {
   #app-header, #nav-principal, #nav-bottom, .btn, .btn-bloco, #toast,
   .subnav-abas, .modal-overlay { display: none !important; }
-  body { background: #fff; color: #000; }
-  #app-content { margin-top: 0; padding-bottom: 0; }
+  body { background: #fff; color: #000; min-height: 0 !important; }
+  #app-content { margin-top: 0; padding-bottom: 0; min-height: 0 !important; }
   .tela { display: none !important; }
   .tela.ativa { display: block !important; }
   .card { border: 1px solid #ddd; }
