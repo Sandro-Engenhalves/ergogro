@@ -1663,15 +1663,24 @@ Escreva 2 a 3 frases técnicas objetivas, em estilo de laudo de engenharia, desc
           <div style="margin-top:12pt">
             <table style="width:100%;border-collapse:collapse;font-size:9pt">
               <tr>
-                <td style="width:50%;padding:0 20pt 0 0;border:none">
+                <td style="width:35%;padding:0 16pt 0 0;border:none;vertical-align:bottom">
                   <div style="border-bottom:1px solid #000;height:32pt;margin-bottom:4pt"></div>
                   <div style="font-weight:600">${proj.responsavelTecnico || 'Responsável Técnico'}</div>
                   <div style="color:#555">${proj.registroProfissional || 'Registro Profissional'}</div>
                 </td>
-                <td style="width:50%;padding:0 0 0 20pt;border:none;text-align:right">
+                <td style="width:25%;padding:0 16pt;border:none;text-align:right;vertical-align:bottom">
                   <div style="font-size:8pt;color:#555">Data de Emissão</div>
                   <div style="font-weight:600">${_dataEmissao}</div>
                   <div style="font-size:7pt;color:#888;margin-top:4pt">${_nrProjetoAtual}</div>
+                </td>
+                <td style="width:40%;padding:0 0 0 0;border:none;vertical-align:bottom">
+                  <div style="border:1.5px dashed #0D47A1;height:40pt;border-radius:3pt;display:flex;align-items:center;justify-content:center;margin-bottom:4pt">
+                    <div style="font-size:7pt;color:#0D47A1;text-align:center;line-height:1.5">
+                      Assinatura Digital<br>
+                      <span style="font-size:6pt;color:#888">com Certificado Digital — Adobe</span>
+                    </div>
+                  </div>
+                  <div style="font-size:7pt;color:#555;text-align:center">Assinatura Eletrônica com Certificado</div>
                 </td>
               </tr>
             </table>
