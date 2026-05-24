@@ -722,8 +722,15 @@ const ModuloPesquisaAdmin = (() => {
         }).join('');
 
     /* Fatores críticos e protetores */
-    const criticos  = r.consolidado.filter(d => d.nivel === 'desfavoravel').map(d => d.nome);
+    const criticos   = r.consolidado.filter(d => d.nivel === 'desfavoravel').map(d => d.nome);
     const protetores = r.consolidado.filter(d => d.nivel === 'favoravel').map(d => d.nome);
+
+    /* Dados específicos desta avaliação */
+    const setoresNomes  = Object.keys(r.porSetor);
+    const setoresOk     = Object.values(r.porSetor).filter(d => !d.insuficiente).length;
+    const setoresInsuf  = setoresNomes.length - setoresOk;
+    const periodoFim    = c.prazo ? _fd(c.prazo) : null;
+    const alertaBaixaPartic = r.taxaParticipacao != null && r.taxaParticipacao < 60;
 
     /* Variáveis do rodapé e capa */
     _nrLaudoAtual      = `AFP-${(c.empresaNome||'ERG').replace(/\s+/g,'').slice(0,4).toUpperCase()}-${new Date().getFullYear()}`;
@@ -1329,6 +1336,15 @@ const ModuloPesquisaAdmin = (() => {
               <strong>Contexto:</strong> ${_contextoTxt}.
               ${it.contextoComplemento ? it.contextoComplemento : ''}
             </p>
+            <p style="font-size:var(--txt-sm);margin-top:var(--s3)">
+              <strong>Escopo desta pesquisa:</strong>
+              A avaliação abrangeu <strong>${setoresNomes.length} setor(es)/grupo(s)</strong>
+              ${setoresNomes.length > 0 ? `— ${setoresNomes.join(', ')} —` : ''}
+              com <strong>${r.totalRespostas} respondente(s)</strong>
+              ${r.totalAutorizados ? `de ${r.totalAutorizados} convidado(s) (taxa de participação: <strong>${r.taxaParticipacao ?? '—'}%</strong>)` : ''}.
+              ${periodoFim ? `Prazo de coleta: <strong>${periodoFim}</strong>.` : ''}
+              ${setoresInsuf > 0 ? `<em>${setoresInsuf} grupo(s) não atingiu o mínimo de ${r.minRespostasSetor} respondentes para análise individual.</em>` : ''}
+            </p>
           </div>
         </div>
 
@@ -1356,6 +1372,14 @@ const ModuloPesquisaAdmin = (() => {
             <p style="font-size:var(--txt-sm);margin-top:var(--s3)">
               <strong>Participação:</strong> ${r.totalRespostas} respondente(s)
               ${r.totalAutorizados ? `de ${r.totalAutorizados} autorizado(s) (${r.taxaParticipacao ?? '—'}% de taxa de resposta)` : ''}.
+            </p>
+            <p style="font-size:var(--txt-sm);margin-top:var(--s3)">
+              <strong>Aplicação:</strong> A pesquisa foi disponibilizada por meio de <strong>link digital anônimo</strong>,
+              acessível por dispositivo móvel ou computador, sem necessidade de identificação do respondente.
+              ${setoresNomes.length > 1
+                ? `Foram avaliados <strong>${setoresNomes.length} grupos/setores</strong>: ${setoresNomes.join(' · ')}.`
+                : setoresNomes.length === 1 ? `Grupo avaliado: <strong>${setoresNomes[0]}</strong>.` : ''}
+              ${alertaBaixaPartic ? `<strong style="color:#f44336">Atenção: a taxa de participação de ${r.taxaParticipacao}% está abaixo do recomendado (mínimo 60%). Interpretar os resultados com cautela.</strong>` : ''}
             </p>
           </div>
         </div>
@@ -1687,10 +1711,15 @@ const ModuloPesquisaAdmin = (() => {
           <div class="card">
             <ul style="padding-left:var(--s5);display:flex;flex-direction:column;gap:var(--s2);font-size:var(--txt-sm)">
               <li>O COPSOQ-III é um instrumento de rastreamento de nível grupal. Os resultados <strong>não constituem diagnóstico médico ou psicológico individual</strong> e não substituem avaliação clínica por profissional de saúde habilitado.</li>
-              <li>A confiabilidade dos resultados está diretamente relacionada à <strong>taxa de participação</strong> e à sinceridade das respostas. Taxa de resposta inferior a 60% exige cautela na interpretação.</li>
+              <li>A confiabilidade dos resultados está diretamente relacionada à <strong>taxa de participação</strong> e à sinceridade das respostas.
+                ${alertaBaixaPartic
+                  ? `<strong style="color:#c62828">Nesta pesquisa a taxa foi de ${r.taxaParticipacao}%, abaixo do mínimo recomendado de 60% — interprete os resultados com cautela redobrada.</strong>`
+                  : `Taxa de resposta desta pesquisa: <strong>${r.taxaParticipacao ?? '—'}%</strong>${r.taxaParticipacao >= 70 ? ' (nível adequado)' : ' — próximo ao limite mínimo recomendado'}.`
+                }
+              </li>
               <li>Os resultados obtidos nesta avaliação possuem caráter preliminar e subsidiário, compondo a etapa de <strong>Avaliação Ergonômica Preliminar (AEP)</strong>, conforme NR 17. A identificação de fatores psicossociais relevantes ou situações críticas poderá demandar aprofundamento técnico por meio de <strong>Análise Ergonômica do Trabalho (AET)</strong>, avaliação organizacional complementar ou encaminhamento especializado, conforme aplicável.</li>
               <li>O instrumento avalia percepção coletiva em um dado momento. Fatores conjunturais (sazonalidade, mudanças organizacionais recentes) podem influenciar os resultados.</li>
-              <li>Os dados são analisados por grupo/setor. Setores com menos de ${r.minRespostasSetor} respondentes não são apresentados individualmente, em conformidade com a LGPD — Lei nº 13.709/2018.</li>
+              <li>Os dados são analisados por grupo/setor. <strong>${setoresInsuf > 0 ? `Nesta pesquisa, ${setoresInsuf} grupo(s) não atingiu(ram) o mínimo de ${r.minRespostasSetor} respondentes e não foram analisados individualmente.` : `Todos os ${setoresNomes.length} grupo(s) avaliado(s) atingiram o mínimo de ${r.minRespostasSetor} respondentes.`}</strong> Em conformidade com a LGPD — Lei nº 13.709/2018.</li>
               <li>Este relatório foi gerado com apoio da plataforma <strong>ErgoGRO</strong> e deve ser revisado e assinado por profissional legalmente habilitado antes de ser utilizado como documento técnico oficial.</li>
             </ul>
           </div>
