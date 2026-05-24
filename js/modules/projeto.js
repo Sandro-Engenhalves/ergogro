@@ -1392,13 +1392,13 @@ Escreva 2 a 3 frases técnicas objetivas, em estilo de laudo de engenharia, desc
         <div class="rpt-sumario-titulo">Sumário</div>
         <div>
           ${(()=>{
-            const _si = (n, nome, pag) => `<div class="rpt-sumario-item"><span class="rpt-sumario-num">${n}.</span><span class="rpt-sumario-nome">${nome}</span><span class="rpt-sumario-pontilhado"></span><span class="rpt-sumario-pag">${pag}</span></div>`;
+            const _si = (n, nome, pag, cls) => `<div class="rpt-sumario-item${cls ? ' '+cls : ''}"><span class="rpt-sumario-num">${n}.</span><span class="rpt-sumario-nome">${nome}</span><span class="rpt-sumario-pontilhado"></span><span class="rpt-sumario-pag">${pag}</span></div>`;
             let rows = _si(secID, 'Identificação do Projeto', 3);
             if (secObj)    rows += _si(secObj,    'Objetivo', 3);
             rows += _si(secMet, 'Metodologia e Fundamentação Legal', 4);
             rows += _si(secCar, 'Caracterização do Ambiente de Trabalho', 5);
-            if (secResAEP) rows += _si(secResAEP, 'Resultados — Avaliações Ergonômicas (AEP)', 6);
-            if (secResAFP) rows += _si(secResAFP, 'Resultados — Avaliações Psicossociais (AFP)', secResAEP ? 7 : 6);
+            if (secResAEP) rows += _si(secResAEP, 'Resultados — Avaliações Ergonômicas (AEP)', 6, 'rpt-secao-aep');
+            if (secResAFP) rows += _si(secResAFP, 'Resultados — Avaliações Psicossociais (AFP)', secResAEP ? 7 : 6, 'rpt-secao-afp');
             if (secPlano)  rows += '<div class="rpt-sumario-sep"></div>' + _si(secPlano, 'Plano de Ação', secResAEP||secResAFP ? 8 : 6);
             rows += '<div class="rpt-sumario-sep"></div>' + _si(secConc, 'Conclusão Técnica', 9);
             rows += _si(secAssin, 'Assinatura', 10);
