@@ -2098,6 +2098,7 @@ const ModuloAEP = (() => {
     /* posto */
     salvarPosto, onExpChange,
     /* análise */
+    salvarSecaoAtual: () => { _salvarSecaoAtual(); },
     onAETChange, salvarAnalise, recalcularScore, aplicarNivelSugerido, usarRecomendacoesAuto, gerarAnaliseCompleta, gerarPlanoDeAcao,
     /* relatório */
     imprimirRelatorio, exportarJSON,

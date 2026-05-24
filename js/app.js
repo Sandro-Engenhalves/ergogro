@@ -796,11 +796,12 @@ const App = (() => {
 
   function _salvarAutomatico() {
     if (_projetoAtual && document.getElementById('proj-nome')) {
-      /* Auto-salva visão geral do projeto */
       ModuloProjeto.salvarVisaoGeral();
     }
     if (_avaliacaoAtual) {
-      if (document.getElementById('av-data')) {
+      if (_telaAtual === 'aep' && typeof ModuloAEP !== 'undefined') {
+        try { ModuloAEP.salvarSecaoAtual(); } catch(e) {}
+      } else if (document.getElementById('av-data')) {
         ModuloIdentificacao.salvarSilencioso();
       }
       try { Storage.salvar(_avaliacaoAtual); } catch(e) {}

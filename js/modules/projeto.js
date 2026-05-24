@@ -1192,7 +1192,7 @@ Escreva 2 a 3 frases técnicas objetivas, em estilo de laudo de engenharia, desc
       const riscos    = ModuloAEP.calcularRiscoGeral(av);
       const score     = ModuloAEP.MOTOR_AEP.calcularScore(av);
       const nivel     = av.aep?.analise?.nivelRiscoGeral || ModuloAEP.MOTOR_AEP.sugerirNivel(score.valor);
-      const prior     = av.aep?.analise?.prioridadeAcao || '';
+      const prior     = av.aep?.analise?.prioridadeIntervencao || '';
       const ncs       = ModuloAEP.obterNaoConformes(av);
       const ncAlt     = ncs.filter(nc => nc.risco === 'alto').length;
       const ncMed     = ncs.filter(nc => nc.risco === 'medio').length;
