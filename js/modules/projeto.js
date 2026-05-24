@@ -1198,7 +1198,8 @@ Escreva 2 a 3 frases técnicas objetivas, em estilo de laudo de engenharia, desc
       const ncMed     = ncs.filter(nc => nc.risco === 'medio').length;
       const corSc     = score.valor > 60 ? '#f44336' : score.valor > 30 ? '#ff9800' : '#4caf50';
       const nivelStr  = nivel ? nivel.charAt(0).toUpperCase() + nivel.slice(1) : '—';
-      const indicaAET = av.aep?.analise?.indicaAET || false;
+      const indicaAET = av.aep?.analise?.indicaAET || av.relatorio?.necessitaAET || false;
+      const justifAET = av.aep?.analise?.justificativaAET || av.relatorio?.justificativaAET || '';
       return `<tr>
         <td style="font-weight:600">${f?.nome || '—'}</td>
         <td>${s?.nome || '—'}</td>
@@ -1215,11 +1216,11 @@ Escreva 2 a 3 frases técnicas objetivas, em estilo de laudo de engenharia, desc
 
     /* Funções que requerem AET — para o bloco de destaque */
     const funcoesComAET = avsAEP
-      .filter(av => av.aep?.analise?.indicaAET)
+      .filter(av => av.aep?.analise?.indicaAET || av.relatorio?.necessitaAET)
       .map(av => ({
         funcao:  av.funcaoId ? Storage.buscarFuncao(av.funcaoId) : null,
         setor:   av.setorId  ? Storage.buscarSetor(av.setorId)   : null,
-        justif:  av.aep?.analise?.justificativaAET || '',
+        justif:  av.aep?.analise?.justificativaAET || av.relatorio?.justificativaAET || '',
       }));
     const blocoAET = funcoesComAET.length > 0 ? `
       <div style="border:2px solid #f44336;border-radius:6px;padding:var(--s3) var(--s4);margin-top:var(--s3);background:#fff5f5">

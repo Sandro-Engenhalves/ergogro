@@ -1177,6 +1177,16 @@ const ModuloAEP = (() => {
 
   function onAETChange(checked) {
     document.getElementById('div-justificativa-aet')?.classList.toggle('oculto', !checked);
+    /* Salva imediatamente para garantir persistência ao gerar o relatório do projeto */
+    const av = App.obterAvaliacaoAtual();
+    if (av) {
+      if (!av.aep) av.aep = {};
+      if (!av.aep.analise) av.aep.analise = {};
+      if (!av.relatorio) av.relatorio = {};
+      av.aep.analise.indicaAET  = checked;
+      av.relatorio.necessitaAET = checked;
+      try { Storage.salvar(av); } catch(e) {}
+    }
   }
 
   function _salvarAnalise() {
