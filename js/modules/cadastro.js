@@ -76,17 +76,17 @@ const ModuloCadastro = (() => {
                   <ol style="margin:var(--s2) 0 0 var(--s4);font-size:var(--txt-xs);line-height:1.8">
                     <li>Baixe o modelo abaixo e abra no Excel</li>
                     <li>Preencha uma função por linha (mesma linha para repetir o setor)</li>
-                    <li>Salve como <strong>.csv</strong> ou mantenha como <strong>.xlsx</strong></li>
-                    <li>Clique em "Selecionar arquivo" e escolha o arquivo</li>
+                    <li>Salve o arquivo como <strong>.xlsx</strong> (recomendado) ou <strong>.csv</strong></li>
+                    <li>Clique em "Selecionar arquivo" e escolha o arquivo salvo</li>
                   </ol>
                 </div>
               </div>
               <button class="btn btn-secundario btn-sm" style="margin-bottom:var(--s4)"
-                      onclick="ModuloCadastro._baixarModeloCsv()">
-                ⬇️ Baixar Modelo (.csv)
+                      onclick="ModuloCadastro._baixarModelo()">
+                ⬇️ Baixar Modelo (.xlsx)
               </button>
               <div class="grupo-campo">
-                <label>Arquivo da planilha (.csv ou .xlsx)</label>
+                <label>Arquivo da planilha (.xlsx ou .csv)</label>
                 <input type="file" id="import-file-input" accept=".csv,.xlsx,.xls"
                        style="padding:var(--s2);border:1px dashed var(--borda);border-radius:var(--raio);background:var(--superficie-alt);color:var(--texto);width:100%;box-sizing:border-box;cursor:pointer"
                        onchange="ModuloCadastro._onArquivoSelecionado(this)">
@@ -594,22 +594,34 @@ const ModuloCadastro = (() => {
     modal.classList.remove('oculto');
   }
 
-  function _baixarModeloCsv() {
-    const bom  = '﻿'; /* BOM UTF-8 para Excel reconhecer acentos */
-    /* Usa ponto-e-vírgula: padrão do Excel em PT-BR */
-    const rows = [
-      'Setor;Função/Cargo;Nº Trabalhadores;Turno;GHE;Descrição da Atividade',
-      'Administrativo;Analista de RH;2;Diurno;GHE-01;Realiza processos de recrutamento e seleção de pessoal',
-      'Administrativo;Assistente Financeiro;1;Diurno;GHE-01;Controla contas a pagar e receber',
-      'Produção;Operador de Máquina;5;12x36;GHE-02;Opera prensas hidráulicas e realiza setup de equipamentos',
-      'Produção;Auxiliar de Produção;8;12x36;GHE-02;Auxilia nas operações de produção e abastecimento de linha',
-    ];
-    const csv  = bom + rows.join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
-    const url  = URL.createObjectURL(blob);
-    const a    = document.createElement('a');
-    a.href = url; a.download = 'modelo_catalogo_ergogro.csv'; a.click();
-    URL.revokeObjectURL(url);
+  async function _baixarModelo() {
+    /* Gera XLSX via SheetJS — sem problemas de encoding ou delimitador */
+    try {
+      if (typeof XLSX === 'undefined') {
+        App.mostrarToast('Carregando gerador...', 'info');
+        await new Promise((resolve, reject) => {
+          const s = document.createElement('script');
+          s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+          s.onload  = resolve;
+          s.onerror = () => reject(new Error('Sem conexão para baixar gerador'));
+          document.head.appendChild(s);
+        });
+      }
+      const dados = [
+        ['Setor', 'Função/Cargo', 'Nº Trabalhadores', 'Turno', 'GHE', 'Descrição da Atividade'],
+        ['Administrativo', 'Analista de RH',        2, 'Diurno', 'GHE-01', 'Realiza processos de recrutamento e seleção de pessoal'],
+        ['Administrativo', 'Assistente Financeiro',  1, 'Diurno', 'GHE-01', 'Controla contas a pagar e receber'],
+        ['Produção',       'Operador de Máquina',    5, '12x36',  'GHE-02', 'Opera prensas hidráulicas e realiza setup de equipamentos'],
+        ['Produção',       'Auxiliar de Produção',   8, '12x36',  'GHE-02', 'Auxilia nas operações de produção e abastecimento de linha'],
+      ];
+      const ws = XLSX.utils.aoa_to_sheet(dados);
+      ws['!cols'] = [{ wch: 20 }, { wch: 26 }, { wch: 16 }, { wch: 8 }, { wch: 8 }, { wch: 52 }];
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Catálogo');
+      XLSX.writeFile(wb, 'modelo_catalogo_ergogro.xlsx');
+    } catch (err) {
+      App.mostrarToast('Erro ao gerar modelo: ' + err.message, 'erro');
+    }
   }
 
   function _onArquivoSelecionado(input) {
@@ -794,7 +806,7 @@ const ModuloCadastro = (() => {
     /* Função mestre */
     abrirFormFuncaoMaster, salvarFuncaoMaster, excluirFuncaoMaster,
     /* Import planilha */
-    abrirModalImport, _baixarModeloCsv, _onArquivoSelecionado, _voltarImportPhase1, confirmarImport,
+    abrirModalImport, _baixarModelo, _onArquivoSelecionado, _voltarImportPhase1, confirmarImport,
     /* Util */
     fecharModal
   };
