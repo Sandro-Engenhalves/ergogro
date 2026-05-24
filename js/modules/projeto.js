@@ -1308,11 +1308,11 @@ Escreva 2 a 3 frases técnicas objetivas, em estilo de laudo de engenharia, desc
           .rpt-header { display:flex !important; height:14mm; background:#fff; border-bottom:2px solid #0D47A1; padding:0; align-items:center; justify-content:space-between; margin-bottom:8pt; }
           .rpt-header-logo { display:flex; align-items:center; gap:6pt; }
           .rpt-header-info { font-size:7pt; color:#555; text-align:right; line-height:1.5; }
-          .rpt-footer { display:block !important; border-top:1px solid #0D47A1; margin-top:20pt; padding-top:6pt; font-size:7.5pt; color:#444; text-align:center; line-height:1.6; }
+          .rpt-footer { display:block !important; border-top:1px solid #0D47A1; margin-top:6pt; padding-top:6pt; font-size:7.5pt; color:#444; text-align:center; line-height:1.6; page-break-before:avoid !important; page-break-inside:avoid !important; break-inside:avoid !important; }
           .rpt-secao h3, .relatorio-secao h3 { background:#0D47A1 !important; color:#fff !important; padding:5pt 9pt !important; font-size:9pt !important; font-weight:700 !important; text-transform:uppercase !important; letter-spacing:.5pt !important; margin:0 0 6pt !important; border-radius:0 !important; page-break-after:avoid !important; }
           table { width:100% !important; border-collapse:collapse !important; font-size:8pt !important; margin-bottom:6pt !important; }
           th { background:#0D47A1 !important; color:#fff !important; padding:3pt 6pt !important; font-weight:600 !important; text-align:left !important; border:1px solid #0D47A1 !important; }
-          td { padding:3pt 6pt !important; border:1px solid #ccc !important; color:#111 !important; }
+          td { padding:3pt 6pt !important; border:1px solid #ccc !important; color:#111 !important; word-break:break-word !important; overflow-wrap:break-word !important; }
           tr:nth-child(even) td { background:#f0f4f8 !important; }
           .card { border:none !important; border-bottom:1px solid #e8e8e8 !important; background:#fff !important; border-radius:0 !important; padding:6pt 0 !important; margin-bottom:8pt !important; color:#000 !important; }
           .badge { border:1px solid #ccc !important; font-size:7pt !important; padding:1pt 4pt !important; }
@@ -1328,6 +1328,12 @@ Escreva 2 a 3 frases técnicas objetivas, em estilo de laudo de engenharia, desc
           .rpt-capa { page-break-after:always; break-after:always; }
           .rpt-capa, .rpt-header, .rpt-footer { display:none; }
           label input[type="checkbox"], label input[type="radio"] { display:none !important; }
+          /* Texto justificado */
+          p, li { text-align:justify !important; }
+          /* Remove barra de rolagem horizontal na impressão */
+          div { overflow:visible !important; }
+          /* Último bloco de conteúdo não força quebra de página */
+          .relatorio-secao:last-of-type { page-break-after:avoid !important; break-after:avoid !important; }
           /* Modos de impressão seletivos */
           body.rpt-modo-aep  .rpt-secao-afp { display:none !important; }
           body.rpt-modo-afp  .rpt-secao-aep { display:none !important; }
