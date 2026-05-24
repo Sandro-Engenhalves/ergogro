@@ -1312,7 +1312,7 @@ Escreva 2 a 3 frases técnicas objetivas, em estilo de laudo de engenharia, desc
           .rpt-secao h3, .relatorio-secao h3 { background:#0D47A1 !important; color:#fff !important; padding:5pt 9pt !important; font-size:9pt !important; font-weight:700 !important; text-transform:uppercase !important; letter-spacing:.5pt !important; margin:0 0 6pt !important; border-radius:0 !important; page-break-after:avoid !important; }
           table { width:100% !important; border-collapse:collapse !important; font-size:8pt !important; margin-bottom:6pt !important; }
           th { background:#0D47A1 !important; color:#fff !important; padding:3pt 6pt !important; font-weight:600 !important; text-align:left !important; border:1px solid #0D47A1 !important; }
-          td { padding:3pt 6pt !important; border:1px solid #ccc !important; color:#111 !important; word-break:break-word !important; overflow-wrap:break-word !important; }
+          td { padding:3pt 6pt !important; border:1px solid #ccc !important; color:#111 !important; }
           tr:nth-child(even) td { background:#f0f4f8 !important; }
           .card { border:none !important; border-bottom:1px solid #e8e8e8 !important; background:#fff !important; border-radius:0 !important; padding:6pt 0 !important; margin-bottom:8pt !important; color:#000 !important; }
           .badge { border:1px solid #ccc !important; font-size:7pt !important; padding:1pt 4pt !important; }
@@ -1674,12 +1674,7 @@ Escreva 2 a 3 frases técnicas objetivas, em estilo de laudo de engenharia, desc
                   <div style="font-size:7pt;color:#888;margin-top:4pt">${_nrProjetoAtual}</div>
                 </td>
                 <td style="width:40%;padding:0 0 0 0;border:none;vertical-align:bottom">
-                  <div style="border:1.5px dashed #0D47A1;height:40pt;border-radius:3pt;display:flex;align-items:center;justify-content:center;margin-bottom:4pt">
-                    <div style="font-size:7pt;color:#0D47A1;text-align:center;line-height:1.5">
-                      Assinatura Digital<br>
-                      <span style="font-size:6pt;color:#888">com Certificado Digital — Adobe</span>
-                    </div>
-                  </div>
+                  <div style="border:1.5px dashed #0D47A1;height:40pt;border-radius:3pt;margin-bottom:4pt"></div>
                   <div style="font-size:7pt;color:#555;text-align:center">Assinatura Eletrônica com Certificado</div>
                 </td>
               </tr>
