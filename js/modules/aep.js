@@ -1141,7 +1141,13 @@ const ModuloAEP = (() => {
 
           <div id="div-justificativa-aet" class="${a.indicaAET ? '' : 'oculto'}" style="margin-top:var(--s4)">
             <div class="grupo-campo">
-              <label for="an-justificativa-aet">Justificativa para indicação de AET</label>
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--s2)">
+                <label for="an-justificativa-aet" style="margin-bottom:0">Justificativa para indicação de AET</label>
+                <button id="btn-gerar-just-aet" onclick="ModuloAEP.gerarJustificativaAETIA()"
+                        style="font-size:var(--txt-xs);padding:3px 9px;border-radius:var(--r2);border:1px solid #3949ab;background:rgba(57,73,171,.15);color:#90caf9;cursor:pointer;white-space:nowrap;flex-shrink:0">
+                  🤖 Gerar com IA
+                </button>
+              </div>
               <textarea id="an-justificativa-aet" rows="3"
                 placeholder="Descreva os fatores que fundamentam a necessidade de AET..."
               >${a.justificativaAET || ''}</textarea>
@@ -1392,6 +1398,56 @@ const ModuloAEP = (() => {
       }
     } finally {
       _ocultarOverlayAnalise();
+    }
+  }
+
+  async function gerarJustificativaAETIA() {
+    const av = App.obterAvaliacaoAtual();
+    if (!av) return;
+
+    const executar = async () => {
+      const btn   = document.getElementById('btn-gerar-just-aet');
+      const campo = document.getElementById('an-justificativa-aet');
+      if (!campo) return;
+      const textoAnterior = campo.value;
+      campo.value    = '⏳ Gerando com IA…';
+      campo.disabled = true;
+      if (btn) { btn.disabled = true; btn.textContent = '⏳'; }
+      try {
+        const score = MOTOR_AEP.calcularScore(av);
+        const nivel = MOTOR_AEP.sugerirNivel(score.valor);
+        const nivelPt = { baixo: 'Baixo', medio: 'Médio', alto: 'Alto', critico: 'Crítico' };
+        const ncs     = obterNaoConformes(av);
+        let ctx = `Função: ${av.funcao || '—'}\nSetor: ${av.setor || '—'}\n`;
+        ctx += `Score de Criticidade: ${score.valor}/100 — Nível ${nivelPt[nivel] || nivel}\n`;
+        ctx += `Não Conformidades: ${ncs.length} (Alto: ${ncs.filter(n=>n.risco==='alto').length}, Médio: ${ncs.filter(n=>n.risco==='medio').length})\n`;
+        const analise = av.aep?.analise?.analiseTecnica || '';
+        if (analise) ctx += `\nAnálise técnica (resumo):\n${analise.slice(0, 400)}\n`;
+
+        const prompt = `Você é um engenheiro de segurança do trabalho. Redija em 2 a 3 frases objetivas a justificativa técnica para a indicação de Análise Ergonômica do Trabalho (AET) para a função abaixo, com base nos dados da AEP. Mencione os fatores de risco que exigem aprofundamento. Use linguagem técnica de laudo de engenharia.
+
+DADOS DA AVALIAÇÃO:
+${ctx}
+
+Retorne APENAS o texto da justificativa, sem introdução, sem formatação especial.`;
+
+        const texto = await ClaudeVision.gerarTextoIA(prompt, 512);
+        campo.value = texto;
+        salvarAnalise();
+        App.mostrarToast('Justificativa gerada — revise e ajuste se necessário', 'sucesso');
+      } catch (err) {
+        campo.value = textoAnterior;
+        App.mostrarToast('Erro ao gerar: ' + err.message, 'erro');
+      } finally {
+        campo.disabled = false;
+        if (btn) { btn.disabled = false; btn.textContent = '🤖 Gerar com IA'; }
+      }
+    };
+
+    if (!ClaudeVision.temChave()) {
+      ClaudeVision.solicitarChaveParaChamada(executar);
+    } else {
+      await executar();
     }
   }
 
@@ -2103,7 +2159,7 @@ const ModuloAEP = (() => {
     salvarPosto, onExpChange,
     /* análise */
     salvarSecaoAtual: () => { _salvarSecaoAtual(); },
-    onAETChange, salvarAnalise, recalcularScore, aplicarNivelSugerido, usarRecomendacoesAuto, gerarAnaliseCompleta, gerarPlanoDeAcao,
+    onAETChange, salvarAnalise, recalcularScore, aplicarNivelSugerido, usarRecomendacoesAuto, gerarAnaliseCompleta, gerarJustificativaAETIA, gerarPlanoDeAcao,
     /* relatório */
     imprimirRelatorio, exportarJSON,
     /* cálculos (usados por outros módulos) */

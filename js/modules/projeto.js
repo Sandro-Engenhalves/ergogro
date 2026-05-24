@@ -341,6 +341,74 @@ Escreva 2 a 3 frases técnicas objetivas, em estilo de laudo de engenharia, desc
     }
   }
 
+  async function gerarConclusaoIA() {
+    const proj = App.obterProjetoAtual();
+    if (!proj) return;
+
+    const executar = async () => {
+      const btn   = document.getElementById('btn-gerar-conclusao-proj');
+      const campo = document.getElementById('proj-conclusao');
+      if (!campo) return;
+      const textoAnterior = campo.value;
+      campo.value    = '⏳ Gerando com IA…';
+      campo.disabled = true;
+      if (btn) { btn.disabled = true; btn.textContent = '⏳'; }
+      try {
+        const emp     = proj.empresaId ? Storage.buscarEmpresa(proj.empresaId) : null;
+        const avs     = Storage.listarPorProjeto(proj.id);
+        const avsAEP  = avs.filter(a => a.tipo === 'aep');
+        const TIPO_NOME = {
+          aep: 'AEP — Avaliação Ergonômica Preliminar',
+          aep_afp: 'AEP + AFP — Ergonômico com Psicossocial',
+          psicossocial: 'AFP — Fatores Psicossociais',
+          aet: 'AET — Análise Ergonômica do Trabalho',
+          integrado: 'Integrado (AEP + AFP + AET)',
+        };
+        const nivelPt = { baixo: 'Baixo', medio: 'Médio', alto: 'Alto', critico: 'Crítico' };
+
+        let ctx = `Empresa: ${emp?.nome || proj.nome}\n`;
+        ctx += `Tipo de projeto: ${TIPO_NOME[proj.tipo] || proj.tipo}\n`;
+        if (proj.objetivo) ctx += `Objetivo: ${proj.objetivo}\n`;
+
+        if (avsAEP.length) {
+          ctx += `\nFunções avaliadas (${avsAEP.length}):\n`;
+          avsAEP.forEach(av => {
+            const score = ModuloAEP.MOTOR_AEP.calcularScore(av);
+            const nivel = av.aep?.analise?.nivelRiscoGeral || ModuloAEP.MOTOR_AEP.sugerirNivel(score.valor);
+            const aet   = av.aep?.analise?.indicaAET ? ' [Indica AET]' : '';
+            ctx += `  • ${av.funcao || '—'} (${av.setor || '—'}): Score ${score.valor}/100, Nível ${nivelPt[nivel] || nivel}${aet}\n`;
+          });
+          const comAET = avsAEP.filter(a => a.aep?.analise?.indicaAET).length;
+          if (comAET) ctx += `Funções com indicação de AET: ${comAET}\n`;
+        }
+
+        const prompt = `Você é um engenheiro de segurança do trabalho. Redija a conclusão técnica consolidada para o relatório ergonômico do projeto abaixo. A conclusão deve: (1) sintetizar os principais achados de todas as funções avaliadas, (2) indicar o nível geral de risco do projeto, (3) mencionar funções críticas ou que necessitam AET se houver, (4) recomendar providências prioritárias, (5) registrar a necessidade de revisão periódica conforme NR-01 e NR-17. Use linguagem técnica de laudo de engenharia, em 3 a 5 parágrafos.
+
+DADOS DO PROJETO:
+${ctx}
+
+Retorne APENAS o texto da conclusão, sem introdução, sem formatação especial, sem marcadores.`;
+
+        const texto = await ClaudeVision.gerarTextoIA(prompt, 1024);
+        campo.value = texto;
+        onConclusaoChange(texto);
+        App.mostrarToast('Conclusão gerada — revise e ajuste se necessário', 'sucesso');
+      } catch (err) {
+        campo.value = textoAnterior;
+        App.mostrarToast('Erro ao gerar: ' + err.message, 'erro');
+      } finally {
+        campo.disabled = false;
+        if (btn) { btn.disabled = false; btn.textContent = '🤖 Gerar com IA'; }
+      }
+    };
+
+    if (!ClaudeVision.temChave()) {
+      ClaudeVision.solicitarChaveParaChamada(executar);
+    } else {
+      await executar();
+    }
+  }
+
   function salvarVisaoGeral() {
     _salvarVisaoGeralSilencioso();
     const proj = App.obterProjetoAtual();
@@ -1675,6 +1743,13 @@ Escreva 2 a 3 frases técnicas objetivas, em estilo de laudo de engenharia, desc
           <h3>${secConc}. Conclusão Técnica</h3>
           <div class="card">
             <div class="grupo-campo nao-imprimir">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--s2)">
+                <span style="font-size:var(--txt-xs);color:var(--texto-sec)">Conclusão consolidada do projeto</span>
+                <button id="btn-gerar-conclusao-proj" onclick="ModuloProjeto.gerarConclusaoIA()"
+                        style="font-size:var(--txt-xs);padding:3px 9px;border-radius:var(--r2);border:1px solid #3949ab;background:rgba(57,73,171,.15);color:#90caf9;cursor:pointer;white-space:nowrap;flex-shrink:0">
+                  🤖 Gerar com IA
+                </button>
+              </div>
               <textarea id="proj-conclusao" rows="6"
                 placeholder="Redija a conclusão técnica consolidada do projeto: principais achados, nível de risco geral, recomendações gerais e perspectivas de acompanhamento..."
                 onblur="ModuloProjeto.onConclusaoChange(this.value)"
@@ -1857,7 +1932,7 @@ Escreva 2 a 3 frases técnicas objetivas, em estilo de laudo de engenharia, desc
 
   return {
     renderizar, trocarSecao,
-    salvarVisaoGeral, gerarObjetivoIA, onConclusaoChange, onNecessitaAETChange, salvarConclusao, imprimir, exportarProjeto,
+    salvarVisaoGeral, gerarObjetivoIA, gerarConclusaoIA, onConclusaoChange, onNecessitaAETChange, salvarConclusao, imprimir, exportarProjeto,
     salvarCampoAcao, excluirAcao, adicionarAcaoManual,
     abrirFormSetor, salvarSetor, excluirSetor,
     abrirFormFuncao, salvarFuncao, excluirFuncao,

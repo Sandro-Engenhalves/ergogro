@@ -630,6 +630,7 @@ const ModuloPesquisaAdmin = (() => {
         calcularRelatorio(c.id, c.minRespostasSetor || 5),
         buscarCampanha(c.id),
       ]);
+      _afpRelatorioCache = { relatorio, campanha: campanha || c };
       el.innerHTML = _htmlRelatorio(relatorio, campanha || c);
       /* Pequeno delay garante que o canvas já está no DOM */
       setTimeout(() => _desenharRadar('ps-radar-chart', relatorio.consolidado), 200);
@@ -1642,7 +1643,13 @@ const ModuloPesquisaAdmin = (() => {
 
           <!-- 5. Conclusão (texto livre) -->
           <div class="card" style="margin-top:var(--s4)">
-            <div class="card-titulo" style="margin-bottom:var(--s3)">7.5 Conclusão Técnica</div>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--s3)">
+              <div class="card-titulo" style="margin-bottom:0">7.5 Conclusão Técnica</div>
+              <button id="btn-gerar-conclusao-afp" onclick="ModuloPesquisaAdmin.gerarConclusaoAFPIA()"
+                      style="font-size:var(--txt-xs);padding:3px 9px;border-radius:var(--r2);border:1px solid #3949ab;background:rgba(57,73,171,.15);color:#90caf9;cursor:pointer;white-space:nowrap;flex-shrink:0">
+                🤖 Gerar com IA
+              </button>
+            </div>
             <textarea id="ps-it-conclusao" class="campo-tecnico" rows="4"
               placeholder="Conclusão técnica formal do profissional habilitado..."
               oninput="ModuloPesquisaAdmin.agendarAutoSave()"
@@ -2385,6 +2392,67 @@ const ModuloPesquisaAdmin = (() => {
     } catch (e) { App.mostrarToast('Erro: ' + e.message, 'erro'); }
   }
 
+  /* ══════════════════════════════════════════════════════════
+     GERAÇÃO DA CONCLUSÃO AFP COM IA
+  ══════════════════════════════════════════════════════════ */
+
+  async function gerarConclusaoAFPIA() {
+    if (!_afpRelatorioCache) {
+      App.mostrarToast('Abra a aba Relatório da campanha antes de gerar a conclusão', 'aviso');
+      return;
+    }
+
+    const executar = async () => {
+      const btn   = document.getElementById('btn-gerar-conclusao-afp');
+      const campo = document.getElementById('ps-it-conclusao');
+      if (!campo) return;
+      const textoAnterior = campo.value;
+      campo.value    = '⏳ Gerando com IA…';
+      campo.disabled = true;
+      if (btn) { btn.disabled = true; btn.textContent = '⏳'; }
+      try {
+        const { relatorio: r } = _afpRelatorioCache;
+        const proj = App.obterProjetoAtual();
+        const nivelL = { favoravel: 'Favorável', intermediario: 'Intermediário', desfavoravel: 'Desfavorável', sem_dados: 'Sem dados' };
+
+        let ctx = `Empresa: ${proj?.nome || '—'}\n`;
+        ctx += `Total de respondentes: ${r.totalRespostas || 0}\n`;
+        ctx += `\nResultados por dimensão COPSOQ:\n`;
+        r.consolidado.forEach(d => {
+          ctx += `  • ${d.nome}: ${nivelL[d.nivel] || d.nivel} (média ${d.media ?? '—'})\n`;
+        });
+        const criticos   = r.consolidado.filter(d => d.nivel === 'desfavoravel').map(d => d.nome);
+        const protetores = r.consolidado.filter(d => d.nivel === 'favoravel').map(d => d.nome);
+        if (criticos.length)   ctx += `\nDimensões críticas (Desfavorável): ${criticos.join(', ')}\n`;
+        if (protetores.length) ctx += `Dimensões protetoras (Favorável): ${protetores.join(', ')}\n`;
+
+        const prompt = `Você é um profissional de saúde do trabalho especializado em fatores psicossociais. Redija a conclusão técnica para o relatório de Avaliação de Fatores Psicossociais (AFP/COPSOQ-III) com base nos dados abaixo. A conclusão deve: (1) sintetizar o perfil psicossocial geral do grupo, (2) destacar os domínios críticos e seus potenciais impactos, (3) reconhecer os aspectos protetores, (4) recomendar intervenções prioritárias, (5) reforçar que os resultados são coletivos e anônimos, não permitem individualização. Use linguagem técnica de laudo, em 3 a 5 parágrafos. Não faça diagnóstico médico.
+
+DADOS DA PESQUISA:
+${ctx}
+
+Retorne APENAS o texto da conclusão, sem introdução, sem formatação especial, sem marcadores.`;
+
+        const texto = await ClaudeVision.gerarTextoIA(prompt, 1024);
+        campo.value = texto;
+        agendarAutoSave();
+        App.mostrarToast('Conclusão AFP gerada — revise e ajuste se necessário', 'sucesso');
+      } catch (err) {
+        campo.value = textoAnterior;
+        App.mostrarToast('Erro ao gerar: ' + err.message, 'erro');
+      } finally {
+        campo.disabled = false;
+        if (btn) { btn.disabled = false; btn.textContent = '🤖 Gerar com IA'; }
+      }
+    };
+
+    if (!ClaudeVision.temChave()) {
+      ClaudeVision.solicitarChaveParaChamada(executar);
+    } else {
+      await executar();
+    }
+  }
+
   return {
     renderizar,
     trocarSecao,
@@ -2402,6 +2470,7 @@ const ModuloPesquisaAdmin = (() => {
     imprimir,
     imprimirParaProjeto,
     definirCacheRelatorio,
+    gerarConclusaoAFPIA,
     imprimirComCache,
     verPendentes,
     exportarPendentesCSV,
