@@ -595,13 +595,14 @@ const ModuloCadastro = (() => {
   }
 
   function _baixarModeloCsv() {
-    const bom  = '﻿'; /* BOM para Excel reconhecer UTF-8 */
+    const bom  = '﻿'; /* BOM UTF-8 para Excel reconhecer acentos */
+    /* Usa ponto-e-vírgula: padrão do Excel em PT-BR */
     const rows = [
-      'Setor,Função/Cargo,Nº Trabalhadores,Turno,GHE,Descrição da Atividade',
-      'Administrativo,Analista de RH,2,Diurno,GHE-01,Realiza processos de recrutamento e seleção de pessoal',
-      'Administrativo,Assistente Financeiro,1,Diurno,GHE-01,Controla contas a pagar e receber',
-      'Produção,Operador de Máquina,5,12x36,GHE-02,Opera prensas hidráulicas e realiza setup de equipamentos',
-      'Produção,Auxiliar de Produção,8,12x36,GHE-02,Auxilia nas operações de produção e abastecimento de linha',
+      'Setor;Função/Cargo;Nº Trabalhadores;Turno;GHE;Descrição da Atividade',
+      'Administrativo;Analista de RH;2;Diurno;GHE-01;Realiza processos de recrutamento e seleção de pessoal',
+      'Administrativo;Assistente Financeiro;1;Diurno;GHE-01;Controla contas a pagar e receber',
+      'Produção;Operador de Máquina;5;12x36;GHE-02;Opera prensas hidráulicas e realiza setup de equipamentos',
+      'Produção;Auxiliar de Produção;8;12x36;GHE-02;Auxilia nas operações de produção e abastecimento de linha',
     ];
     const csv  = bom + rows.join('\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
