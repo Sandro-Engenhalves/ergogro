@@ -1081,53 +1081,135 @@ Escreva 2 a 3 frases técnicas objetivas, em estilo de laudo de engenharia, desc
     _nrProjetoAtual = `LAUDO-${(emp?.nome||proj.nome||'ERG').replace(/\s+/g,'').slice(0,4).toUpperCase()}-${new Date().getFullYear()}`;
     const _dataEmissao = _fd(new Date().toISOString().slice(0,10));
 
-    /* Totais gerais */
-    const totalAlt  = avs.reduce((n, a) => n + (ModuloAEP?.calcularRiscoGeral(a)?.alto  || 0), 0);
-    const totalMed  = avs.reduce((n, a) => n + (ModuloAEP?.calcularRiscoGeral(a)?.medio || 0), 0);
-    const totalBx   = avs.reduce((n, a) => n + (ModuloAEP?.calcularRiscoGeral(a)?.baixo || 0), 0);
-    const totalAcoes= avs.reduce((n, a) => n + (a.planoAcao?.length || 0), 0);
+    /* ── Flags de tipo ── */
+    const isAEP   = ['aep','aep_afp','integrado'].includes(proj.tipo);
+    const isAFP   = ['psicossocial','aep_afp','integrado'].includes(proj.tipo);
+    const isMisto = ['aep_afp','integrado'].includes(proj.tipo);
+    const avsAEP  = avs.filter(av => av.tipo === 'aep');
+    const avsFP   = avs.filter(av => av.tipo === 'psicossocial');
 
-    /* Seções por setor/função */
-    const secoesPorSetor = setores.map(s => {
-      const funcoes = Storage.listarFuncoes(s.id);
-      const funcoesSecs = funcoes.map(f => {
-        const avsF = avs.filter(a => a.funcaoId === f.id);
-        const avTipos = avsF.map(av => `
-          <div style="margin:var(--s2) 0 var(--s2) var(--s4)">
-            <span class="badge-tipo badge-tipo-${av.tipo}">${TIPO_LABEL[av.tipo]}</span>
-            <span style="font-size:var(--txt-xs);color:var(--texto-sec);margin-left:var(--s2)">${_fd(av.dataAvaliacao)}</span>
-            ${av.tipo === 'aep' && ModuloAEP ? (() => {
-              const r = ModuloAEP.calcularRiscoGeral(av);
-              return r.alto > 0 || r.medio > 0
-                ? `<span class="badge badge-${r.alto>0?'alto':'medio'}" style="margin-left:var(--s2)">${r.alto>0?r.alto+' alto':''} ${r.medio>0?r.medio+' médio':''}</span>`
-                : '<span class="badge badge-sucesso" style="margin-left:var(--s2)">Sem não conformidades</span>';
-            })() : ''}
-            ${av.aep?.analise?.nivelRiscoGeral ? `<span style="font-size:var(--txt-xs);margin-left:var(--s2);color:var(--texto-sec)">Risco geral: ${av.aep.analise.nivelRiscoGeral}</span>` : ''}
-          </div>
-        `).join('');
-        return avsF.length > 0 ? `
-          <div style="padding:var(--s2) 0 var(--s2) var(--s4)">
-            <div style="font-size:var(--txt-sm);font-weight:600">👷 ${f.nome}
-              ${f.numTrabalhadores ? `<span style="font-weight:400;color:var(--texto-sec)"> · ${f.numTrabalhadores} trab.</span>` : ''}
-            </div>
-            ${avTipos}
-          </div>
-        ` : '';
-      }).join('');
+    /* ── Totais gerais ── */
+    const totalAlt   = avs.reduce((n, a) => n + (ModuloAEP?.calcularRiscoGeral(a)?.alto  || 0), 0);
+    const totalMed   = avs.reduce((n, a) => n + (ModuloAEP?.calcularRiscoGeral(a)?.medio || 0), 0);
+    const totalBx    = avs.reduce((n, a) => n + (ModuloAEP?.calcularRiscoGeral(a)?.baixo || 0), 0);
+    const totalAcoes = avs.reduce((n, a) => n + (a.planoAcao?.length || 0), 0);
+    const totalTrab  = setores.reduce((n, s) =>
+      n + Storage.listarFuncoes(s.id).reduce((m, f) => m + (parseInt(f.numTrabalhadores) || 0), 0), 0);
 
-      return `
-        <div style="margin-bottom:var(--s4)">
-          <div style="font-size:var(--txt-base);font-weight:700;margin-bottom:var(--s2)">
-            📍 ${s.nome}
-          </div>
-          ${funcoesSecs || '<p style="font-size:var(--txt-sm);color:var(--texto-sec);padding-left:var(--s4)">Sem avaliações neste setor.</p>'}
-        </div>
-      `;
+    /* ── Numeração dinâmica de seções ── */
+    let _n = 1;
+    const secID      = _n++;
+    const secObj     = proj.objetivo ? _n++ : null;
+    const secMet     = _n++;
+    const secCar     = _n++;
+    const secResAEP  = isAEP && avsAEP.length > 0 ? _n++ : null;
+    const secResAFP  = isAFP && avsFP.length  > 0 ? _n++ : null;
+    const secPlano   = totalAcoes > 0 ? _n++ : null;
+    const secConc    = _n++;
+    const secAssin   = _n++;
+
+    /* ── Metodologia por tipo ── */
+    const metodoMap = {
+      aep:          'A Avaliação Ergonômica Preliminar (AEP) foi conduzida conforme a metodologia preconizada pela NR-17 (Portaria MTP n.º 1.467/2023) por meio de visita técnica in loco. A avaliação consistiu na aplicação do Checklist NR-17 organizado em blocos temáticos (organização do trabalho, movimentação de cargas, mobiliário, máquinas/equipamentos, ambiente físico, exigências cognitivas e fatores psicossociais), com identificação e classificação de não conformidades segundo a Matriz de Risco Ergonômico GRO/PGR, análise das exposições ergonômicas e cálculo do Score de Criticidade por posto de trabalho.',
+      psicossocial: 'A Avaliação de Fatores Psicossociais (AFP) foi conduzida por meio da pesquisa COPSOQ-III Brasil (versão reduzida), aplicada de forma anônima e coletiva ao grupo de trabalhadores. Os resultados foram consolidados por dimensão psicossocial e classificados como Favorável, Intermediário ou Desfavorável. Conforme preceito ético, os resultados não permitem a individualização de respostas, sendo apresentados exclusivamente em nível de grupo.',
+      aep_afp:      'A avaliação integrada AEP + AFP combinou duas metodologias complementares: (1) Avaliação Ergonômica Preliminar com aplicação do Checklist NR-17 por posto de trabalho, cálculo do Score de Criticidade e classificação de riscos conforme Matriz GRO/PGR; e (2) pesquisa COPSOQ-III Brasil aplicada de forma anônima ao grupo de trabalhadores, com resultados consolidados em nível de setor.',
+      aet:          'A Análise Ergonômica do Trabalho (AET) foi realizada mediante observação sistemática das atividades, análise da tarefa prescrita e real, avaliação das condições físicas, cognitivas e organizacionais do trabalho, com emissão de recomendações técnicas de intervenção ergonômica.',
+      integrado:    'A avaliação integrada compreendeu a Avaliação Ergonômica Preliminar (AEP), a Avaliação de Fatores Psicossociais (AFP/COPSOQ-III) e a Análise Ergonômica do Trabalho (AET), integrando as condições físicas, psicossociais e organizacionais em uma abordagem sistêmica da ergonomia.',
+    };
+
+    /* ── Normas aplicáveis ── */
+    const normasRows = [
+      ['NR-17 — Ergonomia', 'Portaria MTP n.º 1.467/2023'],
+      ['NR-01 — Disposições Gerais / GRO-PGR', 'Portaria MTPS n.º 3.214/1978 · Portaria MTPS n.º 6.730/2020'],
+      ...(isAFP ? [['COPSOQ-III Brasil (versão reduzida)', 'Ferramenta de Avaliação de Fatores Psicossociais']] : []),
+      ['Manual de Aplicação da NR-17', 'Secretaria de Inspeção do Trabalho — SIT/MTb'],
+      ['ABNT NBR ISO 9241-210', 'Ergonomia da interação humano-sistema'],
+    ].map(([n, r]) => `<tr><td style="font-weight:600;width:50%">${n}</td><td>${r}</td></tr>`).join('');
+
+    /* ── Tabela de escopo: setores / funções ── */
+    const tabelaEscopo = setores.flatMap(s => {
+      const funcs = Storage.listarFuncoes(s.id);
+      if (!funcs.length) return [`<tr>
+        <td style="font-weight:600">${s.nome}</td>
+        <td colspan="4" style="color:var(--texto-sec);font-size:var(--txt-xs)">Sem funções cadastradas</td>
+      </tr>`];
+      return funcs.map((f, i) => {
+        const avsF    = avs.filter(a => a.funcaoId === f.id);
+        const tiposAv = [...new Set(avsF.map(a => TIPO_LABEL[a.tipo] || a.tipo))].join(', ');
+        const tdSetor = i === 0
+          ? `<td rowspan="${funcs.length}" style="font-weight:600;vertical-align:middle;border-right:2px solid #0D47A1">${s.nome}</td>`
+          : '';
+        return `<tr>${tdSetor}
+          <td>${f.nome}</td>
+          <td style="text-align:center">${f.numTrabalhadores || '—'}</td>
+          <td style="font-size:var(--txt-xs)">${f.atividadesPrincipais?.slice(0, 70) || '—'}</td>
+          <td style="font-size:var(--txt-xs)">${tiposAv || '—'}</td>
+        </tr>`;
+      });
     }).join('');
 
+    /* ── Resultados AEP por função ── */
+    const NIVEL_COR = { baixo: '#4caf50', medio: '#ff9800', alto: '#f44336', critico: '#b71c1c' };
+    const PRIO_L    = { alta: 'Alta', media: 'Média', baixa: 'Baixa' };
+    const linhasAEP = avsAEP.map(av => {
+      const s      = av.setorId  ? Storage.buscarSetor(av.setorId)   : null;
+      const f      = av.funcaoId ? Storage.buscarFuncao(av.funcaoId) : null;
+      const riscos = ModuloAEP.calcularRiscoGeral(av);
+      const score  = ModuloAEP.MOTOR_AEP.calcularScore(av);
+      const nivel  = av.aep?.analise?.nivelRiscoGeral || ModuloAEP.MOTOR_AEP.sugerirNivel(score.valor);
+      const prior  = av.aep?.analise?.prioridadeAcao || '';
+      const ncs    = ModuloAEP.obterNaoConformes(av);
+      const ncAlt  = ncs.filter(nc => nc.risco === 'alto').length;
+      const ncMed  = ncs.filter(nc => nc.risco === 'medio').length;
+      const corSc  = score.valor > 60 ? '#f44336' : score.valor > 30 ? '#ff9800' : '#4caf50';
+      const nivelStr = nivel ? nivel.charAt(0).toUpperCase() + nivel.slice(1) : '—';
+      return `<tr>
+        <td style="font-weight:600">${f?.nome || '—'}</td>
+        <td>${s?.nome || '—'}</td>
+        <td style="text-align:center">${f?.numTrabalhadores || '—'}</td>
+        <td style="text-align:center;font-weight:700;color:${corSc}">${score.valor}</td>
+        <td style="text-align:center;font-weight:700;color:${NIVEL_COR[nivel] || '#888'}">${nivelStr}</td>
+        <td style="text-align:center">${ncAlt > 0 ? `<span style="color:#f44336;font-weight:700">${ncAlt}</span>` : '0'}</td>
+        <td style="text-align:center">${ncMed > 0 ? `<span style="color:#ff9800;font-weight:700">${ncMed}</span>` : '0'}</td>
+        <td style="font-size:var(--txt-xs)">${prior ? PRIO_L[prior] || prior : '—'}</td>
+        <td style="font-size:var(--txt-xs)">${_fd(av.dataAvaliacao)}</td>
+      </tr>`;
+    }).join('');
+
+    /* ── Resultados AFP por avaliação ── */
+    const NIVEL_AFP = {
+      favoravel:     { t: 'Favorável',     c: '#4caf50' },
+      intermediario: { t: 'Intermediário', c: '#ff9800' },
+      desfavoravel:  { t: 'Desfavorável',  c: '#f44336' },
+      sem_dados:     { t: 'Sem dados',     c: '#888'    },
+    };
+    const linhasAFP = avsFP.map(av => {
+      const s   = av.setorId  ? Storage.buscarSetor(av.setorId)   : null;
+      const f   = av.funcaoId ? Storage.buscarFuncao(av.funcaoId) : null;
+      const ps  = av.psicossocial || {};
+      const g   = ps.grupoAvaliado || {};
+      const res = ModuloCOPSOQ?.calcularResultados?.(av) || {};
+      const dims = Object.entries(res);
+      const nFav   = dims.filter(([, v]) => v.nivel === 'favoravel').length;
+      const nInt   = dims.filter(([, v]) => v.nivel === 'intermediario').length;
+      const nDesf  = dims.filter(([, v]) => v.nivel === 'desfavoravel').length;
+      const criticos = dims.filter(([, v]) => v.nivel === 'desfavoravel').map(([d]) => d).join(', ');
+      return `<tr>
+        <td style="font-weight:600">${g.descricao || f?.nome || s?.nome || '—'}</td>
+        <td>${s?.nome || '—'}</td>
+        <td style="text-align:center">${g.numParticipantes || f?.numTrabalhadores || '—'}</td>
+        <td style="text-align:center;font-weight:700;color:#4caf50">${nFav}</td>
+        <td style="text-align:center;font-weight:700;color:#ff9800">${nInt}</td>
+        <td style="text-align:center;font-weight:700;color:#f44336">${nDesf}</td>
+        <td style="font-size:var(--txt-xs)">${criticos || '—'}</td>
+        <td style="font-size:var(--txt-xs)">${_fd(g.dataColeta || av.dataAvaliacao)}</td>
+      </tr>`;
+    }).join('');
+
+    /* (variável legada mantida para compatibilidade) */
     const nSec = proj.objetivo ? { esc: 3, plano: 4, conc: 5 } : { esc: 2, plano: 3, conc: 4 };
 
-    /* Conclusão técnica (editável) */
+    /* ── Retorna HTML completo ── */
     return `
       <!-- ══ CSS DE IMPRESSÃO PADRÃO ENGENHALVES ══ -->
       <style>
@@ -1182,6 +1264,9 @@ Escreva 2 a 3 frases técnicas objetivas, em estilo de laudo de engenharia, desc
           .rpt-capa { page-break-after:always; break-after:always; }
           .rpt-capa, .rpt-header, .rpt-footer { display:none; }
           label input[type="checkbox"], label input[type="radio"] { display:none !important; }
+          /* Modos de impressão seletivos */
+          body.rpt-modo-aep  .rpt-secao-afp { display:none !important; }
+          body.rpt-modo-afp  .rpt-secao-aep { display:none !important; }
         }
         @media screen {
           .rpt-capa, .rpt-sumario { display:none !important; }
@@ -1229,14 +1314,19 @@ Escreva 2 a 3 frases técnicas objetivas, em estilo de laudo de engenharia, desc
       <div class="rpt-sumario so-imprimir">
         <div class="rpt-sumario-titulo">Sumário</div>
         <div>
-          <div class="rpt-sumario-item"><span class="rpt-sumario-num">1.</span><span class="rpt-sumario-nome">Identificação do Projeto</span><span class="rpt-sumario-pontilhado"></span><span class="rpt-sumario-pag">3</span></div>
-          ${proj.objetivo ? `<div class="rpt-sumario-item"><span class="rpt-sumario-num">2.</span><span class="rpt-sumario-nome">Objetivo</span><span class="rpt-sumario-pontilhado"></span><span class="rpt-sumario-pag">3</span></div>` : ''}
-          <div class="rpt-sumario-sep"></div>
-          <div class="rpt-sumario-item"><span class="rpt-sumario-num">${nSec.esc}.</span><span class="rpt-sumario-nome">Escopo — Setores e Avaliações</span><span class="rpt-sumario-pontilhado"></span><span class="rpt-sumario-pag">4</span></div>
-          ${totalAcoes > 0 ? `<div class="rpt-sumario-item"><span class="rpt-sumario-num">${nSec.plano}.</span><span class="rpt-sumario-nome">Plano de Ação</span><span class="rpt-sumario-pontilhado"></span><span class="rpt-sumario-pag">5</span></div>` : ''}
-          <div class="rpt-sumario-sep"></div>
-          <div class="rpt-sumario-item"><span class="rpt-sumario-num">${nSec.conc}.</span><span class="rpt-sumario-nome">Conclusão Técnica</span><span class="rpt-sumario-pontilhado"></span><span class="rpt-sumario-pag">6</span></div>
-          <div class="rpt-sumario-item"><span class="rpt-sumario-num">${nSec.conc + 1}.</span><span class="rpt-sumario-nome">Assinatura</span><span class="rpt-sumario-pontilhado"></span><span class="rpt-sumario-pag">7</span></div>
+          ${(()=>{
+            const _si = (n, nome, pag) => `<div class="rpt-sumario-item"><span class="rpt-sumario-num">${n}.</span><span class="rpt-sumario-nome">${nome}</span><span class="rpt-sumario-pontilhado"></span><span class="rpt-sumario-pag">${pag}</span></div>`;
+            let rows = _si(secID, 'Identificação do Projeto', 3);
+            if (secObj)    rows += _si(secObj,    'Objetivo', 3);
+            rows += _si(secMet, 'Metodologia e Fundamentação Legal', 4);
+            rows += _si(secCar, 'Caracterização do Ambiente de Trabalho', 5);
+            if (secResAEP) rows += _si(secResAEP, 'Resultados — Avaliações Ergonômicas (AEP)', 6);
+            if (secResAFP) rows += _si(secResAFP, 'Resultados — Avaliações Psicossociais (AFP)', secResAEP ? 7 : 6);
+            if (secPlano)  rows += '<div class="rpt-sumario-sep"></div>' + _si(secPlano, 'Plano de Ação', secResAEP||secResAFP ? 8 : 6);
+            rows += '<div class="rpt-sumario-sep"></div>' + _si(secConc, 'Conclusão Técnica', 9);
+            rows += _si(secAssin, 'Assinatura', 10);
+            return rows;
+          })()}
         </div>
       </div>
 
@@ -1266,10 +1356,29 @@ Escreva 2 a 3 frases técnicas objetivas, em estilo de laudo de engenharia, desc
           <div style="font-size:var(--txt-sm);color:var(--texto-sec)">${emp?.nome || ''} · ${_fd(proj.dataInicio)}</div>
         </div>
 
-        <!-- Botões -->
-        <div class="nao-imprimir" style="display:flex;gap:var(--s3);flex-wrap:wrap;margin-bottom:var(--s5)">
-          <button class="btn btn-primario" onclick="ModuloProjeto.imprimir('engenhalves')">🖨️ Engenhalves</button>
-          <button class="btn btn-primario" onclick="ModuloProjeto.imprimir('kalprevi')" style="background:#1a5c2a">🖨️ Kalprevi</button>
+        <!-- Botões de impressão (variam conforme tipo do projeto) -->
+        <div class="nao-imprimir" style="display:flex;gap:var(--s2);flex-wrap:wrap;margin-bottom:var(--s5)">
+          ${isMisto ? `
+            <div style="display:flex;flex-direction:column;gap:var(--s1)">
+              <div style="font-size:var(--txt-xs);color:var(--texto-sec);font-weight:600">ENGENHALVES</div>
+              <div style="display:flex;gap:var(--s2);flex-wrap:wrap">
+                ${isAEP ? `<button class="btn btn-primario btn-sm" onclick="ModuloProjeto.imprimir('engenhalves','aep')">🖨️ Relatório AEP</button>` : ''}
+                ${isAFP ? `<button class="btn btn-primario btn-sm" onclick="ModuloProjeto.imprimir('engenhalves','afp')">🖨️ Relatório AFP</button>` : ''}
+                <button class="btn btn-primario btn-sm" onclick="ModuloProjeto.imprimir('engenhalves','hibrido')">🖨️ Relatório Híbrido</button>
+              </div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:var(--s1)">
+              <div style="font-size:var(--txt-xs);color:var(--texto-sec);font-weight:600">KALPREVI</div>
+              <div style="display:flex;gap:var(--s2);flex-wrap:wrap">
+                ${isAEP ? `<button class="btn btn-sm" style="background:#1a5c2a;color:#fff" onclick="ModuloProjeto.imprimir('kalprevi','aep')">🖨️ Relatório AEP</button>` : ''}
+                ${isAFP ? `<button class="btn btn-sm" style="background:#1a5c2a;color:#fff" onclick="ModuloProjeto.imprimir('kalprevi','afp')">🖨️ Relatório AFP</button>` : ''}
+                <button class="btn btn-sm" style="background:#1a5c2a;color:#fff" onclick="ModuloProjeto.imprimir('kalprevi','hibrido')">🖨️ Relatório Híbrido</button>
+              </div>
+            </div>
+          ` : `
+            <button class="btn btn-primario" onclick="ModuloProjeto.imprimir('engenhalves')">🖨️ Engenhalves</button>
+            <button class="btn btn-primario" onclick="ModuloProjeto.imprimir('kalprevi')" style="background:#1a5c2a">🖨️ Kalprevi</button>
+          `}
           <button class="btn btn-secundario" onclick="ModuloProjeto.exportarProjeto()">📤 Exportar Projeto</button>
         </div>
 
@@ -1280,52 +1389,112 @@ Escreva 2 a 3 frases técnicas objetivas, em estilo de laudo de engenharia, desc
           <div class="resumo-risco-card baixo"><div class="numero">${totalBx}</div><div class="label">Risco Baixo</div></div>
         </div>
 
-        <!-- 1. Identificação -->
+        <!-- 1. Identificação do Projeto -->
         <div class="relatorio-secao">
-          <h3>1. Identificação do Projeto</h3>
+          <h3>${secID}. Identificação do Projeto</h3>
           <div style="overflow-x:auto">
             <table class="tabela-simples">
               <tbody>
                 <tr><td style="font-weight:600;width:40%">Empresa / Cliente</td><td>${emp?.nome || '—'}</td></tr>
                 <tr><td style="font-weight:600">CNPJ</td><td>${emp?.cnpj || '—'}</td></tr>
-                <tr><td style="font-weight:600">Cidade / Estado</td><td>${[emp?.cidade, emp?.estado].filter(Boolean).join('/') || '—'}</td></tr>
-                <tr><td style="font-weight:600">Projeto</td><td>${proj.nome || '—'}</td></tr>
-                <tr><td style="font-weight:600">Tipo</td><td>${{ aep:'AEP', psicossocial:'Fatores Psicossociais', aet:'AET', integrado:'Integrado (AEP+FP+AET)' }[proj.tipo] || proj.tipo || '—'}</td></tr>
+                <tr><td style="font-weight:600">Endereço</td><td>${emp?.endereco || '—'}</td></tr>
+                <tr><td style="font-weight:600">Cidade / Estado</td><td>${[emp?.cidade, emp?.estado].filter(Boolean).join(' / ') || '—'}</td></tr>
+                <tr><td style="font-weight:600">Projeto / Dossiê</td><td>${proj.nome || '—'}</td></tr>
+                <tr><td style="font-weight:600">Tipo de Avaliação</td><td>${{ aep:'AEP — Avaliação Ergonômica Preliminar', psicossocial:'AFP — Avaliação de Fatores Psicossociais', aep_afp:'AEP + AFP — Ergonômico com Pesquisa Psicossocial', aet:'AET — Análise Ergonômica do Trabalho', integrado:'Integrado (AEP + AFP + AET)' }[proj.tipo] || proj.tipo || '—'}</td></tr>
                 <tr><td style="font-weight:600">N° do Laudo</td><td>${_nrProjetoAtual}</td></tr>
                 <tr><td style="font-weight:600">Data de Emissão</td><td>${_dataEmissao}</td></tr>
-                <tr><td style="font-weight:600">Data de Início</td><td>${_fd(proj.dataInicio) || '—'}</td></tr>
-                <tr><td style="font-weight:600">Data de Conclusão</td><td>${_fd(proj.dataFim) || '—'}</td></tr>
+                <tr><td style="font-weight:600">Período de Avaliação</td><td>${_fd(proj.dataInicio) || '—'}${proj.dataFim ? ' a ' + _fd(proj.dataFim) : ''}</td></tr>
                 <tr><td style="font-weight:600">Responsável Técnico</td><td>${proj.responsavelTecnico || '—'}</td></tr>
-                <tr><td style="font-weight:600">Registro Profissional</td><td>${proj.registroProfissional || '—'}</td></tr>
+                <tr><td style="font-weight:600">Registro Profissional</td><td>${proj.registroProfissional || '—'} ${proj.cargoResponsavel ? '· ' + proj.cargoResponsavel : ''}</td></tr>
               </tbody>
             </table>
           </div>
         </div>
 
-        <!-- 2. Objetivo -->
+        <!-- 2. Objetivo (condicional) -->
         ${proj.objetivo ? `
         <div class="relatorio-secao">
-          <h3>2. Objetivo</h3>
-          <div class="card"><p style="font-size:var(--txt-sm)">${proj.objetivo}</p></div>
+          <h3>${secObj}. Objetivo</h3>
+          <div class="card"><p style="font-size:var(--txt-sm);white-space:pre-wrap">${proj.objetivo}</p></div>
         </div>` : ''}
 
-        <!-- Escopo -->
+        <!-- Seção: Metodologia e Fundamentação Legal -->
         <div class="relatorio-secao">
-          <h3>${nSec.esc}. Escopo — Setores e Avaliações</h3>
-          <div class="card">
-            ${_li('Total de Setores', setores.length)}
-            ${_li('Total de Avaliações', avs.length)}
-            ${_li('Ações no Plano', totalAcoes)}
-            ${_li('Riscos Altos', totalAlt || '0')}
-            ${_li('Riscos Médios', totalMed || '0')}
+          <h3>${secMet}. Metodologia e Fundamentação Legal</h3>
+          <div class="card" style="margin-bottom:var(--s3)">
+            <p style="font-size:var(--txt-sm);line-height:1.6">${metodoMap[proj.tipo] || metodoMap.aep}</p>
           </div>
-          <div style="margin-top:var(--s3)">${secoesPorSetor}</div>
+          <div style="overflow-x:auto">
+            <table class="tabela-simples">
+              <thead><tr><th>Norma / Referência</th><th>Descrição / Portaria</th></tr></thead>
+              <tbody>${normasRows}</tbody>
+            </table>
+          </div>
         </div>
+
+        <!-- Seção: Caracterização do Ambiente de Trabalho -->
+        <div class="relatorio-secao">
+          <h3>${secCar}. Caracterização do Ambiente de Trabalho</h3>
+          <div class="card" style="margin-bottom:var(--s3)">
+            ${_li('Empresa / Cliente', emp?.nome || '—')}
+            ${_li('Atividade / CNAE', emp?.cnae || emp?.atividadePrincipal || '—')}
+            ${_li('Total de Setores Avaliados', setores.length)}
+            ${_li('Total de Funções Avaliadas', setores.reduce((n, s) => n + Storage.listarFuncoes(s.id).length, 0))}
+            ${_li('Total de Trabalhadores Expostos', totalTrab > 0 ? totalTrab : '—')}
+            ${_li('Total de Avaliações Realizadas', avs.length)}
+            ${isAEP ? _li('Não Conformidades — Risco Alto',  totalAlt > 0 ? totalAlt : '0') : ''}
+            ${isAEP ? _li('Não Conformidades — Risco Médio', totalMed > 0 ? totalMed : '0') : ''}
+            ${isAFP && avsFP.length > 0 ? _li('Grupos Psicossociais Avaliados', avsFP.length) : ''}
+          </div>
+          ${setores.length > 0 ? `
+          <div style="overflow-x:auto">
+            <table class="tabela-simples">
+              <thead><tr><th>Setor</th><th>Função</th><th style="text-align:center">Trab.</th><th>Atividades</th><th>Tipo de Avaliação</th></tr></thead>
+              <tbody>${tabelaEscopo}</tbody>
+            </table>
+          </div>` : '<p style="font-size:var(--txt-sm);color:var(--texto-sec)">Nenhum setor cadastrado.</p>'}
+        </div>
+
+        <!-- Seção: Resultados AEP por Função -->
+        ${secResAEP ? `
+        <div class="relatorio-secao rpt-secao-aep">
+          <h3>${secResAEP}. Resultados — Avaliações Ergonômicas (AEP)</h3>
+          <div class="card" style="margin-bottom:var(--s3)">
+            <p style="font-size:var(--txt-xs);color:var(--texto-sec);margin:0">
+              Score de Criticidade: 0–30 = Baixo · 31–60 = Médio · &gt;60 = Alto/Crítico.
+              NC Alto = não conformidades de risco alto · NC Médio = risco médio.
+            </p>
+          </div>
+          <div style="overflow-x:auto">
+            <table class="tabela-simples">
+              <thead><tr><th>Função</th><th>Setor</th><th style="text-align:center">Trab.</th><th style="text-align:center">Score</th><th style="text-align:center">Nível de Risco</th><th style="text-align:center">NC Alto</th><th style="text-align:center">NC Médio</th><th>Prioridade</th><th>Data</th></tr></thead>
+              <tbody>${linhasAEP || '<tr><td colspan="9" style="text-align:center;color:var(--texto-sec)">Nenhuma avaliação AEP encontrada</td></tr>'}</tbody>
+            </table>
+          </div>
+        </div>` : ''}
+
+        <!-- Seção: Resultados AFP por Grupo/Setor -->
+        ${secResAFP ? `
+        <div class="relatorio-secao rpt-secao-afp">
+          <h3>${secResAFP}. Resultados — Avaliações Psicossociais (AFP / COPSOQ-III)</h3>
+          <div class="card" style="margin-bottom:var(--s3)">
+            <p style="font-size:var(--txt-xs);color:var(--texto-sec);margin:0">
+              Resultados consolidados por grupo. Favorável ≥ 67% · Intermediário 34–66% · Desfavorável ≤ 33%.
+              Resultados não devem ser individualizados — uso exclusivo para fins de gestão de saúde coletiva.
+            </p>
+          </div>
+          <div style="overflow-x:auto">
+            <table class="tabela-simples">
+              <thead><tr><th>Grupo Avaliado</th><th>Setor</th><th style="text-align:center">Partic.</th><th style="text-align:center;color:#4caf50">Favorável</th><th style="text-align:center;color:#ff9800">Intermediário</th><th style="text-align:center;color:#f44336">Desfavorável</th><th>Dimensões Críticas</th><th>Data</th></tr></thead>
+              <tbody>${linhasAFP || '<tr><td colspan="8" style="text-align:center;color:var(--texto-sec)">Nenhuma avaliação AFP encontrada</td></tr>'}</tbody>
+            </table>
+          </div>
+        </div>` : ''}
 
         <!-- Plano de ação -->
         ${totalAcoes > 0 ? `
         <div class="relatorio-secao">
-          <h3>${nSec.plano}. Plano de Ação</h3>
+          <h3>${secPlano}. Plano de Ação</h3>
           <div style="overflow-x:auto">
             <table class="tabela-simples">
               <thead><tr><th>#</th><th>Ação / Recomendação</th><th>Setor · Função</th><th>Medida</th><th>Prior.</th><th>Responsável</th><th>Prazo</th><th>Status</th></tr></thead>
@@ -1358,7 +1527,7 @@ Escreva 2 a 3 frases técnicas objetivas, em estilo de laudo de engenharia, desc
 
         <!-- Conclusão técnica -->
         <div class="relatorio-secao">
-          <h3>${nSec.conc}. Conclusão Técnica</h3>
+          <h3>${secConc}. Conclusão Técnica</h3>
           <div class="card">
             <div class="grupo-campo nao-imprimir">
               <textarea id="proj-conclusao" rows="6"
@@ -1388,7 +1557,7 @@ Escreva 2 a 3 frases técnicas objetivas, em estilo de laudo de engenharia, desc
 
         <!-- Assinatura (só impressão) -->
         <div class="relatorio-secao so-imprimir">
-          <h3>${nSec.conc + 1}. Assinatura</h3>
+          <h3>${secAssin}. Assinatura</h3>
           <div style="margin-top:12pt">
             <table style="width:100%;border-collapse:collapse;font-size:9pt">
               <tr>
@@ -1458,10 +1627,15 @@ Escreva 2 a 3 frases técnicas objetivas, em estilo de laudo de engenharia, desc
     if (el4) el4.innerHTML = cfg.rodape(_nrProjetoAtual);
   }
 
-  function imprimir(empresa) {
+  function imprimir(empresa, modo) {
     salvarConclusao();
     if (empresa) _empresaImpressaoProj = empresa;
+    /* Remove modos anteriores */
+    document.body.classList.remove('rpt-modo-aep', 'rpt-modo-afp', 'rpt-modo-hibrido');
+    if (modo) document.body.classList.add(`rpt-modo-${modo}`);
     _sincronizarMarcaProjeto();
+    const limpar = () => document.body.classList.remove('rpt-modo-aep', 'rpt-modo-afp', 'rpt-modo-hibrido');
+    window.addEventListener('afterprint', limpar, { once: true });
     const imgs = [...document.querySelectorAll('#proj-capa-logo-area img, #proj-header-logo-area img')];
     const pendentes = imgs.filter(img => !img.complete);
     if (pendentes.length === 0) { window.print(); return; }
