@@ -1580,6 +1580,7 @@ const ModuloAEP = (() => {
           .badge-alto    { background:#f8d7da !important; color:#721c24 !important; border-color:#f5c6cb !important; }
           .badge-medio   { background:#fff3cd !important; color:#856404 !important; border-color:#ffeeba !important; }
           .badge-baixo   { background:#d4edda !important; color:#155724 !important; border-color:#c3e6cb !important; }
+          p, .campo-tecnico, textarea { text-align: justify !important; hyphens: auto !important; }
           textarea::placeholder, input::placeholder { color: transparent !important; }
           textarea.campo-tecnico { border: none !important; }
           div:empty { display: none !important; }

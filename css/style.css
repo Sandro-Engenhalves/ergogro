@@ -1056,6 +1056,11 @@ body.sem-nav #toast {
   .sem-impressao { display: none !important; }
 }
 
+/* ── Justificação nos relatórios ─────────────────────────── */
+.relatorio-secao p,
+.relatorio-secao .campo-tecnico,
+.relatorio-secao textarea { text-align: justify; hyphens: auto; }
+
 /* ── Impressão ───────────────────────────────────────────── */
 @media print {
   #app-header, #nav-principal, #nav-bottom, .btn, .btn-bloco, #toast,
