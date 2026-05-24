@@ -139,7 +139,7 @@ const ModuloProjeto = (() => {
     else if (secao === 'avaliacoes')  el.innerHTML = _htmlAvaliacoes();
     else if (secao === 'pesquisas')   ModuloPesquisaAdmin.renderizar();
     else if (secao === 'plano')       el.innerHTML = _htmlPlano();
-    else if (secao === 'relatorio')   { el.innerHTML = _htmlRelatorio(); window.addEventListener('beforeprint', _sincronizarMarcaProjeto); }
+    else if (secao === 'relatorio')   _renderizarRelatorio(el);
   }
 
   function _salvarSecaoAtual() {
@@ -1073,7 +1073,37 @@ Escreva 2 a 3 frases técnicas objetivas, em estilo de laudo de engenharia, desc
      SEÇÃO: RELATÓRIO CONSOLIDADO
   ══════════════════════════════════════════════════════════ */
 
-  function _htmlRelatorio() {
+  async function _renderizarRelatorio(el) {
+    el.innerHTML = '<div class="container" style="padding-top:var(--s6)"><div class="loading-inline">Gerando relatório...</div></div>';
+
+    const proj  = App.obterProjetoAtual();
+    const isAFP = proj && _TIPOS_COM_AFP.has(proj.tipo);
+
+    let afpDados = null;
+    if (isAFP && typeof listarCampanhas === 'function') {
+      try {
+        const campanhas     = await listarCampanhas(proj.id);
+        const comRespostas  = campanhas
+          .filter(c => c.totalRespostas > 0)
+          .sort((a, b) => ((b.criadoEm || '') > (a.criadoEm || '') ? 1 : -1));
+        if (comRespostas.length > 0) {
+          const c = comRespostas[0];
+          const [relatorio, campanha] = await Promise.all([
+            calcularRelatorio(c.id, c.minRespostasSetor || 5),
+            buscarCampanha(c.id),
+          ]);
+          afpDados = { relatorio, campanha: campanha || c };
+        }
+      } catch (e) {
+        console.warn('AFP: erro ao carregar dados da pesquisa —', e.message);
+      }
+    }
+
+    el.innerHTML = _htmlRelatorio(afpDados);
+    window.addEventListener('beforeprint', _sincronizarMarcaProjeto);
+  }
+
+  function _htmlRelatorio(afpDados) {
     const proj    = App.obterProjetoAtual();
     const emp     = Storage.buscarEmpresa(proj.empresaId);
     const setores = Storage.listarSetores(proj.id);
@@ -1102,8 +1132,9 @@ Escreva 2 a 3 frases técnicas objetivas, em estilo de laudo de engenharia, desc
     const secObj     = proj.objetivo ? _n++ : null;
     const secMet     = _n++;
     const secCar     = _n++;
-    const secResAEP  = isAEP && avsAEP.length > 0 ? _n++ : null;
-    const secResAFP  = isAFP && avsFP.length  > 0 ? _n++ : null;
+    const secResAEP   = isAEP && avsAEP.length > 0 ? _n++ : null;
+    const temDadosAFP = isAFP && (afpDados?.relatorio?.totalRespostas > 0);
+    const secResAFP   = temDadosAFP ? _n++ : null;
     const secPlano   = totalAcoes > 0 ? _n++ : null;
     const secConc    = _n++;
     const secAssin   = _n++;
@@ -1203,6 +1234,39 @@ Escreva 2 a 3 frases técnicas objetivas, em estilo de laudo de engenharia, desc
         <td style="text-align:center;font-weight:700;color:#f44336">${nDesf}</td>
         <td style="font-size:var(--txt-xs)">${criticos || '—'}</td>
         <td style="font-size:var(--txt-xs)">${_fd(g.dataColeta || av.dataAvaliacao)}</td>
+      </tr>`;
+    }).join('');
+
+    /* ── Dados AFP vindos da pesquisa (Firestore) ── */
+    const afpR = afpDados?.relatorio;
+    const NIVEL_AFP_COR = { favoravel: '#4caf50', intermediario: '#ff9800', desfavoravel: '#f44336', sem_dados: '#888' };
+    const NIVEL_AFP_T   = { favoravel: 'Favorável', intermediario: 'Intermediário', desfavoravel: 'Desfavorável', sem_dados: 'Sem dados' };
+    const dimAFPLinhas  = (afpR?.consolidado || []).map(d => `<tr>
+      <td style="font-weight:600">${d.nome}</td>
+      <td>
+        <div style="display:flex;align-items:center;gap:6px">
+          <div style="flex:1;height:8px;background:#e0e0e0;border-radius:999px;overflow:hidden;min-width:60px">
+            <div style="height:100%;width:${d.media ?? 0}%;background:${NIVEL_AFP_COR[d.nivel] || '#888'};border-radius:999px"></div>
+          </div>
+          <span style="font-weight:700;min-width:28px;text-align:right">${d.media ?? '—'}</span>
+        </div>
+      </td>
+      <td style="text-align:center;font-weight:700;color:${NIVEL_AFP_COR[d.nivel] || '#888'}">${NIVEL_AFP_T[d.nivel] || '—'}</td>
+    </tr>`).join('');
+    const afpSetorEntries = Object.entries(afpR?.porSetor || {});
+    const afpSetorLinhas  = afpSetorEntries.map(([nome, dados]) => {
+      if (dados.insuficiente) {
+        return `<tr><td style="font-weight:600">${nome}</td><td style="text-align:center;color:var(--texto-sec)">${dados.total}</td><td colspan="3" style="font-size:var(--txt-xs);color:var(--texto-sec)">Insuficiente (mín. ${dados.minimo})</td></tr>`;
+      }
+      const nFav  = dados.dimensoes.filter(d => d.nivel === 'favoravel').length;
+      const nInt  = dados.dimensoes.filter(d => d.nivel === 'intermediario').length;
+      const nDesf = dados.dimensoes.filter(d => d.nivel === 'desfavoravel').length;
+      return `<tr>
+        <td style="font-weight:600">${nome}</td>
+        <td style="text-align:center">${dados.total}</td>
+        <td style="text-align:center;font-weight:700;color:#4caf50">${nFav}</td>
+        <td style="text-align:center;font-weight:700;color:#ff9800">${nInt}</td>
+        <td style="text-align:center;font-weight:700;color:#f44336">${nDesf}</td>
       </tr>`;
     }).join('');
 
@@ -1444,7 +1508,7 @@ Escreva 2 a 3 frases técnicas objetivas, em estilo de laudo de engenharia, desc
             ${_li('Total de Avaliações Realizadas', avs.length)}
             ${isAEP ? _li('Não Conformidades — Risco Alto',  totalAlt > 0 ? totalAlt : '0') : ''}
             ${isAEP ? _li('Não Conformidades — Risco Médio', totalMed > 0 ? totalMed : '0') : ''}
-            ${isAFP && avsFP.length > 0 ? _li('Grupos Psicossociais Avaliados', avsFP.length) : ''}
+            ${isAFP && afpDados ? _li('Pesquisa AFP — Respondentes', afpR.totalRespostas + (afpR.totalAutorizados ? ` de ${afpR.totalAutorizados} (${afpR.taxaParticipacao ?? '—'}%)` : '')) : ''}
           </div>
           ${setores.length > 0 ? `
           <div style="overflow-x:auto">
@@ -1473,22 +1537,54 @@ Escreva 2 a 3 frases técnicas objetivas, em estilo de laudo de engenharia, desc
           </div>
         </div>` : ''}
 
-        <!-- Seção: Resultados AFP por Grupo/Setor -->
+        <!-- Seção: Resultados AFP — dados da pesquisa COPSOQ-III (Firestore) -->
         ${secResAFP ? `
         <div class="relatorio-secao rpt-secao-afp">
-          <h3>${secResAFP}. Resultados — Avaliações Psicossociais (AFP / COPSOQ-III)</h3>
+          <h3>${secResAFP}. Resultados — Avaliação de Fatores Psicossociais (AFP / COPSOQ-III)</h3>
+
+          <!-- Indicadores de participação -->
           <div class="card" style="margin-bottom:var(--s3)">
-            <p style="font-size:var(--txt-xs);color:var(--texto-sec);margin:0">
-              Resultados consolidados por grupo. Favorável ≥ 67% · Intermediário 34–66% · Desfavorável ≤ 33%.
-              Resultados não devem ser individualizados — uso exclusivo para fins de gestão de saúde coletiva.
-            </p>
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:var(--s3);text-align:center;margin-bottom:var(--s3)">
+              <div>
+                <div style="font-size:24px;font-weight:700;color:var(--primaria)">${afpR.totalRespostas}</div>
+                <div style="font-size:var(--txt-xs);color:var(--texto-sec)">Respondentes</div>
+              </div>
+              <div>
+                <div style="font-size:24px;font-weight:700">${afpR.totalAutorizados || '—'}</div>
+                <div style="font-size:var(--txt-xs);color:var(--texto-sec)">Convidados</div>
+              </div>
+              <div>
+                <div style="font-size:24px;font-weight:700;color:${(afpR.taxaParticipacao >= 70) ? '#4caf50' : '#ff9800'}">${afpR.taxaParticipacao != null ? afpR.taxaParticipacao + '%' : '—'}</div>
+                <div style="font-size:var(--txt-xs);color:var(--texto-sec)">Taxa de participação</div>
+              </div>
+            </div>
+            ${afpR.scoreGeral != null ? `
+              <div style="text-align:center;border-top:1px solid var(--borda);padding-top:var(--s3)">
+                <div style="font-size:var(--txt-xs);color:var(--texto-sec);margin-bottom:var(--s1)">Score Geral COPSOQ-III (0–100)</div>
+                <div style="font-size:32px;font-weight:700;color:${afpR.scoreGeral >= 67 ? '#4caf50' : afpR.scoreGeral >= 34 ? '#ff9800' : '#f44336'}">${afpR.scoreGeral}</div>
+              </div>` : ''}
           </div>
-          <div style="overflow-x:auto">
+
+          <!-- Resultado por dimensão -->
+          <div style="overflow-x:auto;margin-bottom:var(--s3)">
             <table class="tabela-simples">
-              <thead><tr><th>Grupo Avaliado</th><th>Setor</th><th style="text-align:center">Partic.</th><th style="text-align:center;color:#4caf50">Favorável</th><th style="text-align:center;color:#ff9800">Intermediário</th><th style="text-align:center;color:#f44336">Desfavorável</th><th>Dimensões Críticas</th><th>Data</th></tr></thead>
-              <tbody>${linhasAFP || '<tr><td colspan="8" style="text-align:center;color:var(--texto-sec)">Nenhuma avaliação AFP encontrada</td></tr>'}</tbody>
+              <thead><tr><th>Dimensão COPSOQ-III</th><th>Pontuação (0–100)</th><th style="text-align:center">Classificação</th></tr></thead>
+              <tbody>${dimAFPLinhas || '<tr><td colspan="3" style="text-align:center;color:var(--texto-sec)">Sem dados de dimensões</td></tr>'}</tbody>
             </table>
           </div>
+
+          <!-- Resultado por setor (se houver setores com dados suficientes) -->
+          ${afpSetorEntries.length > 0 ? `
+          <div style="overflow-x:auto">
+            <table class="tabela-simples">
+              <thead><tr><th>Setor / Grupo</th><th style="text-align:center">Resp.</th><th style="text-align:center;color:#4caf50">Fav.</th><th style="text-align:center;color:#ff9800">Int.</th><th style="text-align:center;color:#f44336">Desf.</th></tr></thead>
+              <tbody>${afpSetorLinhas}</tbody>
+            </table>
+          </div>` : ''}
+
+          <p style="font-size:var(--txt-xs);color:var(--texto-sec);margin-top:var(--s2)">
+            Resultados não devem ser individualizados — uso exclusivo para gestão de saúde coletiva (LGPD — Lei nº 13.709/2018).
+          </p>
         </div>` : ''}
 
         <!-- Plano de ação -->
