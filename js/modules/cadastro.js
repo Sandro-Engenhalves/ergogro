@@ -12,7 +12,8 @@
 
 const ModuloCadastro = (() => {
 
-  let _isNovaEmpresa = false; /* controla redirecionamento após salvar */
+  let _isNovaEmpresa  = false; /* controla redirecionamento após salvar */
+  let _importPreview  = null;  /* { empId, rows } — estado temporário do import */
 
   function renderizar() {
     const tela     = document.getElementById('tela-empresas');
@@ -53,6 +54,51 @@ const ModuloCadastro = (() => {
             <button class="btn-icone" onclick="ModuloCadastro.fecharModal('modal-empresa')">✕</button>
           </div>
           <div id="modal-emp-form"></div>
+        </div>
+      </div>
+
+      <!-- Modal Importar Planilha -->
+      <div class="modal-overlay oculto" id="modal-importar-catalogo">
+        <div class="modal-panel" style="max-width:580px">
+          <div class="modal-titulo">
+            <span>📊 Importar Catálogo por Planilha</span>
+            <button class="btn-icone" onclick="ModuloCadastro.fecharModal('modal-importar-catalogo')">✕</button>
+          </div>
+          <div style="padding:var(--s4)">
+            <input type="hidden" id="import-emp-id">
+
+            <!-- Fase 1: instrução + upload -->
+            <div id="import-phase-1">
+              <div class="aviso-tecnico info" style="margin-bottom:var(--s4)">
+                <span>ℹ️</span>
+                <div>
+                  <strong>Como importar:</strong>
+                  <ol style="margin:var(--s2) 0 0 var(--s4);font-size:var(--txt-xs);line-height:1.8">
+                    <li>Baixe o modelo abaixo e abra no Excel</li>
+                    <li>Preencha uma função por linha (mesma linha para repetir o setor)</li>
+                    <li>Salve como <strong>.csv</strong> ou mantenha como <strong>.xlsx</strong></li>
+                    <li>Clique em "Selecionar arquivo" e escolha o arquivo</li>
+                  </ol>
+                </div>
+              </div>
+              <button class="btn btn-secundario btn-sm" style="margin-bottom:var(--s4)"
+                      onclick="ModuloCadastro._baixarModeloCsv()">
+                ⬇️ Baixar Modelo (.csv)
+              </button>
+              <div class="grupo-campo">
+                <label>Arquivo da planilha (.csv ou .xlsx)</label>
+                <input type="file" id="import-file-input" accept=".csv,.xlsx,.xls"
+                       style="padding:var(--s2);border:1px dashed var(--borda);border-radius:var(--raio);background:var(--superficie-alt);color:var(--texto);width:100%;box-sizing:border-box;cursor:pointer"
+                       onchange="ModuloCadastro._onArquivoSelecionado(this)">
+              </div>
+              <p style="font-size:var(--txt-xs);color:var(--texto-sec);margin-top:var(--s2)">
+                Colunas esperadas: <strong>Setor · Função/Cargo · Nº Trab. · Turno · GHE · Descrição</strong>
+              </p>
+            </div>
+
+            <!-- Fase 2: preview -->
+            <div id="import-phase-2" style="display:none"></div>
+          </div>
         </div>
       </div>
 
@@ -122,8 +168,12 @@ const ModuloCadastro = (() => {
              onclick="event.stopPropagation()"
              style="border-top:1px solid var(--borda);padding:var(--s4);background:var(--superficie-alt)">
           ${catalogoHTML}
-          <button class="btn btn-fantasma btn-sm" style="margin-top:var(--s2)"
-                  onclick="ModuloCadastro.abrirFormSetorMaster('${emp.id}')">+ Setor</button>
+          <div style="display:flex;gap:var(--s2);margin-top:var(--s2)">
+            <button class="btn btn-fantasma btn-sm"
+                    onclick="ModuloCadastro.abrirFormSetorMaster('${emp.id}')">+ Setor</button>
+            <button class="btn btn-fantasma btn-sm"
+                    onclick="ModuloCadastro.abrirModalImport('${emp.id}')">📊 Importar</button>
+          </div>
         </div>
       </div>`;
   }
@@ -264,10 +314,16 @@ const ModuloCadastro = (() => {
                 Estrutura padrão da empresa. Reutilize nos Projetos de Laudo via importação.
               </div>
             </div>
-            <button class="btn btn-secundario btn-sm"
-                    onclick="ModuloCadastro.abrirFormSetorMaster('${emp.id}')">
-              + Setor
-            </button>
+            <div style="display:flex;gap:var(--s2);flex-shrink:0">
+              <button class="btn btn-fantasma btn-sm"
+                      onclick="ModuloCadastro.abrirModalImport('${emp.id}')">
+                📊 Importar
+              </button>
+              <button class="btn btn-secundario btn-sm"
+                      onclick="ModuloCadastro.abrirFormSetorMaster('${emp.id}')">
+                + Setor
+              </button>
+            </div>
           </div>
           <div id="catalogo-${emp.id}">${catalogoHTML}</div>
         </div>
@@ -522,6 +578,210 @@ const ModuloCadastro = (() => {
     document.getElementById(modalId)?.classList.add('oculto');
   }
 
+  /* ══════════════════════════════════════════════════════════
+     IMPORTAÇÃO DE PLANILHA
+  ══════════════════════════════════════════════════════════ */
+
+  function abrirModalImport(empId) {
+    _importPreview = null;
+    const modal = document.getElementById('modal-importar-catalogo');
+    if (!modal) return;
+    document.getElementById('import-emp-id').value = empId;
+    document.getElementById('import-phase-1').style.display = '';
+    document.getElementById('import-phase-2').style.display = 'none';
+    const fi = document.getElementById('import-file-input');
+    if (fi) fi.value = '';
+    modal.classList.remove('oculto');
+  }
+
+  function _baixarModeloCsv() {
+    const bom  = '﻿'; /* BOM para Excel reconhecer UTF-8 */
+    const rows = [
+      'Setor,Função/Cargo,Nº Trabalhadores,Turno,GHE,Descrição da Atividade',
+      'Administrativo,Analista de RH,2,Diurno,GHE-01,Realiza processos de recrutamento e seleção de pessoal',
+      'Administrativo,Assistente Financeiro,1,Diurno,GHE-01,Controla contas a pagar e receber',
+      'Produção,Operador de Máquina,5,12x36,GHE-02,Opera prensas hidráulicas e realiza setup de equipamentos',
+      'Produção,Auxiliar de Produção,8,12x36,GHE-02,Auxilia nas operações de produção e abastecimento de linha',
+    ];
+    const csv  = bom + rows.join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href = url; a.download = 'modelo_catalogo_ergogro.csv'; a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function _onArquivoSelecionado(input) {
+    const file  = input.files?.[0];
+    const empId = document.getElementById('import-emp-id')?.value;
+    if (file && empId) _processarArquivoImport(file, empId);
+  }
+
+  async function _processarArquivoImport(file, empId) {
+    try {
+      let rows;
+      const ext = file.name.split('.').pop().toLowerCase();
+      if (ext === 'csv' || file.type === 'text/csv' || file.type === 'text/plain') {
+        const text = await file.text();
+        rows = _parseCsv(text);
+      } else {
+        rows = await _parseXlsx(file);
+      }
+      if (!rows || rows.length === 0) {
+        App.mostrarToast('Nenhum dado encontrado. Verifique o formato do arquivo.', 'erro');
+        return;
+      }
+      _importPreview = { empId, rows };
+      _renderizarPreviewImport(rows, empId);
+    } catch (err) {
+      App.mostrarToast('Erro ao processar arquivo: ' + err.message, 'erro');
+    }
+  }
+
+  function _parseCsv(text) {
+    text = text.replace(/^﻿/, ''); /* remove BOM */
+    const primeiraLinha = text.split('\n')[0] || '';
+    const delim = primeiraLinha.split(';').length > primeiraLinha.split(',').length ? ';' : ',';
+    const linhas = text.split(/\r?\n/).filter(l => l.trim());
+    if (linhas.length < 2) return [];
+    return linhas.slice(1).map(l => {
+      const c = _parseCsvLinha(l, delim);
+      return { setor: (c[0]||'').trim(), funcao: (c[1]||'').trim(), numTrab: (c[2]||'').trim(),
+               turno: (c[3]||'').trim(), ghe: (c[4]||'').trim(), descricao: (c[5]||'').trim() };
+    }).filter(r => r.setor && r.funcao);
+  }
+
+  function _parseCsvLinha(linha, delim) {
+    const res = []; let cur = ''; let aspas = false;
+    for (let i = 0; i < linha.length; i++) {
+      const c = linha[i];
+      if (c === '"') {
+        if (aspas && linha[i+1] === '"') { cur += '"'; i++; }
+        else aspas = !aspas;
+      } else if (c === delim && !aspas) { res.push(cur); cur = ''; }
+      else cur += c;
+    }
+    res.push(cur);
+    return res;
+  }
+
+  async function _parseXlsx(file) {
+    if (typeof XLSX === 'undefined') {
+      await new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+        s.onload  = resolve;
+        s.onerror = () => reject(new Error('Não foi possível carregar o leitor de XLSX. Salve o arquivo como .csv e tente novamente.'));
+        document.head.appendChild(s);
+      });
+    }
+    const buf  = await file.arrayBuffer();
+    const wb   = XLSX.read(buf, { type: 'array' });
+    const ws   = wb.Sheets[wb.SheetNames[0]];
+    const data = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+    if (data.length < 2) return [];
+    return data.slice(1).map(row => ({
+      setor:     String(row[0]||'').trim(), funcao:    String(row[1]||'').trim(),
+      numTrab:   String(row[2]||'').trim(), turno:     String(row[3]||'').trim(),
+      ghe:       String(row[4]||'').trim(), descricao: String(row[5]||'').trim(),
+    })).filter(r => r.setor && r.funcao);
+  }
+
+  function _renderizarPreviewImport(rows, empId) {
+    const setores = [...new Set(rows.map(r => r.setor))];
+    const tbody   = rows.map(r => `
+      <tr>
+        <td style="padding:3px 6px;font-size:11px;border:1px solid var(--borda)">${r.setor}</td>
+        <td style="padding:3px 6px;font-size:11px;border:1px solid var(--borda);font-weight:500">${r.funcao}</td>
+        <td style="padding:3px 6px;font-size:11px;border:1px solid var(--borda);text-align:center">${r.numTrab||'—'}</td>
+        <td style="padding:3px 6px;font-size:11px;border:1px solid var(--borda)">${r.turno||'—'}</td>
+        <td style="padding:3px 6px;font-size:11px;border:1px solid var(--borda)">${r.ghe||'—'}</td>
+      </tr>`).join('');
+
+    document.getElementById('import-phase-1').style.display = 'none';
+    const ph2 = document.getElementById('import-phase-2');
+    ph2.style.display = '';
+    ph2.innerHTML = `
+      <div style="display:flex;gap:var(--s2);flex-wrap:wrap;margin-bottom:var(--s3)">
+        <span class="badge badge-info">${rows.length} função(ões)</span>
+        <span class="badge badge-na">${setores.length} setor(es)</span>
+      </div>
+      <div style="overflow:auto;max-height:280px;margin-bottom:var(--s3);border:1px solid var(--borda);border-radius:var(--raio)">
+        <table style="width:100%;border-collapse:collapse">
+          <thead>
+            <tr style="background:var(--primaria);color:#fff;position:sticky;top:0">
+              <th style="padding:4px 6px;font-size:11px;text-align:left">Setor</th>
+              <th style="padding:4px 6px;font-size:11px;text-align:left">Função</th>
+              <th style="padding:4px 6px;font-size:11px">Trab.</th>
+              <th style="padding:4px 6px;font-size:11px">Turno</th>
+              <th style="padding:4px 6px;font-size:11px">GHE</th>
+            </tr>
+          </thead>
+          <tbody>${tbody}</tbody>
+        </table>
+      </div>
+      <p style="font-size:var(--txt-xs);color:var(--texto-sec);margin-bottom:var(--s3)">
+        Setores com mesmo nome serão agrupados. Funções duplicadas no mesmo setor serão ignoradas.
+      </p>
+      <div style="display:flex;gap:var(--s2)">
+        <button class="btn btn-primario" onclick="ModuloCadastro.confirmarImport()">
+          ✅ Importar ${rows.length} função(ões)
+        </button>
+        <button class="btn btn-secundario" onclick="ModuloCadastro._voltarImportPhase1()">
+          ← Voltar
+        </button>
+      </div>`;
+  }
+
+  function _voltarImportPhase1() {
+    document.getElementById('import-phase-1').style.display = '';
+    document.getElementById('import-phase-2').style.display = 'none';
+    _importPreview = null;
+  }
+
+  function confirmarImport() {
+    if (!_importPreview) return;
+    const { empId, rows } = _importPreview;
+
+    const setoresMstr  = Storage.listarSetoresMaster(empId);
+    const mapaSetores  = {};
+    setoresMstr.forEach(s => { mapaSetores[s.nome.toLowerCase()] = s; });
+
+    let novosSetores = 0, novasFuncoes = 0, ignoradas = 0;
+
+    rows.forEach(r => {
+      const chave = r.setor.toLowerCase();
+      let setor   = mapaSetores[chave];
+      if (!setor) {
+        setor = Storage.criarSetorMaster(empId);
+        setor.nome = r.setor;
+        Storage.salvarSetorMaster(setor);
+        mapaSetores[chave] = setor;
+        novosSetores++;
+      }
+      const existentes = Storage.listarFuncoesMaster(setor.id);
+      if (existentes.some(f => f.nome.toLowerCase() === r.funcao.toLowerCase())) {
+        ignoradas++; return;
+      }
+      const fn = Storage.criarFuncaoMaster(empId, setor.id);
+      fn.nome              = r.funcao;
+      fn.numTrabalhadores  = r.numTrab;
+      fn.turno             = r.turno;
+      fn.grupoHomogeneo    = r.ghe;
+      fn.descricaoAtividade = r.descricao;
+      Storage.salvarFuncaoMaster(fn);
+      novasFuncoes++;
+    });
+
+    fecharModal('modal-importar-catalogo');
+    _importPreview = null;
+
+    let msg = `${novosSetores} setor(es) e ${novasFuncoes} função(ões) importados`;
+    if (ignoradas > 0) msg += ` · ${ignoradas} duplicada(s) ignorada(s)`;
+    App.mostrarToast(msg, 'sucesso');
+    renderizar();
+  }
+
   return {
     renderizar,
     /* Lista de clientes */
@@ -532,6 +792,8 @@ const ModuloCadastro = (() => {
     abrirFormSetorMaster, salvarSetorMaster, excluirSetorMaster,
     /* Função mestre */
     abrirFormFuncaoMaster, salvarFuncaoMaster, excluirFuncaoMaster,
+    /* Import planilha */
+    abrirModalImport, _baixarModeloCsv, _onArquivoSelecionado, _voltarImportPhase1, confirmarImport,
     /* Util */
     fecharModal
   };
