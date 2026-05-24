@@ -1095,6 +1095,7 @@ Escreva 2 a 3 frases técnicas objetivas, em estilo de laudo de engenharia, desc
           ]);
           afpDados = { relatorio, campanha: campanha || c };
           _afpCampanhaCache = { id: c.id, minRespostas: c.minRespostasSetor || 5 };
+          ModuloPesquisaAdmin.definirCacheRelatorio(relatorio, campanha || c);
         }
       } catch (e) {
         console.warn('AFP: erro ao carregar dados da pesquisa —', e.message);
@@ -1105,7 +1106,7 @@ Escreva 2 a 3 frases técnicas objetivas, em estilo de laudo de engenharia, desc
     window.addEventListener('beforeprint', _sincronizarMarcaProjeto);
   }
 
-  function _htmlRelatorio(afpDados) {
+  function _htmlRelatorio(afpDados, soAEP = false) {
     const proj    = App.obterProjetoAtual();
     const emp     = Storage.buscarEmpresa(proj.empresaId);
     const setores = Storage.listarSetores(proj.id);
@@ -1116,6 +1117,7 @@ Escreva 2 a 3 frases técnicas objetivas, em estilo de laudo de engenharia, desc
     /* ── Flags de tipo ── */
     const isAEP   = ['aep','aep_afp','integrado'].includes(proj.tipo);
     const isAFP   = ['psicossocial','aep_afp','integrado'].includes(proj.tipo);
+    const isAFP_r = isAFP && !soAEP; /* AFP relevante para este modo de impressão */
     const isMisto = ['aep_afp','integrado'].includes(proj.tipo);
     const avsAEP  = avs.filter(av => av.tipo === 'aep');
     const avsFP   = avs.filter(av => av.tipo === 'psicossocial');
@@ -1135,7 +1137,7 @@ Escreva 2 a 3 frases técnicas objetivas, em estilo de laudo de engenharia, desc
     const secMet     = _n++;
     const secCar     = _n++;
     const secResAEP   = isAEP && avsAEP.length > 0 ? _n++ : null;
-    const temDadosAFP = isAFP && (afpDados?.relatorio?.totalRespostas > 0);
+    const temDadosAFP = isAFP_r && (afpDados?.relatorio?.totalRespostas > 0);
     const secResAFP   = temDadosAFP ? _n++ : null;
     const secPlano   = totalAcoes > 0 ? _n++ : null;
     const secConc    = _n++;
@@ -1154,7 +1156,7 @@ Escreva 2 a 3 frases técnicas objetivas, em estilo de laudo de engenharia, desc
     const normasRows = [
       { n: 'NR-17 — Ergonomia',                    r: 'Portaria MTP n.º 1.467/2023' },
       { n: 'NR-01 — Disposições Gerais / GRO-PGR', r: 'Portaria MTPS n.º 3.214/1978 · Portaria MTPS n.º 6.730/2020' },
-      ...(isAFP ? [{ n: 'COPSOQ-III Brasil (versão reduzida)', r: 'Ferramenta de Avaliação de Fatores Psicossociais', cls: 'rpt-secao-afp' }] : []),
+      ...(isAFP_r ? [{ n: 'COPSOQ-III Brasil (versão reduzida)', r: 'Ferramenta de Avaliação de Fatores Psicossociais', cls: 'rpt-secao-afp' }] : []),
       { n: 'Manual de Aplicação da NR-17',          r: 'Secretaria de Inspeção do Trabalho — SIT/MTb' },
       { n: 'ABNT NBR ISO 9241-210',                 r: 'Ergonomia da interação humano-sistema' },
     ].map(({n, r, cls}) => `<tr${cls ? ` class="${cls}"` : ''}><td style="font-weight:600;width:50%">${n}</td><td>${r}</td></tr>`).join('');
@@ -1501,12 +1503,12 @@ Escreva 2 a 3 frases técnicas objetivas, em estilo de laudo de engenharia, desc
         <div class="relatorio-secao">
           <h3>${secMet}. Metodologia e Fundamentação Legal</h3>
           <div class="card" style="margin-bottom:var(--s3)">
-            ${isMisto ? `
+            ${isMisto && !soAEP ? `
               <p class="rpt-met-aep" style="font-size:var(--txt-sm);line-height:1.6">${metodoMap.aep}</p>
               <p class="rpt-met-afp" style="font-size:var(--txt-sm);line-height:1.6">${metodoMap.psicossocial}</p>
               <p class="rpt-met-mix" style="font-size:var(--txt-sm);line-height:1.6">${metodoMap.aep_afp}</p>
             ` : `
-              <p style="font-size:var(--txt-sm);line-height:1.6">${metodoMap[proj.tipo] || metodoMap.aep}</p>
+              <p style="font-size:var(--txt-sm);line-height:1.6">${soAEP ? metodoMap.aep : (metodoMap[proj.tipo] || metodoMap.aep)}</p>
             `}
           </div>
           <div style="overflow-x:auto">
@@ -1529,7 +1531,7 @@ Escreva 2 a 3 frases técnicas objetivas, em estilo de laudo de engenharia, desc
             ${_li('Total de Avaliações Realizadas', avs.length)}
             ${isAEP ? _li('Não Conformidades — Risco Alto',  totalAlt > 0 ? totalAlt : '0') : ''}
             ${isAEP ? _li('Não Conformidades — Risco Médio', totalMed > 0 ? totalMed : '0') : ''}
-            ${isAFP && afpDados ? _li('Pesquisa AFP — Respondentes', afpR.totalRespostas + (afpR.totalAutorizados ? ` de ${afpR.totalAutorizados} (${afpR.taxaParticipacao ?? '—'}%)` : '')) : ''}
+            ${isAFP_r && afpDados ? _li('Pesquisa AFP — Respondentes', afpR.totalRespostas + (afpR.totalAutorizados ? ` de ${afpR.totalAutorizados} (${afpR.taxaParticipacao ?? '—'}%)` : '')) : ''}
           </div>
           ${setores.length > 0 ? `
           <div style="overflow-x:auto">
@@ -1736,15 +1738,17 @@ Escreva 2 a 3 frases técnicas objetivas, em estilo de laudo de engenharia, desc
     App.mostrarToast('Conclusão salva','sucesso');
   }
 
-  function _sincronizarMarcaProjeto() {
-    const cfg = _EMPRESAS_PROJ[_empresaImpressaoProj] || _EMPRESAS_PROJ.engenhalves;
-    const el1 = document.getElementById('proj-capa-barra-topo');
+  function _sincronizarMarcaProjeto(scopeEl) {
+    const ROOT = scopeEl || document;
+    const $    = id => ROOT === document ? document.getElementById(id) : ROOT.querySelector('#' + id);
+    const cfg  = _EMPRESAS_PROJ[_empresaImpressaoProj] || _EMPRESAS_PROJ.engenhalves;
+    const el1  = $('proj-capa-barra-topo');
     if (el1) el1.textContent = cfg.barraTopoTexto;
-    const el2 = document.getElementById('proj-capa-logo-area');
+    const el2  = $('proj-capa-logo-area');
     if (el2) el2.innerHTML = cfg.capaLogo();
-    const el3 = document.getElementById('proj-header-logo-area');
+    const el3  = $('proj-header-logo-area');
     if (el3) el3.innerHTML = cfg.headerLogo();
-    const el4 = document.getElementById('proj-rodape-empresa');
+    const el4  = $('proj-rodape-empresa');
     if (el4) el4.innerHTML = cfg.rodape(_nrProjetoAtual);
   }
 
@@ -1752,36 +1756,43 @@ Escreva 2 a 3 frases técnicas objetivas, em estilo de laudo de engenharia, desc
     salvarConclusao();
     if (empresa) _empresaImpressaoProj = empresa;
 
-    /* Relatório AFP → delega ao módulo de pesquisa (documento separado) */
+    /* Relatório AFP → usa cache pré-carregado para chamada síncrona */
     if (modo === 'afp') {
-      ModuloPesquisaAdmin.imprimirParaProjeto(
-        _afpCampanhaCache?.id,
-        _afpCampanhaCache?.minRespostas,
-        empresa
-      );
+      ModuloPesquisaAdmin.imprimirComCache(empresa);
       return;
     }
 
-    /* Relatório AEP → oculta seções AFP via inline style !important
-       (mais confiável que seletor CSS vs outros !important do layout) */
+    /* Relatório AEP → gera overlay com HTML exclusivamente AEP (sem AFP) */
     if (modo === 'aep') {
-      _sincronizarMarcaProjeto();
-      const hide = [...document.querySelectorAll('.rpt-secao-afp, .rpt-met-afp, .rpt-met-mix')];
-      const show = [...document.querySelectorAll('.rpt-met-aep')];
-      hide.forEach(el => el.style.setProperty('display', 'none',  'important'));
-      show.forEach(el => el.style.setProperty('display', 'block', 'important'));
-      const restore = () => {
-        hide.forEach(el => el.style.removeProperty('display'));
-        show.forEach(el => el.style.removeProperty('display'));
-        window.removeEventListener('afterprint', restore);
+      const overlay = document.createElement('div');
+      overlay.id    = '_aep_print_layer_';
+      overlay.innerHTML = _htmlRelatorio(null, true);
+
+      const style = document.createElement('style');
+      style.id    = '_aep_print_style_';
+      style.textContent = [
+        '@media screen { #_aep_print_layer_ { display:none !important; } }',
+        '@media print  { body > * { display:none !important; }',
+        '                #_aep_print_layer_ { display:block !important; } }',
+      ].join('\n');
+
+      document.head.appendChild(style);
+      document.body.appendChild(overlay);
+
+      _sincronizarMarcaProjeto(overlay);
+
+      const cleanup = () => {
+        overlay.parentNode?.removeChild(overlay);
+        style.parentNode?.removeChild(style);
       };
-      window.addEventListener('afterprint', restore, { once: true });
-      const imgsa = [...document.querySelectorAll('#proj-capa-logo-area img, #proj-header-logo-area img')];
-      const pendentesa = imgsa.filter(img => !img.complete);
-      if (pendentesa.length === 0) { window.print(); return; }
-      let na = 0;
-      const proximoa = () => { if (++na >= pendentesa.length) window.print(); };
-      pendentesa.forEach(img => { img.onload = proximoa; img.onerror = proximoa; });
+      window.addEventListener('afterprint', cleanup, { once: true });
+
+      const imgs     = [...overlay.querySelectorAll('img')];
+      const pendentes = imgs.filter(img => !img.complete);
+      if (pendentes.length === 0) { window.print(); return; }
+      let n = 0;
+      const proximo = () => { if (++n >= pendentes.length) window.print(); };
+      pendentes.forEach(img => { img.onload = proximo; img.onerror = proximo; });
       return;
     }
 

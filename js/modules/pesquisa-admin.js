@@ -15,8 +15,9 @@ const ModuloPesquisaAdmin = (() => {
   let _secaoAtual      = 'campanhas';
   let _campanhaAberta  = null; /* campanha selecionada */
   let _monitorUnsubscribe = null;
-  let _empresaImpressao = 'engenhalves'; /* 'engenhalves' | 'kalprevi' */
-  let _nrLaudoAtual     = '';            /* atualizado em _htmlRelatorio */
+  let _empresaImpressao    = 'engenhalves'; /* 'engenhalves' | 'kalprevi' */
+  let _nrLaudoAtual        = '';            /* atualizado em _htmlRelatorio */
+  let _afpRelatorioCache   = null;          /* { relatorio, campanha } — preenchido ao renderizar */
 
   /* ── Config de marca por empresa prestadora ─────────────── */
   const _SVGBRANDMARK = (w, h) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000" width="${w}" height="${h}" style="flex-shrink:0">
@@ -2050,6 +2051,52 @@ const ModuloPesquisaAdmin = (() => {
     }
   }
 
+  /* Armazena o resultado da pesquisa para impressão síncrona posterior */
+  function definirCacheRelatorio(relatorio, campanha) {
+    _afpRelatorioCache = { relatorio, campanha };
+  }
+
+  /* Imprime o relatório AFP usando o cache pré-carregado — sem await,
+     permitindo ser chamado diretamente de um clique de botão. */
+  function imprimirComCache(empresa) {
+    if (!_afpRelatorioCache) {
+      App.mostrarToast('Nenhum dado AFP carregado. Acesse a aba Relatório do projeto primeiro.', 'aviso');
+      return;
+    }
+    if (empresa) _empresaImpressao = empresa;
+    const { relatorio, campanha } = _afpRelatorioCache;
+
+    const overlay = document.createElement('div');
+    overlay.id    = '_afp_print_layer_';
+    overlay.innerHTML = _htmlRelatorio(relatorio, campanha);
+
+    const style = document.createElement('style');
+    style.id    = '_afp_print_style_';
+    style.textContent = [
+      '@media screen { #_afp_print_layer_ { display:none !important; } }',
+      '@media print  { body > * { display:none !important; }',
+      '                #_afp_print_layer_ { display:block !important; } }',
+    ].join('\n');
+
+    document.head.appendChild(style);
+    document.body.appendChild(overlay);
+
+    _sincronizarParaImpressao(overlay);
+
+    const cleanup = () => {
+      overlay.parentNode?.removeChild(overlay);
+      style.parentNode?.removeChild(style);
+    };
+    window.addEventListener('afterprint', cleanup, { once: true });
+
+    const imgs     = [...overlay.querySelectorAll('img')];
+    const pendentes = imgs.filter(img => !img.complete);
+    if (pendentes.length === 0) { window.print(); return; }
+    let n = 0;
+    const proximo = () => { if (++n >= pendentes.length) window.print(); };
+    pendentes.forEach(img => { img.onload = proximo; img.onerror = proximo; });
+  }
+
   function imprimir(empresa) {
     if (empresa) _empresaImpressao = empresa;
     _sincronizarParaImpressao();
@@ -2354,6 +2401,8 @@ const ModuloPesquisaAdmin = (() => {
     salvarInterpretacaoTecnica,
     imprimir,
     imprimirParaProjeto,
+    definirCacheRelatorio,
+    imprimirComCache,
     verPendentes,
     exportarPendentesCSV,
   };
