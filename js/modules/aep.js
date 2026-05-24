@@ -1194,6 +1194,7 @@ const ModuloAEP = (() => {
     if (!av) return;
     if (!av.aep) av.aep = {};
     if (!av.aep.analise) av.aep.analise = {};
+    if (!av.relatorio) av.relatorio = { conclusao: '', necessitaAET: false, justificativaAET: '' };
     const get = id => (document.getElementById(id) || {}).value?.trim() || '';
     av.aep.analise.analiseTecnica            = get('an-analise');
     av.aep.analise.nivelRiscoGeral           = get('an-nivel-risco');
@@ -2000,7 +2001,9 @@ const ModuloAEP = (() => {
   }
 
   function imprimirRelatorio(empresa) {
-    _salvarAnalise();
+    /* Só salva análise se o DOM da seção 'analise' estiver ativo;
+       chamar _salvarAnalise() na seção 'relatorio' limpa os campos */
+    if (_secaoAtual === 'analise') _salvarAnalise();
     const av = App.obterAvaliacaoAtual();
     if (av) Storage.salvar(av);
     if (empresa) _empresaImpressaoAEP = empresa;
