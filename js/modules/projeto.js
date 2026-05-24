@@ -1756,7 +1756,7 @@ Retorne APENAS o texto da conclusão, sem introdução, sem formatação especia
               >${proj.conclusaoTecnica || ''}</textarea>
             </div>
             <!-- Versão impressão da conclusão -->
-            <div class="so-imprimir">
+            <div class="so-imprimir" id="proj-conclusao-print">
               <p style="font-size:9pt;white-space:pre-wrap">${proj.conclusaoTecnica || 'Conclusão técnica não registrada.'}</p>
             </div>
             <label class="check-item nao-imprimir" style="cursor:pointer;margin-top:var(--s3)">
@@ -1898,6 +1898,12 @@ Retorne APENAS o texto da conclusão, sem introdução, sem formatação especia
     }
 
     /* Híbrido — imprime tudo; precisa da classe para mostrar rpt-met-mix */
+    /* Sincroniza div de impressão da conclusão (pode ter sido editada após renderização) */
+    const printDiv = document.getElementById('proj-conclusao-print');
+    if (printDiv) {
+      const txt = document.getElementById('proj-conclusao')?.value?.trim() || '';
+      printDiv.innerHTML = `<p style="font-size:9pt;white-space:pre-wrap">${txt || 'Conclusão técnica não registrada.'}</p>`;
+    }
     document.body.classList.add('rpt-modo-hibrido');
     _sincronizarMarcaProjeto();
     window.addEventListener('afterprint', () => {
