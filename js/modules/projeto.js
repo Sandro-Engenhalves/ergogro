@@ -1762,12 +1762,35 @@ Escreva 2 a 3 frases técnicas objetivas, em estilo de laudo de engenharia, desc
       return;
     }
 
-    /* Remove modos anteriores */
-    document.body.classList.remove('rpt-modo-aep', 'rpt-modo-afp', 'rpt-modo-hibrido');
-    if (modo) document.body.classList.add(`rpt-modo-${modo}`);
+    /* Relatório AEP → oculta seções AFP via inline style !important
+       (mais confiável que seletor CSS vs outros !important do layout) */
+    if (modo === 'aep') {
+      _sincronizarMarcaProjeto();
+      const hide = [...document.querySelectorAll('.rpt-secao-afp, .rpt-met-afp, .rpt-met-mix')];
+      const show = [...document.querySelectorAll('.rpt-met-aep')];
+      hide.forEach(el => el.style.setProperty('display', 'none',  'important'));
+      show.forEach(el => el.style.setProperty('display', 'block', 'important'));
+      const restore = () => {
+        hide.forEach(el => el.style.removeProperty('display'));
+        show.forEach(el => el.style.removeProperty('display'));
+        window.removeEventListener('afterprint', restore);
+      };
+      window.addEventListener('afterprint', restore, { once: true });
+      const imgsa = [...document.querySelectorAll('#proj-capa-logo-area img, #proj-header-logo-area img')];
+      const pendentesa = imgsa.filter(img => !img.complete);
+      if (pendentesa.length === 0) { window.print(); return; }
+      let na = 0;
+      const proximoa = () => { if (++na >= pendentesa.length) window.print(); };
+      pendentesa.forEach(img => { img.onload = proximoa; img.onerror = proximoa; });
+      return;
+    }
+
+    /* Híbrido — imprime tudo; precisa da classe para mostrar rpt-met-mix */
+    document.body.classList.add('rpt-modo-hibrido');
     _sincronizarMarcaProjeto();
-    const limpar = () => document.body.classList.remove('rpt-modo-aep', 'rpt-modo-afp', 'rpt-modo-hibrido');
-    window.addEventListener('afterprint', limpar, { once: true });
+    window.addEventListener('afterprint', () => {
+      document.body.classList.remove('rpt-modo-hibrido');
+    }, { once: true });
     const imgs = [...document.querySelectorAll('#proj-capa-logo-area img, #proj-header-logo-area img')];
     const pendentes = imgs.filter(img => !img.complete);
     if (pendentes.length === 0) { window.print(); return; }
