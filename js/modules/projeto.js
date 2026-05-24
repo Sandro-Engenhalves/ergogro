@@ -1187,17 +1187,18 @@ Escreva 2 a 3 frases técnicas objetivas, em estilo de laudo de engenharia, desc
     const NIVEL_COR = { baixo: '#4caf50', medio: '#ff9800', alto: '#f44336', critico: '#b71c1c' };
     const PRIO_L    = { alta: 'Alta', media: 'Média', baixa: 'Baixa' };
     const linhasAEP = avsAEP.map(av => {
-      const s      = av.setorId  ? Storage.buscarSetor(av.setorId)   : null;
-      const f      = av.funcaoId ? Storage.buscarFuncao(av.funcaoId) : null;
-      const riscos = ModuloAEP.calcularRiscoGeral(av);
-      const score  = ModuloAEP.MOTOR_AEP.calcularScore(av);
-      const nivel  = av.aep?.analise?.nivelRiscoGeral || ModuloAEP.MOTOR_AEP.sugerirNivel(score.valor);
-      const prior  = av.aep?.analise?.prioridadeAcao || '';
-      const ncs    = ModuloAEP.obterNaoConformes(av);
-      const ncAlt  = ncs.filter(nc => nc.risco === 'alto').length;
-      const ncMed  = ncs.filter(nc => nc.risco === 'medio').length;
-      const corSc  = score.valor > 60 ? '#f44336' : score.valor > 30 ? '#ff9800' : '#4caf50';
-      const nivelStr = nivel ? nivel.charAt(0).toUpperCase() + nivel.slice(1) : '—';
+      const s         = av.setorId  ? Storage.buscarSetor(av.setorId)   : null;
+      const f         = av.funcaoId ? Storage.buscarFuncao(av.funcaoId) : null;
+      const riscos    = ModuloAEP.calcularRiscoGeral(av);
+      const score     = ModuloAEP.MOTOR_AEP.calcularScore(av);
+      const nivel     = av.aep?.analise?.nivelRiscoGeral || ModuloAEP.MOTOR_AEP.sugerirNivel(score.valor);
+      const prior     = av.aep?.analise?.prioridadeAcao || '';
+      const ncs       = ModuloAEP.obterNaoConformes(av);
+      const ncAlt     = ncs.filter(nc => nc.risco === 'alto').length;
+      const ncMed     = ncs.filter(nc => nc.risco === 'medio').length;
+      const corSc     = score.valor > 60 ? '#f44336' : score.valor > 30 ? '#ff9800' : '#4caf50';
+      const nivelStr  = nivel ? nivel.charAt(0).toUpperCase() + nivel.slice(1) : '—';
+      const indicaAET = av.aep?.analise?.indicaAET || false;
       return `<tr>
         <td style="font-weight:600">${f?.nome || '—'}</td>
         <td>${s?.nome || '—'}</td>
@@ -1207,9 +1208,32 @@ Escreva 2 a 3 frases técnicas objetivas, em estilo de laudo de engenharia, desc
         <td style="text-align:center">${ncAlt > 0 ? `<span style="color:#f44336;font-weight:700">${ncAlt}</span>` : '0'}</td>
         <td style="text-align:center">${ncMed > 0 ? `<span style="color:#ff9800;font-weight:700">${ncMed}</span>` : '0'}</td>
         <td style="font-size:var(--txt-xs)">${prior ? PRIO_L[prior] || prior : '—'}</td>
+        <td style="text-align:center;font-weight:700;color:${indicaAET ? '#f44336' : '#4caf50'}">${indicaAET ? '⚠ Sim' : '—'}</td>
         <td style="font-size:var(--txt-xs)">${_fd(av.dataAvaliacao)}</td>
       </tr>`;
     }).join('');
+
+    /* Funções que requerem AET — para o bloco de destaque */
+    const funcoesComAET = avsAEP
+      .filter(av => av.aep?.analise?.indicaAET)
+      .map(av => ({
+        funcao:  av.funcaoId ? Storage.buscarFuncao(av.funcaoId) : null,
+        setor:   av.setorId  ? Storage.buscarSetor(av.setorId)   : null,
+        justif:  av.aep?.analise?.justificativaAET || '',
+      }));
+    const blocoAET = funcoesComAET.length > 0 ? `
+      <div style="border:2px solid #f44336;border-radius:6px;padding:var(--s3) var(--s4);margin-top:var(--s3);background:#fff5f5">
+        <div style="font-weight:700;color:#f44336;margin-bottom:var(--s2);font-size:var(--txt-sm)">
+          ⚠ Funções que Indicam Necessidade de AET (${funcoesComAET.length})
+        </div>
+        ${funcoesComAET.map(item => `
+          <div style="display:flex;gap:var(--s2);padding:var(--s2) 0;border-bottom:1px solid #fdd;font-size:var(--txt-sm)">
+            <span style="flex:1;font-weight:600">${item.funcao?.nome || '—'}</span>
+            <span style="color:var(--texto-sec);font-size:var(--txt-xs)">${item.setor?.nome || ''}</span>
+          </div>
+          ${item.justif ? `<div style="font-size:var(--txt-xs);color:#555;padding:2px 0 var(--s2) var(--s2)">${item.justif}</div>` : ''}
+        `).join('')}
+      </div>` : '';
 
     /* ── Resultados AFP por avaliação ── */
     const NIVEL_AFP = {
@@ -1554,10 +1578,11 @@ Escreva 2 a 3 frases técnicas objetivas, em estilo de laudo de engenharia, desc
           </div>
           <div style="overflow-x:auto">
             <table class="tabela-simples">
-              <thead><tr><th>Função</th><th>Setor</th><th style="text-align:center">Trab.</th><th style="text-align:center">Score</th><th style="text-align:center">Nível de Risco</th><th style="text-align:center">NC Alto</th><th style="text-align:center">NC Médio</th><th>Prioridade</th><th>Data</th></tr></thead>
-              <tbody>${linhasAEP || '<tr><td colspan="9" style="text-align:center;color:var(--texto-sec)">Nenhuma avaliação AEP encontrada</td></tr>'}</tbody>
+              <thead><tr><th>Função</th><th>Setor</th><th style="text-align:center">Trab.</th><th style="text-align:center">Score</th><th style="text-align:center">Nível de Risco</th><th style="text-align:center">NC Alto</th><th style="text-align:center">NC Médio</th><th>Prioridade</th><th style="text-align:center">AET?</th><th>Data</th></tr></thead>
+              <tbody>${linhasAEP || '<tr><td colspan="10" style="text-align:center;color:var(--texto-sec)">Nenhuma avaliação AEP encontrada</td></tr>'}</tbody>
             </table>
           </div>
+          ${blocoAET}
         </div>` : ''}
 
         <!-- Seção: Resultados AFP — dados da pesquisa COPSOQ-III (Firestore) -->
