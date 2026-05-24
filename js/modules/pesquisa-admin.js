@@ -1883,33 +1883,39 @@ const ModuloPesquisaAdmin = (() => {
      IMPRESSÃO — sincroniza DOM → so-imprimir antes de imprimir
   ══════════════════════════════════════════════════════════ */
 
-  function _sincronizarParaImpressao() {
+  /* scopeEl: opcional — se passado, consultas ficam dentro desse elemento (evita conflito de IDs ao imprimir overlay) */
+  function _sincronizarParaImpressao(scopeEl) {
+    const ROOT = scopeEl || document;
+    const $   = id  => ROOT === document ? document.getElementById(id) : ROOT.querySelector('#' + id);
+    const $q  = sel => ROOT.querySelector(sel);
+    const $qa = sel => [...ROOT.querySelectorAll(sel)];
+
     /* ── Marca da empresa prestadora ──────────────────────── */
     const cfg = _EMPRESAS_CONFIG[_empresaImpressao] || _EMPRESAS_CONFIG.engenhalves;
-    const elBarraTopo = document.getElementById('ps-capa-barra-topo');
+    const elBarraTopo = $('ps-capa-barra-topo');
     if (elBarraTopo) elBarraTopo.textContent = cfg.barraTopoTexto;
-    const elCapaLogo = document.getElementById('ps-capa-logo-area');
+    const elCapaLogo = $('ps-capa-logo-area');
     if (elCapaLogo) elCapaLogo.innerHTML = cfg.capaLogo();
-    const elHeaderLogo = document.getElementById('ps-header-logo-area');
+    const elHeaderLogo = $('ps-header-logo-area');
     if (elHeaderLogo) elHeaderLogo.innerHTML = cfg.headerLogo();
-    const elRodape = document.getElementById('ps-rodape-empresa');
+    const elRodape = $('ps-rodape-empresa');
     if (elRodape) elRodape.innerHTML = cfg.rodape(_nrLaudoAtual);
 
     /* 7.1 Contexto */
-    const ctxDiv = document.getElementById('ps-print-contexto');
+    const ctxDiv = $('ps-print-contexto');
     if (ctxDiv) {
-      const radio = document.querySelector('input[name="ps-it-contexto"]:checked');
+      const radio = $q('input[name="ps-it-contexto"]:checked');
       const ctxTxt = radio ? (CONTEXTOS.find(c => c.id === radio.value)?.texto || '') : '';
-      const complemento = (document.getElementById('ps-it-contexto-complemento')?.value || '').trim();
+      const complemento = ($('ps-it-contexto-complemento')?.value || '').trim();
       ctxDiv.innerHTML = ctxTxt
         ? `<p style="font-size:9pt;padding:4pt 0">${ctxTxt}</p>${complemento ? `<p style="font-size:8pt;color:#555">${complemento}</p>` : ''}`
         : '<p style="font-size:9pt;color:#555;font-style:italic">Contexto não selecionado.</p>';
     }
 
     /* 7.3 Fatores de risco */
-    const fatDiv = document.getElementById('ps-print-fatores');
+    const fatDiv = $('ps-print-fatores');
     if (fatDiv) {
-      const checados = [...document.querySelectorAll('input[name="ps-it-risco"]:checked')];
+      const checados = $qa('input[name="ps-it-risco"]:checked');
       if (checados.length > 0) {
         fatDiv.innerHTML = checados.map(el => {
           const dim = PerguntasPsicossociais.DIMENSOES.find(d => d.id === el.value);
@@ -1928,11 +1934,11 @@ const ModuloPesquisaAdmin = (() => {
     }
 
     /* AET */
-    const aetChecked = document.getElementById('ps-it-aet')?.checked;
-    const aetJust   = (document.getElementById('ps-it-aet-just')?.value || '').trim();
+    const aetChecked = $('ps-it-aet')?.checked;
+    const aetJust   = ($('ps-it-aet-just')?.value || '').trim();
 
     /* AET em 7.6 */
-    const aetDiv = document.getElementById('ps-print-aet');
+    const aetDiv = $('ps-print-aet');
     if (aetDiv) {
       aetDiv.innerHTML = aetChecked
         ? '<p style="font-size:9pt;font-weight:700;color:#0D47A1">⚠ Indica necessidade de Análise Ergonômica do Trabalho (AET)</p>'
@@ -1940,7 +1946,7 @@ const ModuloPesquisaAdmin = (() => {
     }
 
     /* AET na conclusão (seção 9) */
-    const aetConcDiv = document.getElementById('ps-print-aet-conclusion');
+    const aetConcDiv = $('ps-print-aet-conclusion');
     if (aetConcDiv) {
       aetConcDiv.innerHTML = aetChecked
         ? `<div style="border:1px solid #0D47A1;background:#e8f0fb;padding:6pt 10pt;border-radius:3pt;margin-top:6pt;font-size:9pt">
@@ -1951,26 +1957,25 @@ const ModuloPesquisaAdmin = (() => {
     }
 
     /* Oculta div de justificativa se AET não marcado */
-    const aetJustDiv = document.getElementById('ps-it-aet-div');
+    const aetJustDiv = $('ps-it-aet-div');
     if (aetJustDiv) aetJustDiv.style.display = aetChecked ? '' : 'none';
 
     /* Oculta o card AET inteiro quando não marcado (evita linha solta) */
-    const aetCard = document.getElementById('ps-aet-card');
+    const aetCard = $('ps-aet-card');
     if (aetCard) {
       if (!aetChecked) aetCard.classList.add('card-print-empty');
       else aetCard.classList.remove('card-print-empty');
     }
     /* Restaura após impressão */
     window.addEventListener('afterprint', () => {
-      document.querySelectorAll('.card-print-empty')
-        .forEach(el => el.classList.remove('card-print-empty'));
+      $qa('.card-print-empty').forEach(el => el.classList.remove('card-print-empty'));
     }, { once: true });
 
     /* 7.4 Recomendações */
-    const recDiv = document.getElementById('ps-print-recs');
+    const recDiv = $('ps-print-recs');
     if (recDiv) {
-      const checadas = [...document.querySelectorAll('input[name="ps-it-rec"]:checked')];
-      const custom   = (document.getElementById('ps-it-rec-custom')?.value || '').trim();
+      const checadas = $qa('input[name="ps-it-rec"]:checked');
+      const custom   = ($('ps-it-rec-custom')?.value || '').trim();
       if (checadas.length > 0 || custom) {
         const porDim = {};
         checadas.forEach(el => {
@@ -1991,6 +1996,57 @@ const ModuloPesquisaAdmin = (() => {
       } else {
         recDiv.innerHTML = '<p style="font-size:9pt;color:#555;font-style:italic">Nenhuma recomendação selecionada.</p>';
       }
+    }
+  }
+
+  /* Chamado pelo botão "Relatório AFP" do módulo de projeto para imprimir
+     o relatório de pesquisa sem navegar para fora da tela atual. */
+  async function imprimirParaProjeto(campanhaId, minRespostas, empresa) {
+    if (!campanhaId) { App.mostrarToast('Nenhuma campanha AFP encontrada para este projeto.', 'aviso'); return; }
+    try {
+      App.mostrarToast('Carregando relatório AFP…', 'info');
+      const [relatorio, campanha] = await Promise.all([
+        calcularRelatorio(campanhaId, minRespostas || 5),
+        buscarCampanha(campanhaId),
+      ]);
+      if (empresa) _empresaImpressao = empresa;
+
+      /* Cria camada de impressão isolada (oculta na tela, visível só no print) */
+      const overlay = document.createElement('div');
+      overlay.id = '_afp_print_layer_';
+      overlay.innerHTML = _htmlRelatorio(relatorio, campanha);
+
+      const style = document.createElement('style');
+      style.id = '_afp_print_style_';
+      style.textContent = [
+        '@media screen { #_afp_print_layer_ { display:none !important; } }',
+        '@media print  { body > * { display:none !important; }',
+        '                #_afp_print_layer_ { display:block !important; } }',
+      ].join('\n');
+
+      document.head.appendChild(style);
+      document.body.appendChild(overlay);
+
+      /* Sincroniza dados editoriais usando o escopo do overlay */
+      _sincronizarParaImpressao(overlay);
+
+      /* Remove overlay após impressão */
+      const cleanup = () => {
+        overlay.parentNode?.removeChild(overlay);
+        style.parentNode?.removeChild(style);
+        window.removeEventListener('afterprint', cleanup);
+      };
+      window.addEventListener('afterprint', cleanup);
+
+      /* Aguarda imagens do logo antes de abrir o diálogo */
+      const imgs = [...overlay.querySelectorAll('img')];
+      const pendentes = imgs.filter(img => !img.complete);
+      if (pendentes.length === 0) { window.print(); return; }
+      let n = 0;
+      const proximo = () => { if (++n >= pendentes.length) window.print(); };
+      pendentes.forEach(img => { img.onload = proximo; img.onerror = proximo; });
+    } catch (e) {
+      App.mostrarToast('Erro ao gerar relatório AFP: ' + e.message, 'erro');
     }
   }
 
@@ -2297,6 +2353,7 @@ const ModuloPesquisaAdmin = (() => {
     gerarInterpretacao,
     salvarInterpretacaoTecnica,
     imprimir,
+    imprimirParaProjeto,
     verPendentes,
     exportarPendentesCSV,
   };

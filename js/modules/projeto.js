@@ -16,6 +16,7 @@ const ModuloProjeto = (() => {
   let _secaoAtual = 'visao-geral';
   let _empresaImpressaoProj = 'engenhalves';
   let _nrProjetoAtual = '';
+  let _afpCampanhaCache = null; /* { id, minRespostas } — preenchido ao renderizar relatório */
 
   /* Wizard interno para criar avaliação */
   let _wiz = { setorId: null, funcaoId: null, tipo: null };
@@ -1093,6 +1094,7 @@ Escreva 2 a 3 frases técnicas objetivas, em estilo de laudo de engenharia, desc
             buscarCampanha(c.id),
           ]);
           afpDados = { relatorio, campanha: campanha || c };
+          _afpCampanhaCache = { id: c.id, minRespostas: c.minRespostasSetor || 5 };
         }
       } catch (e) {
         console.warn('AFP: erro ao carregar dados da pesquisa —', e.message);
@@ -1749,6 +1751,17 @@ Escreva 2 a 3 frases técnicas objetivas, em estilo de laudo de engenharia, desc
   function imprimir(empresa, modo) {
     salvarConclusao();
     if (empresa) _empresaImpressaoProj = empresa;
+
+    /* Relatório AFP → delega ao módulo de pesquisa (documento separado) */
+    if (modo === 'afp') {
+      ModuloPesquisaAdmin.imprimirParaProjeto(
+        _afpCampanhaCache?.id,
+        _afpCampanhaCache?.minRespostas,
+        empresa
+      );
+      return;
+    }
+
     /* Remove modos anteriores */
     document.body.classList.remove('rpt-modo-aep', 'rpt-modo-afp', 'rpt-modo-hibrido');
     if (modo) document.body.classList.add(`rpt-modo-${modo}`);
