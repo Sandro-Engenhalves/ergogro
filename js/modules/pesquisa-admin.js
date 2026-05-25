@@ -1765,23 +1765,21 @@ const ModuloPesquisaAdmin = (() => {
 
           <!-- Bloco de assinatura — visível apenas na impressão -->
           <div class="so-imprimir" style="margin-top:20pt">
-            <div style="background:#0D47A1;color:#fff;padding:5pt 9pt;font-size:9pt;font-weight:700;text-transform:uppercase;letter-spacing:.5pt;margin-bottom:8pt">
+            <div style="background:#0D47A1;color:#fff;padding:5pt 9pt;font-size:9pt;font-weight:700;text-transform:uppercase;letter-spacing:.5pt">
               Assinatura
             </div>
-            <table style="width:100%;border-collapse:collapse;font-size:9pt">
-              <tr>
-                <td style="width:50%;padding:7pt 10pt;vertical-align:middle">
-                  <div style="font-weight:700;font-size:10pt">${_responsavel || 'Responsável Técnico'}</div>
-                  ${_registro ? `<div style="font-size:8pt;color:#444;margin-top:3pt">${_registro}</div>` : ''}
-                </td>
-                <td style="width:50%;padding:7pt 10pt;vertical-align:top">
-                  <div style="font-size:8pt;color:#666">Data de Emissão</div>
-                  <div style="font-weight:700;margin:2pt 0">${_dataEmissao}</div>
-                  <div style="font-size:8pt;color:#555;margin-bottom:3pt">${_nrLaudo}</div>
-                  <div style="font-size:8pt;color:#555">Assinatura Eletrônica com Certificado</div>
-                </td>
-              </tr>
-            </table>
+            <div style="display:flex;border:1px solid #d0d0d0;border-top:none;font-size:9pt">
+              <div style="flex:1;padding:10pt 12pt;border-right:1px solid #d0d0d0">
+                <div style="font-weight:700;font-size:10pt;color:#000;margin-bottom:3pt">${_responsavel || 'Responsável Técnico'}</div>
+                ${_registro ? `<div style="font-size:8pt;color:#444">${_registro}</div>` : ''}
+              </div>
+              <div style="flex:1;padding:10pt 12pt">
+                <div style="font-size:8pt;color:#666">Data de Emissão</div>
+                <div style="font-weight:700;color:#000;margin:2pt 0">${_dataEmissao}</div>
+                <div style="font-size:8pt;color:#555;margin-bottom:3pt">${_nrLaudo}</div>
+                <div style="font-size:8pt;color:#555">Assinatura Eletrônica com Certificado</div>
+              </div>
+            </div>
             <div id="ps-rodape-empresa" style="text-align:center;font-size:8pt;color:#888;margin-top:10pt;border-top:1px solid #eee;padding-top:6pt">
               ENGENHALVES — Centro de Engenharia &amp; Segurança LTDA<br>
               Estrada Braulina Pigatto, 2320, CEP 84607-303 — Bom Jesus, União da Vitória - PR<br>
