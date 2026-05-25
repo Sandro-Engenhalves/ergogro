@@ -785,6 +785,7 @@ const ModuloPesquisaAdmin = (() => {
             line-height: 1.4 !important;
             margin: 0 !important;
           }
+          p, li { text-align: justify !important; hyphens: auto !important; }
 
           /* ── Capa (página 1) ───────────────────── */
           .rpt-capa {
@@ -1763,21 +1764,21 @@ const ModuloPesquisaAdmin = (() => {
           </div>
 
           <!-- Bloco de assinatura — visível apenas na impressão -->
-          <div class="so-imprimir" style="margin-top:16pt">
+          <div class="so-imprimir" style="margin-top:20pt">
+            <div style="background:#0D47A1;color:#fff;padding:5pt 9pt;font-size:9pt;font-weight:700;text-transform:uppercase;letter-spacing:.5pt;margin-bottom:8pt">
+              Assinatura
+            </div>
             <table style="width:100%;border-collapse:collapse;font-size:9pt">
               <tr>
-                <td style="width:50%;padding:0 12pt 0 0;border:none;vertical-align:top">
-                  <div style="border-top:1px solid #000;padding-top:4pt;text-align:center">
-                    <div style="font-weight:700">${_responsavel || '____________________________'}</div>
-                    ${_registro ? `<div style="font-size:8pt;color:#444">${_registro}</div>` : ''}
-                    <div style="font-size:8pt;color:#555;margin-top:2pt">Responsável Técnico</div>
-                  </div>
+                <td style="width:50%;padding:7pt 10pt;vertical-align:middle">
+                  <div style="font-weight:700;font-size:10pt">${_responsavel || 'Responsável Técnico'}</div>
+                  ${_registro ? `<div style="font-size:8pt;color:#444;margin-top:3pt">${_registro}</div>` : ''}
                 </td>
-                <td style="width:50%;padding:0 0 0 12pt;border:none;vertical-align:top">
-                  <div style="border-top:1px solid #000;padding-top:4pt;text-align:center">
-                    <div style="font-weight:700">${_dataEmissao}</div>
-                    <div style="font-size:8pt;color:#555;margin-top:2pt">Data de Emissão</div>
-                  </div>
+                <td style="width:50%;padding:7pt 10pt;vertical-align:top">
+                  <div style="font-size:8pt;color:#666">Data de Emissão</div>
+                  <div style="font-weight:700;margin:2pt 0">${_dataEmissao}</div>
+                  <div style="font-size:8pt;color:#555;margin-bottom:3pt">${_nrLaudo}</div>
+                  <div style="font-size:8pt;color:#555">Assinatura Eletrônica com Certificado</div>
                 </td>
               </tr>
             </table>
