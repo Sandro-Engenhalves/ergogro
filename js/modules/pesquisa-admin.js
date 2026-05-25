@@ -1768,12 +1768,12 @@ const ModuloPesquisaAdmin = (() => {
             <div style="background:#0D47A1;color:#fff;padding:5pt 9pt;font-size:9pt;font-weight:700;text-transform:uppercase;letter-spacing:.5pt">
               Assinatura
             </div>
-            <div style="display:flex;border:1px solid #d0d0d0;border-top:none;font-size:9pt">
-              <div style="flex:1;padding:10pt 12pt;border-right:1px solid #d0d0d0">
+            <div style="display:flex;gap:0;font-size:9pt;padding:0">
+              <div style="flex:1;padding:9pt 10pt 6pt 10pt">
                 <div style="font-weight:700;font-size:10pt;color:#000;margin-bottom:3pt">${_responsavel || 'Responsável Técnico'}</div>
                 ${_registro ? `<div style="font-size:8pt;color:#444">${_registro}</div>` : ''}
               </div>
-              <div style="flex:1;padding:10pt 12pt">
+              <div style="flex:1;padding:9pt 10pt 6pt 10pt">
                 <div style="font-size:8pt;color:#666">Data de Emissão</div>
                 <div style="font-weight:700;color:#000;margin:2pt 0">${_dataEmissao}</div>
                 <div style="font-size:8pt;color:#555;margin-bottom:3pt">${_nrLaudo}</div>
