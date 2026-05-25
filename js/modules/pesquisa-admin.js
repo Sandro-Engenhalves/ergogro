@@ -1162,7 +1162,7 @@ const ModuloPesquisaAdmin = (() => {
               <td>${_dataEmissao}</td>
             </tr>
             <tr>
-              <td class="rpt-capa-td-label">Engenheiro Responsável</td>
+              <td class="rpt-capa-td-label">Responsável Técnico</td>
               <td>${_responsavel || '—'}</td>
             </tr>
             <tr>
@@ -1646,6 +1646,7 @@ const ModuloPesquisaAdmin = (() => {
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--s3)">
               <div class="card-titulo" style="margin-bottom:0">7.5 Conclusão Técnica</div>
               <button id="btn-gerar-conclusao-afp" onclick="ModuloPesquisaAdmin.gerarConclusaoAFPIA()"
+                      class="sem-impressao"
                       style="font-size:var(--txt-xs);padding:3px 9px;border-radius:var(--r2);border:1px solid #3949ab;background:rgba(57,73,171,.15);color:#90caf9;cursor:pointer;white-space:nowrap;flex-shrink:0">
                 🤖 Gerar com IA
               </button>

@@ -6,18 +6,18 @@
   <meta name="theme-color" content="#161b22">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="description" content="ErgoGRO — Laudos Técnicos Ergonômicos AEP / Psicossocial / AET">
+  <meta name="description" content="ErgoGRO � Laudos T�cnicos Ergon�micos AEP / Psicossocial / AET">
   <title>ErgoGRO</title>
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body class="sem-nav">
 
-  <!-- ── Tela de Login (visível antes da autenticação) ────── -->
+  <!-- -- Tela de Login (vis�vel antes da autentica��o) ------ -->
   <div id="tela-login" class="login-overlay oculto">
     <div class="login-card">
       <div class="login-logo">Ergo<span>GRO</span></div>
-      <p class="login-subtitulo">Plataforma de Laudos Técnicos Ergonômicos</p>
-      <p class="login-descricao">NR-17 · GRO · PGR</p>
+      <p class="login-subtitulo">Plataforma de Laudos T�cnicos Ergon�micos</p>
+      <p class="login-descricao">NR-17 � GRO � PGR</p>
       <button id="btn-login-google" class="btn-google" onclick="Auth.loginGoogle().catch(e => App.mostrarToast(e.message, 'erro'))">
         <svg viewBox="0 0 24 24" width="20" height="20">
           <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -27,19 +27,19 @@
         </svg>
         Entrar com Google
       </button>
-      <!-- Mensagem de acesso negado (oculta por padrão) -->
+      <!-- Mensagem de acesso negado (oculta por padr�o) -->
       <div id="login-msg-negado" class="login-acesso-negado" style="display:none">
-        <p>Acesso não autorizado.</p>
+        <p>Acesso n�o autorizado.</p>
         <p style="font-size:var(--txt-xs)">
-          O e-mail <strong id="login-email-negado"></strong> não está na lista de usuários.
+          O e-mail <strong id="login-email-negado"></strong> n�o est� na lista de usu�rios.
           Solicite ao administrador do sistema.
         </p>
       </div>
-      <p class="login-rodape">Acesso restrito — somente usuários convidados</p>
+      <p class="login-rodape">Acesso restrito � somente usu�rios convidados</p>
     </div>
   </div>
 
-  <!-- ── Header fixo ──────────────────────────────────────── -->
+  <!-- -- Header fixo ---------------------------------------- -->
   <header id="app-header">
     <button id="btn-voltar" class="oculto" title="Voltar">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
@@ -52,11 +52,11 @@
     <span id="titulo-header"
           style="flex:1;font-size:var(--txt-sm);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></span>
     <div id="header-badge"></div>
-    <!-- Avatar, botão de usuários (admin) e logout -->
+    <!-- Avatar, bot�o de usu�rios (admin) e logout -->
     <div id="header-usuario" class="header-usuario oculto">
-      <!-- Botão gerenciar usuários — visível só para admin -->
+      <!-- Bot�o gerenciar usu�rios � vis�vel s� para admin -->
       <button id="btn-admin-usuarios" class="btn-admin-usuarios" style="display:none"
-              onclick="App.abrirPainelUsuarios()" title="Gerenciar usuários">
+              onclick="App.abrirPainelUsuarios()" title="Gerenciar usu�rios">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
              stroke-linecap="round" stroke-linejoin="round" width="16" height="16">
           <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
@@ -77,63 +77,63 @@
     </div>
   </header>
 
-  <!-- ── Conteúdo principal ───────────────────────────────── -->
+  <!-- -- Conte�do principal --------------------------------- -->
   <main id="app-content">
 
-    <!-- INÍCIO / PROJETOS DE LAUDO -->
+    <!-- IN�CIO / PROJETOS DE LAUDO -->
     <div id="tela-dashboard" class="tela ativa"></div>
 
     <!-- CADASTRO DE EMPRESAS -->
     <div id="tela-empresas" class="tela"></div>
 
-    <!-- PLANO DE AÇÃO GLOBAL -->
+    <!-- PLANO DE A��O GLOBAL -->
     <div id="tela-plano-geral" class="tela"></div>
 
-    <!-- CENTRAL DE RELATÓRIOS -->
+    <!-- CENTRAL DE RELAT�RIOS -->
     <div id="tela-relatorios" class="tela"></div>
 
     <!-- SHELL: PROJETO DE LAUDO (sub-nav gerado por ModuloProjeto) -->
     <div id="tela-empresa" class="tela"></div>
     <div id="tela-projeto" class="tela"></div>
 
-    <!-- SHELLS DE AVALIAÇÃO (sub-nav gerado por cada módulo) -->
+    <!-- SHELLS DE AVALIA��O (sub-nav gerado por cada m�dulo) -->
     <div id="tela-aep" class="tela"></div>
     <div id="tela-fp"  class="tela"></div>
     <div id="tela-aet" class="tela"></div>
 
   </main>
 
-  <!-- ── Navegação principal (telas de nível superior) ────── -->
+  <!-- -- Navega��o principal (telas de n�vel superior) ------ -->
   <nav id="nav-principal" class="oculto">
     <button data-nav="dashboard">
-      <span class="nav-icon">🏠</span>
-      <span>Início</span>
+      <span class="nav-icon">??</span>
+      <span>In�cio</span>
     </button>
     <button data-nav="empresas">
-      <span class="nav-icon">🏢</span>
+      <span class="nav-icon">??</span>
       <span>Clientes</span>
     </button>
     <button data-nav="plano-geral">
-      <span class="nav-icon">📌</span>
+      <span class="nav-icon">??</span>
       <span>Plano</span>
     </button>
     <button data-nav="relatorios">
-      <span class="nav-icon">📊</span>
-      <span>Relatórios</span>
+      <span class="nav-icon">??</span>
+      <span>Relat�rios</span>
     </button>
   </nav>
 
-  <!-- ── Modal: Gerenciar Usuários (admin only) ───────────── -->
+  <!-- -- Modal: Gerenciar Usu�rios (admin only) ------------- -->
   <div id="modal-usuarios" class="modal-overlay oculto">
     <div class="modal-panel" style="max-width:420px">
       <div class="modal-titulo">
-        <span>Usuários Autorizados</span>
-        <button class="btn-icone" onclick="App.fecharPainelUsuarios()">✕</button>
+        <span>Usu�rios Autorizados</span>
+        <button class="btn-icone" onclick="App.fecharPainelUsuarios()">?</button>
       </div>
       <div style="padding:var(--s4)">
         <p style="font-size:var(--txt-xs);color:var(--texto-sec);margin-bottom:var(--s3)">
           Apenas os e-mails abaixo podem acessar o ErgoGRO.
-          Use o e-mail da conta Google de cada usuário.
+          Use o e-mail da conta Google de cada usu�rio.
         </p>
         <div id="lista-usuarios" style="margin-bottom:var(--s4)"></div>
         <div style="display:flex;gap:var(--s2)">
@@ -150,15 +150,15 @@
     </div>
   </div>
 
-  <!-- ── Toast ────────────────────────────────────────────── -->
+  <!-- -- Toast ---------------------------------------------- -->
   <div id="toast"></div>
 
-  <!-- ── Firebase SDK ─────────────────────────────────────── -->
+  <!-- -- Firebase SDK --------------------------------------- -->
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 
-  <!-- ── Scripts (ordem de dependência) ───────────────────── -->
+  <!-- -- Scripts (ordem de depend�ncia) --------------------- -->
   <script src="js/storage.js?v=5"></script>
   <script src="js/psicossocial-perguntas.js?v=5"></script>
   <script src="js/firebase-pesquisa.js?v=5"></script>
@@ -170,10 +170,10 @@
   <script src="js/modules/aep.js?v=10"></script>
   <script src="js/consulta-aep.js?v=1"></script>
   <script src="js/modules/fatores-psicossociais.js?v=5"></script>
-  <script src="js/modules/aet.js?v=6"></script>
+  <script src="js/modules/aet.js?v=7"></script>
   <script src="js/modules/cadastro.js?v=8"></script>
   <script src="js/modules/projeto.js?v=22"></script>
-  <script src="js/modules/pesquisa-admin.js?v=10"></script>
+  <script src="js/modules/pesquisa-admin.js?v=11"></script>
   <script src="js/modules/dashboard.js?v=5"></script>
   <script src="js/modules/plano-acao.js?v=5"></script>
   <script src="js/modules/relatorio.js?v=5"></script>

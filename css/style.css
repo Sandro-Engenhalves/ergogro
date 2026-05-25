@@ -225,6 +225,22 @@ a { color: var(--primaria); text-decoration: none; }
   color: var(--texto-inv);
 }
 
+/* Botão IA inline — pequeno, azul translúcido */
+.btn-ia-inline {
+  font-size: var(--txt-xs);
+  padding: 3px 10px;
+  border-radius: var(--raio);
+  border: 1px solid #3949ab;
+  background: rgba(57, 73, 171, .15);
+  color: #90caf9;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  line-height: 1.6;
+}
+.btn-ia-inline:hover  { background: rgba(57, 73, 171, .3); }
+.btn-ia-inline:disabled { opacity: .55; cursor: wait; }
+
 .btn-fantasma {
   background: transparent;
   color: var(--texto-sec);
@@ -1428,4 +1444,451 @@ body.sem-nav #toast {
 .btn-admin-usuarios:hover {
   color: var(--primaria);
   background: var(--superficie-alt);
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   MÓDULO AET — Análise Ergonômica do Trabalho
+   ══════════════════════════════════════════════════════════════════ */
+
+/* ── Abas ── */
+.aet-tabs {
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+  padding: 8px 8px 0;
+  background: var(--superficie);
+  border-bottom: 2px solid var(--borda);
+  scrollbar-width: thin;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.aet-tab {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 10px;
+  background: transparent;
+  border: none;
+  border-bottom: 3px solid transparent;
+  color: var(--txt-sec);
+  cursor: pointer;
+  white-space: nowrap;
+  font-size: var(--txt-xs);
+  border-radius: var(--raio) var(--raio) 0 0;
+  transition: background .15s, color .15s;
+  min-width: 64px;
+}
+
+.aet-tab:hover { background: var(--superficie-alt); color: var(--texto); }
+.aet-tab.ativa { border-bottom-color: var(--primaria); color: var(--primaria); background: var(--superficie-alt); font-weight: 600; }
+
+.aet-tab-icone { font-size: 1.1rem; line-height: 1; }
+.aet-tab-label { font-size: 0.7rem; }
+
+/* ── Conteúdo ── */
+.aet-conteudo { padding: 0; }
+
+.aet-secao {
+  padding: var(--s3) var(--s3) var(--s4);
+  max-width: 860px;
+  margin: 0 auto;
+}
+
+.aet-secao-titulo {
+  font-size: var(--txt-lg);
+  font-weight: 700;
+  margin-bottom: var(--s2);
+  color: var(--texto);
+}
+
+.aet-secao-desc {
+  font-size: var(--txt-sm);
+  color: var(--txt-sec);
+  margin-bottom: var(--s3);
+}
+
+/* ── Fieldset ── */
+.aet-fieldset {
+  border: 1px solid var(--borda);
+  border-radius: var(--raio);
+  padding: var(--s3);
+  margin-bottom: var(--s3);
+}
+
+.aet-fieldset legend {
+  font-size: var(--txt-sm);
+  font-weight: 600;
+  color: var(--primaria);
+  padding: 0 8px;
+}
+
+/* ── Grid de exigências ── */
+.exig-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 6px;
+  margin-top: var(--s2);
+}
+
+/* ── Ferramentas ── */
+.tools-categoria { margin-bottom: var(--s3); }
+
+.tools-cat-titulo {
+  font-size: var(--txt-sm);
+  font-weight: 600;
+  color: var(--txt-sec);
+  margin-bottom: var(--s2);
+}
+
+.tools-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: var(--s2);
+}
+
+.tool-card {
+  background: var(--superficie-alt);
+  border: 1px solid var(--borda);
+  border-radius: var(--raio);
+  padding: var(--s2);
+  transition: border-color .2s;
+}
+
+.tool-card.usado { border-color: var(--sucesso); }
+
+.tool-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.tool-badge-ok {
+  font-size: var(--txt-xs);
+  background: var(--sucesso);
+  color: #fff;
+  border-radius: 50%;
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tool-badge-ia {
+  font-size: 0.65rem;
+  background: rgba(255, 193, 7, 0.25);
+  color: #ffd54f;
+  border: 1px solid rgba(255, 193, 7, 0.4);
+  border-radius: 4px;
+  padding: 1px 5px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.tool-card.sugerida {
+  border-color: rgba(255, 193, 7, 0.5);
+  box-shadow: 0 0 0 1px rgba(255, 193, 7, 0.3);
+}
+
+.tool-guia {
+  font-size: 0.78rem;
+  color: var(--txt-sec);
+  background: rgba(57, 73, 171, 0.1);
+  border-left: 3px solid var(--primaria);
+  padding: 6px 10px;
+  border-radius: 4px;
+  margin-bottom: 12px;
+  line-height: 1.5;
+}
+
+.aet-importar-box {
+  background: rgba(57, 73, 171, 0.07);
+  border: 1px dashed rgba(57, 73, 171, 0.35);
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 12px;
+}
+
+.aet-importar-topo {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.aet-importar-dica {
+  font-size: 0.78rem;
+  color: var(--txt-sec);
+  line-height: 1.45;
+  max-width: 340px;
+}
+
+.tool-card-desc {
+  font-size: var(--txt-xs);
+  color: var(--txt-sec);
+  margin-bottom: var(--s2);
+  line-height: 1.4;
+}
+
+.tool-card-acoes {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+/* ── Modal ── */
+.modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.6);
+  z-index: 1000;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: var(--s3);
+  overflow-y: auto;
+}
+
+.modal-caixa {
+  background: var(--superficie);
+  border-radius: var(--raio);
+  padding: var(--s3);
+  width: 100%;
+  max-width: 560px;
+  position: relative;
+}
+
+.modal-grande { max-width: 720px; }
+
+.btn-fechar {
+  background: transparent;
+  border: none;
+  color: var(--txt-sec);
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: var(--raio);
+}
+.btn-fechar:hover { background: var(--superficie-alt); color: var(--texto); }
+
+/* ── Radios de nível ── */
+.radio-grupo {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.radio-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--txt-sm);
+  cursor: pointer;
+  padding: 6px 10px;
+  border-radius: var(--raio);
+  border: 1px solid var(--borda);
+  transition: background .15s;
+}
+
+.radio-item:hover { background: var(--superficie-alt); }
+.radio-item input { accent-color: var(--primaria); }
+
+.nivel-1 { border-left: 3px solid #388e3c; }
+.nivel-2 { border-left: 3px solid #f9a825; }
+.nivel-3 { border-left: 3px solid #ef6c00; }
+.nivel-4 { border-left: 3px solid #d32f2f; }
+.nivel-5 { border-left: 3px solid #7b1fa2; }
+
+/* ── Plano de ação AET ── */
+.plano-item {
+  background: var(--superficie-alt);
+  border: 1px solid var(--borda);
+  border-radius: var(--raio);
+  padding: var(--s2) var(--s3);
+  margin-bottom: var(--s2);
+}
+
+.plano-item-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+  flex-wrap: wrap;
+}
+
+.plano-badge {
+  font-size: var(--txt-xs);
+  color: #fff;
+  padding: 2px 8px;
+  border-radius: 20px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.plano-tipo {
+  font-size: var(--txt-xs);
+  color: var(--txt-sec);
+  margin-left: auto;
+}
+
+.plano-item-detalhe {
+  display: flex;
+  gap: 16px;
+  font-size: var(--txt-xs);
+  color: var(--txt-sec);
+  margin-bottom: 4px;
+  flex-wrap: wrap;
+}
+
+.plano-status {
+  font-weight: 600;
+  color: var(--primaria);
+}
+
+.plano-obs {
+  font-size: var(--txt-xs);
+  color: var(--txt-sec);
+  margin: 4px 0;
+  font-style: italic;
+}
+
+.plano-form {
+  background: var(--superficie-alt);
+  border: 1px dashed var(--borda);
+  border-radius: var(--raio);
+  padding: var(--s3);
+  margin-bottom: var(--s3);
+}
+
+.txt-vazio {
+  color: var(--txt-sec);
+  font-style: italic;
+  text-align: center;
+  padding: var(--s3);
+}
+
+/* ── Botões extras ── */
+.btn-xs {
+  font-size: var(--txt-xs);
+  padding: 2px 8px;
+  border-radius: var(--raio);
+}
+
+.btn-sm {
+  font-size: var(--txt-xs);
+  padding: 4px 10px;
+  border-radius: var(--raio);
+}
+
+.btn-perigo {
+  background: rgba(211,47,47,.15);
+  border: 1px solid #d32f2f;
+  color: #ef9a9a;
+  cursor: pointer;
+  border-radius: var(--raio);
+}
+.btn-perigo:hover { background: rgba(211,47,47,.3); }
+
+/* ── IA resultado ── */
+.ia-resultado {
+  font-size: var(--txt-sm);
+  color: var(--txt-sec);
+  white-space: pre-wrap;
+  min-height: 20px;
+  line-height: 1.6;
+}
+
+/* ── Relatório ── */
+.relatorio-preview { padding-bottom: var(--s4); }
+
+.rel-capa {
+  text-align: center;
+  padding: var(--s4) var(--s3);
+  border-bottom: 2px solid var(--borda);
+  margin-bottom: var(--s3);
+}
+
+.rel-capa-titulo  { font-size: 1.3rem; font-weight: 800; margin-bottom: 6px; }
+.rel-capa-sub     { font-size: var(--txt-sm); color: var(--txt-sec); margin-bottom: 12px; }
+.rel-capa-empresa { font-size: 1.1rem; font-weight: 700; margin-bottom: 4px; }
+.rel-capa-detalhe { font-size: var(--txt-sm); color: var(--txt-sec); }
+.rel-capa-resp    { font-size: var(--txt-sm); margin-top: 8px; }
+
+.rel-secao {
+  margin-bottom: var(--s3);
+  padding-bottom: var(--s3);
+  border-bottom: 1px solid var(--borda);
+}
+
+.rel-h2 {
+  font-size: var(--txt-md);
+  font-weight: 700;
+  border-left: 4px solid var(--primaria);
+  padding-left: 10px;
+  margin-bottom: var(--s2);
+}
+
+.rel-h3 {
+  font-size: var(--txt-sm);
+  font-weight: 600;
+  margin: var(--s2) 0 6px;
+}
+
+.rel-tabela {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--txt-xs);
+  margin-bottom: var(--s2);
+}
+
+.rel-tabela td, .rel-tabela th {
+  border: 1px solid var(--borda);
+  padding: 5px 8px;
+  vertical-align: top;
+}
+
+.rel-tabela th {
+  background: var(--superficie-alt);
+  font-weight: 600;
+  text-align: left;
+}
+
+.rel-tool { margin-bottom: var(--s2); }
+
+.rel-vazio {
+  color: var(--txt-sec);
+  font-style: italic;
+  font-size: var(--txt-sm);
+}
+
+.rel-assinatura {
+  margin-top: var(--s4);
+  padding-top: var(--s3);
+  border-top: 1px solid var(--borda);
+  font-size: var(--txt-sm);
+  color: var(--txt-sec);
+  text-align: center;
+}
+
+.rel-assin-bloco { margin-top: var(--s4); }
+
+.rel-assin-linha {
+  border-top: 1px solid var(--borda);
+  width: 200px;
+  margin: 0 auto var(--s2);
+}
+
+/* ── Responsivo mobile ── */
+@media (max-width: 600px) {
+  .aet-tab-label { display: none; }
+  .aet-tab { min-width: 40px; padding: 6px 8px; }
+  .tools-grid { grid-template-columns: 1fr; }
+  .exig-grid  { grid-template-columns: 1fr; }
+  .rel-tabela { font-size: 0.65rem; }
 }
