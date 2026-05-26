@@ -1067,10 +1067,9 @@ Retorne APENAS o texto da conclusão, sem introdução, sem formatação especia
         <div class="card" style="margin-bottom:var(--s4)">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--s3)">
             <div class="card-titulo" style="margin:0">🧠 Ações Psicossociais (${acoesPsi.length}/${aprovadosPsiCount} geradas)</div>
-            ${acoesPsi.length < aprovadosPsiCount ? `
             <button class="btn btn-secundario btn-sm" onclick="ModuloProjeto.gerarAcoesPsicossocial()">
-              ⚡ Gerar do Psicossocial
-            </button>` : ''}
+              ${acoesPsi.length < aprovadosPsiCount ? '⚡ Gerar do Psicossocial' : '🔄 Atualizar do Psicossocial'}
+            </button>
           </div>
           ${acoesPsi.length === 0 ? `
           <p style="font-size:var(--txt-xs);color:var(--texto-sec)">
