@@ -960,6 +960,10 @@ Retorne APENAS o texto da conclusão, sem introdução, sem formatação especia
       });
     });
 
+    /* Ações psicossociais (nível projeto) */
+    const acoesPsi = proj.planoAcaoPsicossocial || [];
+    const aprovadosPsiCount = (proj.consolidacaoPsicossocial?.riscosConsolidados || []).filter(r => r.decisao === 'aprovado').length;
+
     /* Não retorna cedo — sempre mostra o formulário de nova ação */
 
     const STATUS_L = { pendente:'⏳ Pendente', em_andamento:'🔄 Em andamento', concluido:'✅ Concluído' };
@@ -1053,10 +1057,68 @@ Retorne APENAS o texto da conclusão, sem introdução, sem formatação especia
             <div style="font-size:var(--txt-xs);color:var(--texto-sec)">Concluídas</div>
           </div>
           <div class="card" style="text-align:center;padding:var(--s3)">
-            <div style="font-size:22px;font-weight:700">${todasAcoes.length}</div>
+            <div style="font-size:22px;font-weight:700">${todasAcoes.length + acoesPsi.length}</div>
             <div style="font-size:var(--txt-xs);color:var(--texto-sec)">Total</div>
           </div>
         </div>
+
+        <!-- Ações Psicossociais -->
+        ${aprovadosPsiCount > 0 ? `
+        <div class="card" style="margin-bottom:var(--s4)">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--s3)">
+            <div class="card-titulo" style="margin:0">🧠 Ações Psicossociais (${acoesPsi.length}/${aprovadosPsiCount} geradas)</div>
+            ${acoesPsi.length < aprovadosPsiCount ? `
+            <button class="btn btn-secundario btn-sm" onclick="ModuloProjeto.gerarAcoesPsicossocial()">
+              ⚡ Gerar do Psicossocial
+            </button>` : ''}
+          </div>
+          ${acoesPsi.length === 0 ? `
+          <p style="font-size:var(--txt-xs);color:var(--texto-sec)">
+            Você tem ${aprovadosPsiCount} risco(s) psicossocial(is) aprovado(s) na Consolidação.
+            Clique em "Gerar do Psicossocial" para criar as ações correspondentes.
+          </p>` : `
+          ${acoesPsi.map(acao => {
+            const STATUS_L = { pendente:'⏳ Pendente', em_andamento:'🔄 Em andamento', concluido:'✅ Concluído' };
+            return `<div class="item-plano prioridade-${acao.prioridade}" id="item-acao-psi-${acao.id}">
+              <div class="item-plano-header">
+                <div style="flex:1">
+                  <div class="item-plano-titulo">${acao.descricao}</div>
+                  <div class="item-plano-meta">
+                    <span class="status-chip status-${acao.status}">${STATUS_L[acao.status]||acao.status}</span>
+                    <span class="badge-tipo badge-tipo-psicossocial">AFP</span>
+                    ${acao.responsavel ? `<span>👤 ${acao.responsavel}</span>` : ''}
+                    ${acao.prazo ? `<span>📅 ${acao.prazo}</span>` : ''}
+                  </div>
+                </div>
+                <button onclick="ModuloProjeto.excluirAcaoPsi('${acao.id}')"
+                        title="Excluir" style="flex-shrink:0;padding:4px 8px;border-radius:var(--r2);border:1px solid var(--borda);background:transparent;color:var(--texto-sec);cursor:pointer">
+                  🗑️
+                </button>
+              </div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--s2);margin-top:var(--s3)">
+                <div class="grupo-campo" style="margin:0">
+                  <label style="font-size:10px">Responsável</label>
+                  <input type="text" value="${acao.responsavel||''}" placeholder="Nome / setor" style="font-size:var(--txt-xs)"
+                         onchange="ModuloProjeto.salvarCampoAcaoPsi('${acao.id}','responsavel',this.value)">
+                </div>
+                <div class="grupo-campo" style="margin:0">
+                  <label style="font-size:10px">Prazo</label>
+                  <input type="date" value="${acao.prazo||''}" style="font-size:var(--txt-xs)"
+                         onchange="ModuloProjeto.salvarCampoAcaoPsi('${acao.id}','prazo',this.value)">
+                </div>
+              </div>
+              <div style="margin-top:var(--s3);display:flex;gap:var(--s2);flex-wrap:wrap">
+                ${['pendente','em_andamento','concluido'].map(s => `
+                  <button class="btn btn-sm ${acao.status===s?'btn-primario':'btn-secundario'}"
+                          onclick="ModuloProjeto.alterarStatusAcaoPsi('${acao.id}','${s}')">
+                    ${STATUS_L[s]}
+                  </button>
+                `).join('')}
+              </div>
+            </div>`;
+          }).join('')}`}
+        </div>` : ''}
+
         <!-- Nova ação manual -->
         <div class="card" style="margin-top:var(--s4)">
           <div class="card-titulo" style="margin-bottom:var(--s3)">➕ Nova Ação Manual</div>
@@ -1176,6 +1238,60 @@ Retorne APENAS o texto da conclusão, sem introdução, sem formatação especia
     trocarSecao('plano');
   }
 
+  /* ── Ações psicossociais (nível projeto) ────────────────── */
+  function gerarAcoesPsicossocial() {
+    const proj = App.obterProjetoAtual();
+    if (!proj) return;
+    const aprovados = (proj.consolidacaoPsicossocial?.riscosConsolidados || []).filter(r => r.decisao === 'aprovado');
+    if (!aprovados.length) { App.mostrarToast('Nenhum risco psicossocial aprovado na Consolidação', 'aviso'); return; }
+    if (!proj.planoAcaoPsicossocial) proj.planoAcaoPsicossocial = [];
+    const jaGerados = new Set(proj.planoAcaoPsicossocial.map(a => a.origemId));
+    let n = 0;
+    aprovados.forEach(r => {
+      if (jaGerados.has(r.id)) return;
+      proj.planoAcaoPsicossocial.push({
+        id:         Storage.gerarId('psi'),
+        origemId:   r.id,
+        descricao:  r.estrategia || r.titulo,
+        prioridade: 'media',
+        prazo:      '',
+        responsavel:'',
+        status:     'pendente',
+        criadaEm:   new Date().toISOString(),
+      });
+      n++;
+    });
+    if (!n) { App.mostrarToast('Todas as ações já foram geradas', 'info'); return; }
+    Storage.salvarProjeto(proj);
+    App.mostrarToast(`${n} ação(ões) psicossocial(is) gerada(s)`, 'sucesso');
+    _renderizarConteudo('plano');
+  }
+
+  function alterarStatusAcaoPsi(acaoId, novoStatus) {
+    const proj = App.obterProjetoAtual();
+    if (!proj) return;
+    const acao = (proj.planoAcaoPsicossocial || []).find(a => a.id === acaoId);
+    if (acao) { acao.status = novoStatus; Storage.salvarProjeto(proj); }
+    App.mostrarToast('Status atualizado', 'sucesso');
+    _renderizarConteudo('plano');
+  }
+
+  function salvarCampoAcaoPsi(acaoId, campo, valor) {
+    const proj = App.obterProjetoAtual();
+    if (!proj) return;
+    const acao = (proj.planoAcaoPsicossocial || []).find(a => a.id === acaoId);
+    if (acao) { acao[campo] = valor; Storage.salvarProjeto(proj); }
+  }
+
+  function excluirAcaoPsi(acaoId) {
+    const proj = App.obterProjetoAtual();
+    if (!proj) return;
+    proj.planoAcaoPsicossocial = (proj.planoAcaoPsicossocial || []).filter(a => a.id !== acaoId);
+    Storage.salvarProjeto(proj);
+    document.getElementById(`item-acao-psi-${acaoId}`)?.remove();
+    App.mostrarToast('Ação removida', 'sucesso');
+  }
+
   /* ══════════════════════════════════════════════════════════
      SEÇÃO: RELATÓRIO CONSOLIDADO
   ══════════════════════════════════════════════════════════ */
@@ -1245,7 +1361,10 @@ Retorne APENAS o texto da conclusão, sem introdução, sem formatação especia
     const secResAEP   = isAEP && avsAEP.length > 0 ? _n++ : null;
     const temDadosAFP = isAFP_r && (afpDados?.relatorio?.totalRespostas > 0);
     const secResAFP   = temDadosAFP ? _n++ : null;
-    const secPlano   = totalAcoes > 0 ? _n++ : null;
+    const aprovadosPsi = (proj.consolidacaoPsicossocial?.riscosConsolidados || []).filter(r => r.decisao === 'aprovado');
+    const acoesPsi     = proj.planoAcaoPsicossocial || [];
+    const secRiscoPsi  = aprovadosPsi.length > 0 ? _n++ : null;
+    const secPlano     = (totalAcoes > 0 || acoesPsi.length > 0) ? _n++ : null;
     const secConc    = _n++;
     const secAssin   = _n++;
 
@@ -1533,8 +1652,9 @@ Retorne APENAS o texto da conclusão, sem introdução, sem formatação especia
             rows += _si(secMet, 'Metodologia e Fundamentação Legal', 4);
             rows += _si(secCar, 'Caracterização do Ambiente de Trabalho', 5);
             if (secResAEP) rows += _si(secResAEP, 'Resultados — Avaliações Ergonômicas (AEP)', 6, 'rpt-secao-aep');
-            if (secResAFP) rows += _si(secResAFP, 'Resultados — Avaliações Psicossociais (AFP)', secResAEP ? 7 : 6, 'rpt-secao-afp');
-            if (secPlano)  rows += '<div class="rpt-sumario-sep"></div>' + _si(secPlano, 'Plano de Ação', secResAEP||secResAFP ? 8 : 6);
+            if (secResAFP)   rows += _si(secResAFP, 'Resultados — Avaliações Psicossociais (AFP)', secResAEP ? 7 : 6, 'rpt-secao-afp');
+            if (secRiscoPsi) rows += _si(secRiscoPsi, 'Riscos Psicossociais Identificados', (secResAEP||secResAFP) ? 8 : 7, 'rpt-secao-afp');
+            if (secPlano)    rows += '<div class="rpt-sumario-sep"></div>' + _si(secPlano, 'Plano de Ação', (secResAEP||secResAFP||secRiscoPsi) ? 9 : 6);
             rows += '<div class="rpt-sumario-sep"></div>' + _si(secConc, 'Conclusão Técnica', 9);
             rows += _si(secAssin, 'Assinatura', 10);
             return rows;
@@ -1742,8 +1862,41 @@ Retorne APENAS o texto da conclusão, sem introdução, sem formatação especia
           </p>
         </div>` : ''}
 
+        <!-- Riscos Psicossociais Identificados -->
+        ${secRiscoPsi ? `
+        <div class="relatorio-secao rpt-secao-afp">
+          <h3>${secRiscoPsi}. Riscos Psicossociais Identificados</h3>
+          <div style="overflow-x:auto">
+            <table class="tabela-simples">
+              <thead>
+                <tr>
+                  <th style="width:28%">Condição de Risco (NR-17)</th>
+                  <th style="width:40%">Texto para GRO/PGR</th>
+                  <th style="width:16%">Hierarquia de Controle</th>
+                  <th style="width:16%">Estratégia de Ação</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${aprovadosPsi.map(r => `<tr>
+                  <td style="font-weight:600;font-size:var(--txt-xs)">${r.titulo || '—'}</td>
+                  <td style="font-size:var(--txt-xs)">${r.textoGRO || '—'}</td>
+                  <td style="font-size:var(--txt-xs)">${r.hierarquia || '—'}</td>
+                  <td style="font-size:var(--txt-xs)">${r.estrategia || '—'}</td>
+                </tr>`).join('')}
+              </tbody>
+            </table>
+          </div>
+          ${proj.consolidacaoPsicossocial?.justificativaTecnica ? `
+          <div style="margin-top:var(--s3);font-size:var(--txt-xs)">
+            <strong>Justificativa Técnica:</strong> ${proj.consolidacaoPsicossocial.justificativaTecnica}
+          </div>` : ''}
+          <p style="font-size:var(--txt-xs);color:var(--texto-sec);margin-top:var(--s2)">
+            Condições identificadas com base na correlação entre AEP (Checklist NR-17) e AFP (COPSOQ-III), aprovadas pelo profissional responsável. Base: NR-17 (Portaria MTP 1.467/2023) e NR-01/GRO-PGR.
+          </p>
+        </div>` : ''}
+
         <!-- Plano de ação -->
-        ${totalAcoes > 0 ? `
+        ${(totalAcoes > 0 || acoesPsi.length > 0) ? `
         <div class="relatorio-secao">
           <h3>${secPlano}. Plano de Ação</h3>
           <div style="overflow-x:auto">
@@ -1756,7 +1909,7 @@ Retorne APENAS o texto da conclusão, sem introdução, sem formatação especia
                   const STATUS_L = { pendente: 'Pendente', em_andamento: 'Em andamento', concluido: 'Concluído' };
                   const MEDIDA_L = { engenharia: 'Engenharia', administrativa: 'Admin.', organizacional: 'Org.', epi: 'EPI/EPC' };
                   let n = 0;
-                  return avs.flatMap(av => {
+                  const linhasAv = avs.flatMap(av => {
                     const s = av.setorId  ? Storage.buscarSetor(av.setorId)   : null;
                     const f = av.funcaoId ? Storage.buscarFuncao(av.funcaoId) : null;
                     return (av.planoAcao || []).map(acao => `<tr>
@@ -1770,6 +1923,17 @@ Retorne APENAS o texto da conclusão, sem introdução, sem formatação especia
                       <td style="font-size:var(--txt-xs)">${STATUS_L[acao.status]||acao.status||'—'}</td>
                     </tr>`);
                   }).join('');
+                  const linhasPsi = acoesPsi.map(acao => `<tr>
+                    <td>${++n}</td>
+                    <td style="font-size:var(--txt-xs)"><span style="font-size:10px;color:#90caf9;margin-right:4px">🧠 Psicossocial</span>${acao.descricao||'—'}</td>
+                    <td style="font-size:var(--txt-xs)">—</td>
+                    <td style="font-size:var(--txt-xs)">Organizacional</td>
+                    <td style="font-weight:700;color:${PRIO_COR[acao.prioridade]||'#888'};font-size:var(--txt-xs)">${PRIO_L[acao.prioridade]||acao.prioridade||'—'}</td>
+                    <td style="font-size:var(--txt-xs)">${acao.responsavel||'—'}</td>
+                    <td style="font-size:var(--txt-xs)">${_fd(acao.prazo)}</td>
+                    <td style="font-size:var(--txt-xs)">${STATUS_L[acao.status]||acao.status||'—'}</td>
+                  </tr>`).join('');
+                  return linhasAv + linhasPsi;
                 })()}
               </tbody>
             </table>
@@ -1978,6 +2142,7 @@ Retorne APENAS o texto da conclusão, sem introdução, sem formatação especia
     renderizar, trocarSecao,
     salvarVisaoGeral, gerarObjetivoIA, gerarConclusaoIA, onConclusaoChange, onNecessitaAETChange, salvarConclusao, imprimir, exportarProjeto,
     salvarCampoAcao, excluirAcao, adicionarAcaoManual,
+    gerarAcoesPsicossocial, alterarStatusAcaoPsi, salvarCampoAcaoPsi, excluirAcaoPsi,
     abrirFormSetor, salvarSetor, excluirSetor,
     abrirFormFuncao, salvarFuncao, excluirFuncao,
     abrirWizardAv, _wizSetSetor, _wizSetFuncao, _wizVoltarSetor, _wizVoltarFuncao, _wizSetTipo,
