@@ -1250,10 +1250,13 @@ Retorne APENAS o texto da conclusão, sem introdução, sem formatação especia
     aprovados.forEach(r => {
       const estrategia = r.estrategia?.trim() || '';
       const descricao  = estrategia || `Implementar medidas de controle: ${r.titulo}`;
+      const acaoPlano  = r.acaoPlano?.trim() || '';
+      const descricao  = acaoPlano || estrategia || `Implementar medidas de controle: ${r.titulo}`;
       const existing   = proj.planoAcaoPsicossocial.find(a => a.origemId === r.id);
       if (existing) {
-        /* Atualiza descrição se a estratégia foi preenchida depois */
-        if (estrategia) existing.descricao = estrategia;
+        /* Atualiza descrição se acaoPlano ou estratégia foram preenchidos depois */
+        if (acaoPlano) existing.descricao = acaoPlano;
+        else if (estrategia) existing.descricao = estrategia;
         return;
       }
       proj.planoAcaoPsicossocial.push({
@@ -1372,10 +1375,12 @@ Retorne APENAS o texto da conclusão, sem introdução, sem formatação especia
     const secResAEP   = isAEP && avsAEP.length > 0 ? _n++ : null;
     const temDadosAFP = isAFP_r && (afpDados?.relatorio?.totalRespostas > 0);
     const secResAFP   = temDadosAFP ? _n++ : null;
-    const aprovadosPsi = (proj.consolidacaoPsicossocial?.riscosConsolidados || []).filter(r => r.decisao === 'aprovado');
-    const acoesPsi     = proj.planoAcaoPsicossocial || [];
-    const secRiscoPsi  = aprovadosPsi.length > 0 ? _n++ : null;
-    const secPlano     = (totalAcoes > 0 || acoesPsi.length > 0) ? _n++ : null;
+    const aprovadosPsi   = (proj.consolidacaoPsicossocial?.riscosConsolidados || []).filter(r => r.decisao === 'aprovado');
+    const acoesPsi       = proj.planoAcaoPsicossocial || [];
+    const secRiscoPsi    = aprovadosPsi.length > 0 ? _n++ : null;
+    const temOrientacoes = aprovadosPsi.some(r => r.estrategia || r.textoGRO);
+    const secOrientacoes = temOrientacoes ? _n++ : null;
+    const secPlano       = (totalAcoes > 0 || acoesPsi.length > 0) ? _n++ : null;
     const secConc    = _n++;
     const secAssin   = _n++;
 
@@ -1664,8 +1669,9 @@ Retorne APENAS o texto da conclusão, sem introdução, sem formatação especia
             rows += _si(secCar, 'Caracterização do Ambiente de Trabalho', 5);
             if (secResAEP) rows += _si(secResAEP, 'Resultados — Avaliações Ergonômicas (AEP)', 6, 'rpt-secao-aep');
             if (secResAFP)   rows += _si(secResAFP, 'Resultados — Avaliações Psicossociais (AFP)', secResAEP ? 7 : 6, 'rpt-secao-afp');
-            if (secRiscoPsi) rows += _si(secRiscoPsi, 'Riscos Psicossociais Identificados', (secResAEP||secResAFP) ? 8 : 7, 'rpt-secao-afp');
-            if (secPlano)    rows += '<div class="rpt-sumario-sep"></div>' + _si(secPlano, 'Plano de Ação', (secResAEP||secResAFP||secRiscoPsi) ? 9 : 6);
+            if (secRiscoPsi)    rows += _si(secRiscoPsi, 'Riscos Psicossociais Identificados', (secResAEP||secResAFP) ? 8 : 7, 'rpt-secao-afp');
+            if (secOrientacoes) rows += _si(secOrientacoes, 'Orientações de Controle Psicossocial', (secResAEP||secResAFP) ? 9 : 8, 'rpt-secao-afp');
+            if (secPlano)       rows += '<div class="rpt-sumario-sep"></div>' + _si(secPlano, 'Plano de Ação', (secResAEP||secResAFP||secRiscoPsi) ? 10 : 6);
             rows += '<div class="rpt-sumario-sep"></div>' + _si(secConc, 'Conclusão Técnica', 9);
             rows += _si(secAssin, 'Assinatura', 10);
             return rows;
@@ -1881,10 +1887,9 @@ Retorne APENAS o texto da conclusão, sem introdução, sem formatação especia
             <table class="tabela-simples">
               <thead>
                 <tr>
-                  <th style="width:28%">Condição de Risco (NR-17)</th>
-                  <th style="width:40%">Texto para GRO/PGR</th>
-                  <th style="width:16%">Hierarquia de Controle</th>
-                  <th style="width:16%">Estratégia de Ação</th>
+                  <th style="width:35%">Condição de Risco (NR-17)</th>
+                  <th style="width:45%">Fundamentação / Texto GRO-PGR</th>
+                  <th style="width:20%">Hierarquia de Controle</th>
                 </tr>
               </thead>
               <tbody>
@@ -1892,7 +1897,6 @@ Retorne APENAS o texto da conclusão, sem introdução, sem formatação especia
                   <td style="font-weight:600;font-size:var(--txt-xs)">${r.titulo || '—'}</td>
                   <td style="font-size:var(--txt-xs)">${r.textoGRO || '—'}</td>
                   <td style="font-size:var(--txt-xs)">${r.hierarquia || '—'}</td>
-                  <td style="font-size:var(--txt-xs)">${r.estrategia || '—'}</td>
                 </tr>`).join('')}
               </tbody>
             </table>
@@ -1902,8 +1906,44 @@ Retorne APENAS o texto da conclusão, sem introdução, sem formatação especia
             <strong>Justificativa Técnica:</strong> ${proj.consolidacaoPsicossocial.justificativaTecnica}
           </div>` : ''}
           <p style="font-size:var(--txt-xs);color:var(--texto-sec);margin-top:var(--s2)">
-            Condições identificadas com base na correlação entre AEP (Checklist NR-17) e AFP (COPSOQ-III), aprovadas pelo profissional responsável. Base: NR-17 (Portaria MTP 1.467/2023) e NR-01/GRO-PGR.
+            Condições identificadas com base na correlação entre AEP (Checklist NR-17) e AFP (COPSOQ-III), aprovadas pelo profissional responsável. Base: NR-17 (Portaria MTP 1.467/2023) e NR-01/GRO-PGR. Ver Seção ${secOrientacoes||'—'} para orientações detalhadas de controle.
           </p>
+        </div>` : ''}
+
+        <!-- Orientações de Controle Psicossocial -->
+        ${secOrientacoes ? `
+        <div class="relatorio-secao rpt-secao-afp">
+          <h3>${secOrientacoes}. Orientações de Controle Psicossocial</h3>
+          <p style="font-size:var(--txt-xs);color:var(--texto-sec);margin-bottom:var(--s3)">
+            Para cada condição de risco psicossocial aprovada, são apresentados abaixo o texto técnico de referência para o GRO/PGR e as orientações detalhadas de controle a serem implementadas.
+          </p>
+          ${aprovadosPsi.map((r, i) => `
+          <div style="margin-bottom:var(--s4);${i > 0 ? 'border-top:1px solid var(--borda);padding-top:var(--s4)' : ''}">
+            <div style="font-weight:700;font-size:var(--txt-sm);margin-bottom:var(--s3);color:#0D47A1">
+              ${i + 1}. ${r.titulo || '—'}
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--s4)">
+              <div>
+                <div style="font-size:var(--txt-xs);font-weight:700;text-transform:uppercase;color:var(--texto-sec);margin-bottom:var(--s2)">
+                  Texto para GRO/PGR
+                </div>
+                <div style="font-size:var(--txt-xs);line-height:1.6;text-align:justify">
+                  ${r.textoGRO || '—'}
+                </div>
+                <div style="font-size:10px;color:var(--texto-sec);margin-top:var(--s2)">
+                  📋 ${r.fundamentoLegal || ''}
+                </div>
+              </div>
+              <div>
+                <div style="font-size:var(--txt-xs);font-weight:700;text-transform:uppercase;color:var(--texto-sec);margin-bottom:var(--s2)">
+                  Orientação de Controle
+                </div>
+                <div style="font-size:var(--txt-xs);line-height:1.6;text-align:justify">
+                  ${r.estrategia || '<em style="color:var(--texto-sec)">Orientação não preenchida.</em>'}
+                </div>
+              </div>
+            </div>
+          </div>`).join('')}
         </div>` : ''}
 
         <!-- Plano de ação -->

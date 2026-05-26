@@ -404,16 +404,28 @@ const ModuloConsolidacao = (() => {
               </select>
             </div>
             <div class="grupo-campo">
+              <label style="font-size:var(--txt-xs)">
+                Ação para o Plano
+                <span style="color:var(--texto-sec);font-weight:400"> — 1 frase objetiva</span>
+              </label>
+              <textarea id="cons-acao-plano-${prop.id}" rows="2"
+                placeholder="Ex.: Revisar distribuição de tarefas e ajustar metas conforme capacidade da equipe."
+              >${salvo.acaoPlano||''}</textarea>
+            </div>
+            <div class="grupo-campo">
               <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--s1)">
-                <label style="font-size:var(--txt-xs);margin:0">Estratégia / Ação Proposta</label>
+                <label style="font-size:var(--txt-xs);margin:0">
+                  Orientação Detalhada
+                  <span style="color:var(--texto-sec);font-weight:400"> — seção de orientações</span>
+                </label>
                 <button id="btn-estrategia-ia-${prop.id}"
                         onclick="ModuloConsolidacao.gerarEstrategiaIA('${prop.id}')"
                         style="font-size:var(--txt-xs);padding:3px 9px;border-radius:var(--r2);border:1px solid #3949ab;background:rgba(57,73,171,.15);color:#90caf9;cursor:pointer;white-space:nowrap">
                   🤖 Gerar com IA
                 </button>
               </div>
-              <textarea id="cons-estrategia-${prop.id}" rows="2"
-                placeholder="Descreva a ação concreta para controlar esta condição..."
+              <textarea id="cons-estrategia-${prop.id}" rows="3"
+                placeholder="Orientação técnica detalhada sobre as medidas de controle para esta condição..."
               >${salvo.estrategia||''}</textarea>
             </div>
           ` : `
@@ -444,7 +456,7 @@ const ModuloConsolidacao = (() => {
     let salvo = cons.riscosConsolidados.find(r => r.id === condId);
     if (!salvo) {
       const cond = CATALOGO.find(c => c.id === condId);
-      salvo = { id: condId, titulo: cond?.titulo||'', textoGRO: cond?.textoGRO||'', hierarquia: '', estrategia: '' };
+      salvo = { id: condId, titulo: cond?.titulo||'', textoGRO: cond?.textoGRO||'', fundamentoLegal: cond?.fundamentoLegal||'', hierarquia: '', estrategia: '', acaoPlano: '' };
       cons.riscosConsolidados.push(salvo);
     }
     salvo.decisao = decisao;
@@ -508,10 +520,12 @@ const ModuloConsolidacao = (() => {
     CATALOGO.forEach(cond => {
       const salvo = cons.riscosConsolidados.find(r => r.id === cond.id);
       if (!salvo) return;
-      const h = document.getElementById(`cons-hier-${cond.id}`);
-      const e = document.getElementById(`cons-estrategia-${cond.id}`);
-      if (h) salvo.hierarquia = h.value;
-      if (e) salvo.estrategia = e.value.trim();
+      const h  = document.getElementById(`cons-hier-${cond.id}`);
+      const e  = document.getElementById(`cons-estrategia-${cond.id}`);
+      const ap = document.getElementById(`cons-acao-plano-${cond.id}`);
+      if (h)  salvo.hierarquia = h.value;
+      if (e)  salvo.estrategia = e.value.trim();
+      if (ap) salvo.acaoPlano  = ap.value.trim();
     });
     cons.atualizadaEm = new Date().toISOString();
 
@@ -559,7 +573,7 @@ const ModuloConsolidacao = (() => {
       try {
         const prompt = `Você é um engenheiro de segurança do trabalho especialista em ergonomia e fatores psicossociais.
 
-Redija uma ação concreta de controle para o seguinte fator de risco psicossocial identificado em avaliação ergonômica (NR-17 / NR-01):
+Para o fator de risco psicossocial abaixo, gere dois textos complementares:
 
 Condição de risco: ${prop.titulo}
 Descrição: ${prop.descricaoUI}
@@ -567,12 +581,29 @@ Base legal: ${prop.fundamentoLegal}
 Empresa: ${emp?.nome || 'não informado'}
 Atividade: ${emp?.atividadePrincipal || emp?.cnae || 'não informado'}
 
-Escreva 2 a 4 frases objetivas, em estilo de plano de ação técnico, descrevendo a ação de controle proposta. A ação deve ser prática, mensurável e adequada ao contexto organizacional. Use linguagem de condições de trabalho, não de estados psicológicos. Inicie diretamente com o conteúdo. Retorne APENAS o texto, sem formatação especial.`;
+Retorne APENAS um JSON válido, sem markdown, com exatamente dois campos:
+{
+  "acaoPlano": "Uma frase objetiva de no máximo 120 caracteres para o plano de ação. Deve iniciar com um verbo no infinitivo. Use linguagem de condições de trabalho.",
+  "orientacao": "Orientação técnica detalhada em 3 a 5 frases sobre as medidas de controle. Explique o que fazer, como fazer e como monitorar. Use linguagem de condições de trabalho, não de estados psicológicos."
+}`;
 
-        const texto = await ClaudeVision.gerarTextoIA(prompt, 512);
-        const campo = document.getElementById(`cons-estrategia-${condId}`);
-        if (campo && texto) campo.value = texto;
-        App.mostrarToast('Estratégia gerada — revise e salve', 'sucesso');
+        const texto = await ClaudeVision.gerarTextoIA(prompt, 700);
+        let parsed = null;
+        try {
+          /* tenta extrair JSON mesmo que venha com texto ao redor */
+          const match = texto.match(/\{[\s\S]*\}/);
+          parsed = JSON.parse(match ? match[0] : texto);
+        } catch { /* fallback: coloca tudo na orientação */ }
+
+        const campoAcao = document.getElementById(`cons-acao-plano-${condId}`);
+        const campoEst  = document.getElementById(`cons-estrategia-${condId}`);
+        if (parsed) {
+          if (campoAcao && parsed.acaoPlano)  campoAcao.value = parsed.acaoPlano;
+          if (campoEst  && parsed.orientacao) campoEst.value  = parsed.orientacao;
+        } else if (campoEst && texto) {
+          campoEst.value = texto;
+        }
+        App.mostrarToast('Gerado — revise os dois campos e salve', 'sucesso');
       } catch (err) {
         App.mostrarToast('Erro ao gerar: ' + err.message, 'erro');
       } finally {
