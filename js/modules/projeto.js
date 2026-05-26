@@ -22,12 +22,13 @@ const ModuloProjeto = (() => {
   let _wiz = { setorId: null, funcaoId: null, tipo: null };
 
   const SECOES = [
-    { id: 'visao-geral', icone: '📁', label: 'Projeto'    },
-    { id: 'setores',     icone: '📍', label: 'Setores'    },
-    { id: 'avaliacoes',  icone: '📋', label: 'Avaliações' },
-    { id: 'pesquisas',   icone: '🧠', label: 'Pesquisas'  },
-    { id: 'plano',       icone: '📌', label: 'Plano'      },
-    { id: 'relatorio',   icone: '📄', label: 'Relatório'  },
+    { id: 'visao-geral',    icone: '📁', label: 'Projeto'       },
+    { id: 'setores',        icone: '📍', label: 'Setores'       },
+    { id: 'avaliacoes',     icone: '📋', label: 'Avaliações'    },
+    { id: 'pesquisas',      icone: '🧠', label: 'Pesquisas'     },
+    { id: 'consolidacao',   icone: '🔬', label: 'Consolidação'  },
+    { id: 'plano',          icone: '📌', label: 'Plano'         },
+    { id: 'relatorio',      icone: '📄', label: 'Relatório'     },
   ];
 
   const TIPO_LABEL = {
@@ -103,8 +104,9 @@ const ModuloProjeto = (() => {
 
     const soAFP = proj?.tipo === 'psicossocial';
     const secoesFiltradas = SECOES.filter(s => {
-      if (s.id === 'pesquisas')   return temAFP;
-      if (s.id === 'avaliacoes')  return !soAFP; /* AFP puro não tem avaliações AEP */
+      if (s.id === 'pesquisas')    return temAFP;
+      if (s.id === 'consolidacao') return temAFP; /* só projetos com AFP têm consolidação */
+      if (s.id === 'avaliacoes')   return !soAFP; /* AFP puro não tem avaliações AEP */
       return true;
     });
 
@@ -135,12 +137,13 @@ const ModuloProjeto = (() => {
   function _renderizarConteudo(secao) {
     const el = document.getElementById('projeto-conteudo');
     if (!el) return;
-    if      (secao === 'visao-geral') el.innerHTML = _htmlVisaoGeral();
-    else if (secao === 'setores')     el.innerHTML = _htmlSetores();
-    else if (secao === 'avaliacoes')  el.innerHTML = _htmlAvaliacoes();
-    else if (secao === 'pesquisas')   ModuloPesquisaAdmin.renderizar();
-    else if (secao === 'plano')       el.innerHTML = _htmlPlano();
-    else if (secao === 'relatorio')   _renderizarRelatorio(el);
+    if      (secao === 'visao-geral')  el.innerHTML = _htmlVisaoGeral();
+    else if (secao === 'setores')      el.innerHTML = _htmlSetores();
+    else if (secao === 'avaliacoes')   el.innerHTML = _htmlAvaliacoes();
+    else if (secao === 'pesquisas')    ModuloPesquisaAdmin.renderizar();
+    else if (secao === 'consolidacao') ModuloConsolidacao.renderizar(el);
+    else if (secao === 'plano')        el.innerHTML = _htmlPlano();
+    else if (secao === 'relatorio')    _renderizarRelatorio(el);
   }
 
   function _salvarSecaoAtual() {
