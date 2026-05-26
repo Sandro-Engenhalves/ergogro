@@ -1546,8 +1546,20 @@ Retorne APENAS o texto da conclusão, sem introdução, sem formatação especia
       <!-- ══ CSS DE IMPRESSÃO PADRÃO ENGENHALVES ══ -->
       <style>
         @media print {
-          @page { size: A4 portrait; margin: 18mm 12mm 14mm; }
-          @page :first { margin: 0 12mm; }
+          @page {
+            size: A4 portrait;
+            margin: 18mm 12mm 18mm;
+            @bottom-center {
+              content: "Página " counter(page);
+              font-size: 7pt;
+              color: #555;
+              font-family: Arial, Helvetica, sans-serif;
+            }
+          }
+          @page :first {
+            margin: 0 12mm;
+            @bottom-center { content: none; }
+          }
           * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
           #app-header, #nav-principal, .subnav-abas,
           .nao-imprimir, .btn, #toast { display: none !important; }
