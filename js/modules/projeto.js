@@ -1669,9 +1669,13 @@ Retorne APENAS o texto da conclusão, sem introdução, sem formatação especia
             if (secResAFP)   rows += _si(secResAFP, 'Resultados — Avaliações Psicossociais (AFP)', secResAEP ? 7 : 6, 'rpt-secao-afp');
             if (secRiscoPsi)    rows += _si(secRiscoPsi, 'Riscos Psicossociais Identificados', (secResAEP||secResAFP) ? 8 : 7, 'rpt-secao-afp');
             if (secOrientacoes) rows += _si(secOrientacoes, 'Orientações de Controle Psicossocial', (secResAEP||secResAFP) ? 9 : 8, 'rpt-secao-afp');
-            if (secPlano)       rows += '<div class="rpt-sumario-sep"></div>' + _si(secPlano, 'Plano de Ação', (secResAEP||secResAFP||secRiscoPsi) ? 10 : 6);
-            rows += '<div class="rpt-sumario-sep"></div>' + _si(secConc, 'Conclusão Técnica', 9);
-            rows += _si(secAssin, 'Assinatura', 10);
+            const _pgPlano = secPlano ? ((secResAEP||secResAFP||secRiscoPsi) ? 10 : 6) : null;
+            const _pgConc  = _pgPlano ? _pgPlano + 1
+                           : ((secResAEP||secResAFP||secRiscoPsi||secOrientacoes) ? 9 : 7);
+            const _pgAssin = _pgConc + 1;
+            if (secPlano)       rows += '<div class="rpt-sumario-sep"></div>' + _si(secPlano, 'Plano de Ação', _pgPlano);
+            rows += '<div class="rpt-sumario-sep"></div>' + _si(secConc, 'Conclusão Técnica', _pgConc);
+            rows += _si(secAssin, 'Assinatura', _pgAssin);
             return rows;
           })()}
         </div>
