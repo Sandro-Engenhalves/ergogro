@@ -404,7 +404,14 @@ const ModuloConsolidacao = (() => {
               </select>
             </div>
             <div class="grupo-campo">
-              <label style="font-size:var(--txt-xs)">Estratégia / Ação Proposta</label>
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--s1)">
+                <label style="font-size:var(--txt-xs);margin:0">Estratégia / Ação Proposta</label>
+                <button id="btn-estrategia-ia-${prop.id}"
+                        onclick="ModuloConsolidacao.gerarEstrategiaIA('${prop.id}')"
+                        style="font-size:var(--txt-xs);padding:3px 9px;border-radius:var(--r2);border:1px solid #3949ab;background:rgba(57,73,171,.15);color:#90caf9;cursor:pointer;white-space:nowrap">
+                  🤖 Gerar com IA
+                </button>
+              </div>
               <textarea id="cons-estrategia-${prop.id}" rows="2"
                 placeholder="Descreva a ação concreta para controlar esta condição..."
               >${salvo.estrategia||''}</textarea>
@@ -540,5 +547,46 @@ const ModuloConsolidacao = (() => {
       .filter(r => r.decisao === 'aprovado');
   }
 
-  return { renderizar, decidir, salvar, obterAprovados };
+  async function gerarEstrategiaIA(condId) {
+    const prop = CATALOGO.find(c => c.id === condId);
+    if (!prop) return;
+    const proj = App.obterProjetoAtual();
+    const emp  = proj?.empresaId ? Storage.buscarEmpresa(proj.empresaId) : null;
+
+    const executar = async () => {
+      const btn = document.getElementById(`btn-estrategia-ia-${condId}`);
+      if (btn) { btn.disabled = true; btn.textContent = '⏳'; }
+      try {
+        const prompt = `Você é um engenheiro de segurança do trabalho especialista em ergonomia e fatores psicossociais.
+
+Redija uma ação concreta de controle para o seguinte fator de risco psicossocial identificado em avaliação ergonômica (NR-17 / NR-01):
+
+Condição de risco: ${prop.titulo}
+Descrição: ${prop.descricaoUI}
+Base legal: ${prop.fundamentoLegal}
+Empresa: ${emp?.nome || 'não informado'}
+Atividade: ${emp?.atividadePrincipal || emp?.cnae || 'não informado'}
+
+Escreva 2 a 4 frases objetivas, em estilo de plano de ação técnico, descrevendo a ação de controle proposta. A ação deve ser prática, mensurável e adequada ao contexto organizacional. Use linguagem de condições de trabalho, não de estados psicológicos. Inicie diretamente com o conteúdo. Retorne APENAS o texto, sem formatação especial.`;
+
+        const texto = await ClaudeVision.gerarTextoIA(prompt, 512);
+        const campo = document.getElementById(`cons-estrategia-${condId}`);
+        if (campo && texto) campo.value = texto;
+        App.mostrarToast('Estratégia gerada — revise e salve', 'sucesso');
+      } catch (err) {
+        App.mostrarToast('Erro ao gerar: ' + err.message, 'erro');
+      } finally {
+        const btn = document.getElementById(`btn-estrategia-ia-${condId}`);
+        if (btn) { btn.disabled = false; btn.textContent = '🤖 Gerar com IA'; }
+      }
+    };
+
+    if (!ClaudeVision.temChave()) {
+      ClaudeVision.solicitarChaveParaChamada(executar);
+    } else {
+      await executar();
+    }
+  }
+
+  return { renderizar, decidir, salvar, obterAprovados, gerarEstrategiaIA };
 })();
