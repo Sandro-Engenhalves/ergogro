@@ -763,9 +763,9 @@ const ModuloPesquisaAdmin = (() => {
       <!-- ══ CSS DE IMPRESSÃO PADRÃO ENGENHALVES ══ -->
       <style>
         @media print {
-          /* Configuração da página A4 — margens reservam espaço para header/footer em toda página */
-          @page { size: A4 portrait; margin: 18mm 12mm 14mm; }
-          @page :first { margin: 0 12mm; }
+          /* Configuração da página A4 — margens ABNT: 18mm top, 18mm lados, 14mm bottom */
+          @page { size: A4 portrait; margin: 18mm 18mm 14mm; }
+          @page :first { margin: 0 18mm; }
 
           /* Forçar impressão de cores e backgrounds (Chrome não imprime por padrão) */
           * {
@@ -880,7 +880,7 @@ const ModuloPesquisaAdmin = (() => {
             font-weight: 900;
             color: #fff !important;
             background: #0D47A1 !important;
-            padding: 8pt 12pt !important;
+            padding: 7pt 9pt !important;
             text-transform: uppercase;
             letter-spacing: 3pt;
             margin: 0 0 10mm !important;
@@ -891,7 +891,7 @@ const ModuloPesquisaAdmin = (() => {
           .rpt-sumario-item {
             display: flex !important;
             align-items: baseline !important;
-            padding: 5pt 14pt !important;
+            padding: 5pt 9pt !important;
             font-size: 10pt;
             color: #111;
             border: none !important;
@@ -901,7 +901,7 @@ const ModuloPesquisaAdmin = (() => {
             background: #f5f7fa !important;
           }
           .rpt-sumario-item.sumario-sub {
-            padding: 3pt 14pt 3pt 34pt !important;
+            padding: 3pt 9pt 3pt 26pt !important;
             font-size: 9pt;
             color: #444;
           }
@@ -1017,7 +1017,7 @@ const ModuloPesquisaAdmin = (() => {
             border-bottom: 1px solid #e8e8e8 !important;
             background: #fff !important;
             border-radius: 0 !important;
-            padding: 6pt 0 !important;
+            padding: 6pt 9pt !important;
             margin-bottom: 8pt !important;
             color: #000 !important;
           }
@@ -1764,20 +1764,29 @@ const ModuloPesquisaAdmin = (() => {
           </div>
 
           <!-- Bloco de assinatura — visível apenas na impressão -->
-          <div class="so-imprimir" style="margin-top:20pt">
+          <div class="so-imprimir" style="margin-top:24pt">
             <div style="background:#0D47A1;color:#fff;padding:5pt 9pt;font-size:9pt;font-weight:700;text-transform:uppercase;letter-spacing:.5pt">
-              Assinatura
+              Assinatura do Responsável Técnico
             </div>
-            <div style="display:flex;gap:0;font-size:9pt;padding:0">
-              <div style="flex:1;padding:9pt 10pt 6pt 10pt">
-                <div style="font-weight:700;font-size:10pt;color:#000;margin-bottom:3pt">${_responsavel || 'Responsável Técnico'}</div>
-                ${_registro ? `<div style="font-size:8pt;color:#444">${_registro}</div>` : ''}
+            <div style="display:flex;gap:20pt;align-items:flex-start;padding:10pt 9pt 8pt;border-bottom:2px solid #0D47A1">
+              <!-- Identificação do profissional + campo de assinatura -->
+              <div style="flex:1.4">
+                <div style="font-weight:700;font-size:10pt;color:#000;margin-bottom:2pt">${_responsavel || 'Responsável Técnico'}</div>
+                <div style="font-size:8pt;color:#555;margin-bottom:9pt">${_registro || '&nbsp;'}</div>
+                <div style="border:1px dashed #aaa;padding:7pt 8pt;min-height:28pt;display:flex;align-items:center;justify-content:center">
+                  <span style="font-size:7pt;color:#bbb;text-align:center;letter-spacing:.3pt;text-transform:uppercase">
+                    Assinatura Eletrônica com Certificado Digital
+                  </span>
+                </div>
               </div>
-              <div style="flex:1;padding:9pt 10pt 6pt 10pt">
-                <div style="font-size:8pt;color:#666">Data de Emissão</div>
-                <div style="font-weight:700;color:#000;margin:2pt 0">${_dataEmissao}</div>
-                <div style="font-size:8pt;color:#555;margin-bottom:3pt">${_nrLaudo}</div>
-                <div style="font-size:8pt;color:#555">Assinatura Eletrônica com Certificado</div>
+              <!-- Data e número do documento -->
+              <div style="text-align:right;flex-shrink:0;min-width:90pt">
+                <div style="font-size:8pt;color:#666;margin-bottom:2pt">Data de Emissão</div>
+                <div style="font-weight:700;color:#000;font-size:11pt;margin-bottom:4pt">${_dataEmissao}</div>
+                <div style="font-size:8pt;color:#555">${_nrLaudo}</div>
+                <div style="font-size:7pt;color:#aaa;margin-top:10pt;font-style:italic;line-height:1.5">
+                  Conforme MP 2.200-2/2001<br>e Lei 14.063/2020
+                </div>
               </div>
             </div>
             <div id="ps-rodape-empresa" style="text-align:center;font-size:8pt;color:#888;margin-top:10pt;border-top:1px solid #eee;padding-top:6pt">
