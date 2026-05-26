@@ -1248,7 +1248,6 @@ Retorne APENAS o texto da conclusão, sem introdução, sem formatação especia
     let n = 0;
     aprovados.forEach(r => {
       const estrategia = r.estrategia?.trim() || '';
-      const descricao  = estrategia || `Implementar medidas de controle: ${r.titulo}`;
       const acaoPlano  = r.acaoPlano?.trim() || '';
       const descricao  = acaoPlano || estrategia || `Implementar medidas de controle: ${r.titulo}`;
       const existing   = proj.planoAcaoPsicossocial.find(a => a.origemId === r.id);
