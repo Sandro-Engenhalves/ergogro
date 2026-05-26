@@ -1,5 +1,5 @@
 /* ============================================================
-   ErgoGRO — Módulo: Consolidação Técnica Psicossocial
+   ErgoGRO — Módulo: Consolidação Técnica Psicossocial v2
 
    FLUXO:
    1. Sistema analisa AFP (COPSOQ-III) + AEP e propõe riscos
