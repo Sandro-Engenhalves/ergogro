@@ -1082,6 +1082,7 @@ Retorne APENAS o texto da conclusão, sem introdução, sem formatação especia
             return `<div class="item-plano prioridade-${acao.prioridade}" id="item-acao-psi-${acao.id}">
               <div class="item-plano-header">
                 <div style="flex:1">
+                  ${acao.risco ? `<div style="font-size:10px;color:var(--texto-sec);margin-bottom:4px">🧠 ${acao.risco}</div>` : ''}
                   <div class="item-plano-titulo">${acao.descricao}</div>
                   <div class="item-plano-meta">
                     <span class="status-chip status-${acao.status}">${STATUS_L[acao.status]||acao.status}</span>
@@ -1245,14 +1246,21 @@ Retorne APENAS o texto da conclusão, sem introdução, sem formatação especia
     const aprovados = (proj.consolidacaoPsicossocial?.riscosConsolidados || []).filter(r => r.decisao === 'aprovado');
     if (!aprovados.length) { App.mostrarToast('Nenhum risco psicossocial aprovado na Consolidação', 'aviso'); return; }
     if (!proj.planoAcaoPsicossocial) proj.planoAcaoPsicossocial = [];
-    const jaGerados = new Set(proj.planoAcaoPsicossocial.map(a => a.origemId));
     let n = 0;
     aprovados.forEach(r => {
-      if (jaGerados.has(r.id)) return;
+      const estrategia = r.estrategia?.trim() || '';
+      const descricao  = estrategia || `Implementar medidas de controle: ${r.titulo}`;
+      const existing   = proj.planoAcaoPsicossocial.find(a => a.origemId === r.id);
+      if (existing) {
+        /* Atualiza descrição se a estratégia foi preenchida depois */
+        if (estrategia) existing.descricao = estrategia;
+        return;
+      }
       proj.planoAcaoPsicossocial.push({
         id:         Storage.gerarId('psi'),
         origemId:   r.id,
-        descricao:  r.estrategia || r.titulo,
+        risco:      r.titulo,
+        descricao,
         prioridade: 'media',
         prazo:      '',
         responsavel:'',
@@ -1261,9 +1269,12 @@ Retorne APENAS o texto da conclusão, sem introdução, sem formatação especia
       });
       n++;
     });
-    if (!n) { App.mostrarToast('Todas as ações já foram geradas', 'info'); return; }
     Storage.salvarProjeto(proj);
-    App.mostrarToast(`${n} ação(ões) psicossocial(is) gerada(s)`, 'sucesso');
+    if (n) {
+      App.mostrarToast(`${n} ação(ões) psicossocial(is) gerada(s)`, 'sucesso');
+    } else {
+      App.mostrarToast('Plano atualizado com as estratégias da Consolidação', 'sucesso');
+    }
     _renderizarConteudo('plano');
   }
 
@@ -1925,7 +1936,10 @@ Retorne APENAS o texto da conclusão, sem introdução, sem formatação especia
                   }).join('');
                   const linhasPsi = acoesPsi.map(acao => `<tr>
                     <td>${++n}</td>
-                    <td style="font-size:var(--txt-xs)"><span style="font-size:10px;color:#90caf9;margin-right:4px">🧠 Psicossocial</span>${acao.descricao||'—'}</td>
+                    <td style="font-size:var(--txt-xs)">
+                      ${acao.risco ? `<div style="font-size:9px;color:#90caf9;margin-bottom:2px">🧠 ${acao.risco}</div>` : ''}
+                      ${acao.descricao||'—'}
+                    </td>
                     <td style="font-size:var(--txt-xs)">—</td>
                     <td style="font-size:var(--txt-xs)">Organizacional</td>
                     <td style="font-weight:700;color:${PRIO_COR[acao.prioridade]||'#888'};font-size:var(--txt-xs)">${PRIO_L[acao.prioridade]||acao.prioridade||'—'}</td>
