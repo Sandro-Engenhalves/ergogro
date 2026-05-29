@@ -1642,8 +1642,8 @@ const ModuloPesquisaAdmin = (() => {
             </div>
           </div>
 
-          <!-- 5. Conclusão (texto livre) -->
-          <div class="card" style="margin-top:var(--s4)">
+          <!-- 5. Conclusão (texto livre) — visível apenas na tela; impressão vai para seção 9 -->
+          <div class="card nao-imprimir" style="margin-top:var(--s4)">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--s3)">
               <div class="card-titulo" style="margin-bottom:0">7.5 Conclusão Técnica</div>
               <button id="btn-gerar-conclusao-afp" onclick="ModuloPesquisaAdmin.gerarConclusaoAFPIA()"
@@ -1749,7 +1749,7 @@ const ModuloPesquisaAdmin = (() => {
             <!-- Impressão: texto da conclusão -->
             <div class="so-imprimir">
               ${it.conclusao
-                ? `<p style="font-size:9pt;line-height:1.6;margin-bottom:8pt">${it.conclusao}</p>`
+                ? `<p style="font-size:9pt;line-height:1.6;margin-bottom:8pt">${it.conclusao.replace(/^conclus[aã]o\s+t[eé]cnica[:\s]*/i, '').trim()}</p>`
                 : `<p style="font-size:9pt;color:#555;font-style:italic">Conclusão técnica não preenchida.</p>`
               }
               <div id="ps-print-aet-conclusion">
