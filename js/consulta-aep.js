@@ -275,9 +275,10 @@ const ConsultaAEP = (() => {
   function _mostrarModalLink(perfil, link, numFuncoes) {
     document.getElementById('modal-consulta-aep')?.remove();
     const label  = _PERFIL_LABEL[perfil];
+    const funcLabel = numFuncoes === 1 ? '1 função' : `${numFuncoes} funções`;
     const waMsg  = encodeURIComponent(
       `Olá! Preciso da sua colaboração para a Avaliação Ergonômica.\n` +
-      `Este link cobre ${numFuncoes} função(ões) — basta responder uma única vez:\n${link}`
+      `Este link cobre ${funcLabel} — basta responder uma única vez:\n${link}`
     );
     const waLink = `https://wa.me/?text=${waMsg}`;
 
@@ -292,7 +293,7 @@ const ConsultaAEP = (() => {
           </div>
           <div style="font-size:var(--txt-xs);background:var(--superficie-alt);border-radius:var(--r2);
                       padding:var(--s2) var(--s3);margin-bottom:12px;color:var(--texto-sec)">
-            ✅ Cobre <strong>${numFuncoes} função(ões)</strong> do projeto —
+            ✅ Cobre <strong>${funcLabel}</strong> do projeto —
             envie <strong>uma única vez</strong> para o responsável.
           </div>
           <p style="font-size:var(--txt-sm);color:var(--texto-sec);margin-bottom:16px">
