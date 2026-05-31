@@ -359,7 +359,15 @@ const ModuloCadastro = (() => {
       <div class="linha-campos">
         <div class="grupo-campo">
           <label>CNPJ</label>
-          <input type="text" id="emp-cnpj" placeholder="00.000.000/0000-00" maxlength="18" value="${emp.cnpj||''}">
+          <div style="display:flex;gap:var(--s2)">
+            <input type="text" id="emp-cnpj" placeholder="00.000.000/0000-00" maxlength="18" value="${emp.cnpj||''}" style="flex:1">
+            <button class="btn btn-secundario btn-sm" id="btn-buscar-cnpj"
+                    onclick="ModuloCadastro._buscarCNPJ()"
+                    title="Buscar dados da empresa pelo CNPJ"
+                    style="white-space:nowrap;align-self:flex-end">
+              🔍 Buscar
+            </button>
+          </div>
         </div>
         <div class="grupo-campo">
           <label>Estado (UF)</label>
@@ -579,6 +587,53 @@ const ModuloCadastro = (() => {
   }
 
   /* ══════════════════════════════════════════════════════════
+     BUSCA AUTOMÁTICA DE CNPJ (BrasilAPI)
+  ══════════════════════════════════════════════════════════ */
+
+  async function _buscarCNPJ() {
+    const input = document.getElementById('emp-cnpj');
+    const btn   = document.getElementById('btn-buscar-cnpj');
+    const cnpj  = (input?.value || '').replace(/\D/g, '');
+
+    if (cnpj.length !== 14) {
+      App.mostrarToast('Digite o CNPJ completo antes de buscar', 'aviso');
+      return;
+    }
+
+    btn.disabled    = true;
+    btn.textContent = '⏳ Buscando...';
+
+    try {
+      const res  = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpj}`);
+      if (!res.ok) throw new Error(res.status === 404 ? 'CNPJ não encontrado na Receita Federal' : 'Erro na consulta');
+      const d = await res.json();
+
+      const set = (id, val) => { const el = document.getElementById(id); if (el && val) el.value = val; };
+
+      set('emp-nome',     d.razao_social);
+      set('emp-cidade',   d.municipio);
+
+      /* monta endereço: logradouro + número + bairro */
+      const partes = [d.logradouro, d.numero, d.bairro].filter(Boolean);
+      set('emp-endereco', partes.join(', '));
+
+      /* seleciona UF no <select> */
+      const selUF = document.getElementById('emp-estado');
+      if (selUF && d.uf) {
+        const opt = [...selUF.options].find(o => o.value === d.uf);
+        if (opt) selUF.value = d.uf;
+      }
+
+      App.mostrarToast('Dados preenchidos automaticamente ✔', 'sucesso');
+    } catch (err) {
+      App.mostrarToast(err.message || 'Não foi possível consultar o CNPJ', 'erro');
+    } finally {
+      btn.disabled    = false;
+      btn.textContent = '🔍 Buscar';
+    }
+  }
+
+  /* ══════════════════════════════════════════════════════════
      IMPORTAÇÃO DE PLANILHA
   ══════════════════════════════════════════════════════════ */
 
@@ -752,6 +807,16 @@ const ModuloCadastro = (() => {
     _importPreview = null;
   }
 
+  /* Normaliza o turno: tenta casar com as opções fixas (case-insensitive).
+     Qualquer valor não reconhecido → 'Misto', pois representa regime variado/atípico. */
+  const _TURNOS_FIXOS = ['Diurno', 'Vespertino', 'Noturno', '12x36', 'Misto'];
+  function _normalizarTurno(valor) {
+    if (!valor) return '';
+    const v = valor.trim().toLowerCase();
+    const encontrado = _TURNOS_FIXOS.find(t => t.toLowerCase() === v);
+    return encontrado || 'Misto';
+  }
+
   function confirmarImport() {
     if (!_importPreview) return;
     const { empId, rows } = _importPreview;
@@ -779,7 +844,7 @@ const ModuloCadastro = (() => {
       const fn = Storage.criarFuncaoMaster(empId, setor.id);
       fn.nome              = r.funcao;
       fn.numTrabalhadores  = r.numTrab;
-      fn.turno             = r.turno;
+      fn.turno             = _normalizarTurno(r.turno);
       fn.grupoHomogeneo    = r.ghe;
       fn.descricaoAtividade = r.descricao;
       Storage.salvarFuncaoMaster(fn);
@@ -800,7 +865,7 @@ const ModuloCadastro = (() => {
     /* Lista de clientes */
     _filtrar, _toggleCatalogo,
     /* Empresa */
-    abrirFormEmpresa, salvarEmpresa, confirmarExcluir,
+    abrirFormEmpresa, salvarEmpresa, confirmarExcluir, _buscarCNPJ,
     /* Setor mestre */
     abrirFormSetorMaster, salvarSetorMaster, excluirSetorMaster,
     /* Função mestre */
