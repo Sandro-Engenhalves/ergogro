@@ -16,14 +16,36 @@ const _COL_CONSULTAS = 'ergogro_consultas_aep';
 
 /* ── Itens do checklist por perfil de respondente ─────────── */
 const _PERFIL_ITENS = {
-  lider:   [
-    'org_02','org_03','org_04','org_05',
-    'car_03','car_04',
-    'cog_01','cog_02','cog_03','cog_04','cog_05','cog_06','cog_07',
-    'psi_01','psi_02','psi_03','psi_04','psi_05',
+  /* Líder de Setor: opera e observa o dia a dia — ritmo, tarefas, autonomia, comunicação, suporte, reconhecimento, relações */
+  lider: [
+    'b01','b02','b03','b04',
+    'c01','c02','c03',
+    'd01','d02',
+    'e01','e02','e03',
+    'f01','f03','f04',
+    'g01','g02','g03',
+    'h01','h02','h04',
   ],
-  rh:      ['org_01','org_08','psi_06'],
-  tecnico: ['car_01','maq_02','maq_07','amb_01','amb_03','amb_05','amb_06'],
+  /* RH: gestão de pessoas — jornada, políticas, integração, assédio, suporte, emocional, recursos humanos */
+  rh: [
+    'a01','a02','a04','a05',
+    'c04',
+    'd03','d04',
+    'f02',
+    'g02',
+    'h03',
+    'i02','i03',
+    'j03','j04',
+  ],
+  /* Técnico/SESMT: conformidade técnica e segurança — jornada legal, segurança operacional, recursos físicos, exposição emocional */
+  tecnico: [
+    'a01','a03','a05',
+    'b04',
+    'd04',
+    'e04',
+    'i01',
+    'j01','j02','j03',
+  ],
 };
 
 const _PERFIL_LABEL = {

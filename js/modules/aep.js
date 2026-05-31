@@ -9,94 +9,102 @@ const ModuloAEP = (() => {
   let _secaoAtual = 'identificacao';
 
   /* ── Checklist NR-17 ─────────────────────────────────────── */
+  /* Checklist AEP — 10 blocos organizacionais conforme Anexo B da metodologia AFP (NR-17) */
   const BLOCOS = {
-    organizacao: {
-      titulo: 'Organização do Trabalho', icone: '⏱️',
+    jornada: {
+      titulo: 'Jornada e Organização do Tempo', icone: '⏱️',
       itens: [
-        { id: 'org_01', texto: 'A jornada de trabalho respeita os limites legais e há pausas regulares estabelecidas? (NR-17 item 17.4.1)' },
-        { id: 'org_02', texto: 'O ritmo de trabalho não é determinado exclusivamente por máquina ou pressão excessiva de metas?' },
-        { id: 'org_03', texto: 'Há distribuição adequada e planejamento das tarefas ao longo da jornada?' },
-        { id: 'org_04', texto: 'O trabalhador tem autonomia suficiente para organizar o próprio trabalho?' },
-        { id: 'org_05', texto: 'As metas estabelecidas são compatíveis com a capacidade dos trabalhadores?' },
-        { id: 'org_06', texto: 'O trabalho não exige postura estática prolongada por mais de 2 horas consecutivas sem pausa?' },
-        { id: 'org_07', texto: 'Não há movimentos repetitivos com ciclos curtos inferiores a 30 segundos de forma contínua?' },
-        { id: 'org_08', texto: 'O trabalhador recebe treinamento adequado para a função, incluindo aspectos ergonômicos?' },
+        { id: 'a01', texto: 'A jornada de trabalho está dentro dos limites legais estabelecidos pela legislação trabalhista vigente?' },
+        { id: 'a02', texto: 'As pausas para recuperação e refeição são respeitadas na prática — não apenas formalmente previstas?' },
+        { id: 'a03', texto: 'Existem pausas técnicas programadas para atividades com exigência física ou cognitiva intensa?' },
+        { id: 'a04', texto: 'A escala de trabalho é comunicada com antecedência suficiente para que os trabalhadores possam planejar sua vida pessoal?' },
+        { id: 'a05', texto: 'As horas extras são excepcionais — não fazem parte da rotina operacional do setor?' },
       ]
     },
-    cargas: {
-      titulo: 'Levantamento e Transporte de Cargas', icone: '🏋️',
+    ritmo: {
+      titulo: 'Ritmo, Produtividade e Metas', icone: '🎯',
       itens: [
-        { id: 'car_01', texto: 'Os pesos levantados manualmente respeitam os limites recomendados? (23 kg homens / 13 kg mulheres — NIOSH)' },
-        { id: 'car_02', texto: 'O trabalhador realiza a pega adequada e posicionamento corporal correto ao levantar cargas?' },
-        { id: 'car_03', texto: 'Há equipamentos de apoio disponíveis e utilizados (carrinhos, paletes, elevadores)?' },
-        { id: 'car_04', texto: 'A frequência de levantamento permite recuperação muscular adequada entre esforços?' },
-        { id: 'car_05', texto: 'Os percursos de transporte são desobstruídos, planos e seguros?' },
-        { id: 'car_06', texto: 'O ponto de pega e de deposição das cargas está entre altura do joelho e dos ombros?' },
+        { id: 'b01', texto: 'As metas de produtividade foram definidas com base em análise técnica da capacidade operacional real?' },
+        { id: 'b02', texto: 'O ritmo de trabalho exigido permite que os trabalhadores executem as tarefas com qualidade e segurança?' },
+        { id: 'b03', texto: 'Existem mecanismos para ajuste de metas em situações excepcionais (redução de pessoal, falhas de equipamento, picos inesperados)?' },
+        { id: 'b04', texto: 'A pressão por produtividade não leva os trabalhadores a adotar posturas ou procedimentos de risco?' },
       ]
     },
-    mobiliario: {
-      titulo: 'Mobiliário', icone: '🪑',
+    tarefas: {
+      titulo: 'Distribuição de Tarefas e Clareza de Papéis', icone: '📋',
       itens: [
-        { id: 'mob_01', texto: 'O assento é regulável em altura e possui apoio lombar adequado? (NR-17 item 17.2.1)' },
-        { id: 'mob_02', texto: 'A superfície de trabalho tem altura compatível com a tarefa e com o trabalhador?' },
-        { id: 'mob_03', texto: 'Há apoio para os membros superiores quando a tarefa exige?' },
-        { id: 'mob_04', texto: 'Há espaço suficiente para os membros inferiores sob a superfície de trabalho?' },
-        { id: 'mob_05', texto: 'Os materiais de uso frequente estão ao alcance sem torção do tronco ou esforço excessivo?' },
-        { id: 'mob_06', texto: 'Há suporte para os pés quando necessário?' },
-        { id: 'mob_07', texto: 'O encosto do assento é adequado e regulável em inclinação?' },
+        { id: 'c01', texto: 'As responsabilidades e atribuições de cada função/posto estão formalmente definidas e são do conhecimento dos trabalhadores?' },
+        { id: 'c02', texto: 'A distribuição de tarefas entre os membros de uma equipe é percebida como equitativa?' },
+        { id: 'c03', texto: 'Trabalhadores que acumulam múltiplas funções recebem os recursos e o tempo necessários para cada uma delas?' },
+        { id: 'c04', texto: 'Trabalhadores novos recebem orientação estruturada e acompanhamento adequado para suas funções?' },
       ]
     },
-    maquinas: {
-      titulo: 'Máquinas e Equipamentos', icone: '⚙️',
+    autonomia: {
+      titulo: 'Autonomia e Participação', icone: '🔓',
       itens: [
-        { id: 'maq_01', texto: 'Os controles e comandos são de fácil acesso e operação, sem exigir esforço ou postura inadequada?' },
-        { id: 'maq_02', texto: 'Não há exposição a vibração de mãos, braços ou corpo inteiro acima dos limites de conforto?' },
-        { id: 'maq_03', texto: 'O uso de ferramentas manuais não exige força excessiva ou postura inadequada?' },
-        { id: 'maq_04', texto: 'As ferramentas são adequadas à tarefa e dimensionadas para o perfil do trabalhador?' },
-        { id: 'maq_05', texto: 'O trabalho com telas (VDT) não exige postura forçada de pescoço ou membros superiores? (NR-17 item 17.3)' },
-        { id: 'maq_06', texto: 'A posição do monitor é regulável em altura, inclinação e distância?' },
-        { id: 'maq_07', texto: 'Os equipamentos têm manutenção regular documentada e funcionam sem vibração ou resistência anormal?' },
+        { id: 'd01', texto: 'Os trabalhadores têm alguma margem de decisão sobre como executar suas tarefas, respeitados os procedimentos de segurança?' },
+        { id: 'd02', texto: 'Existe canal formal para que trabalhadores reportem problemas, sugiram melhorias e contribuam com soluções?' },
+        { id: 'd03', texto: 'As mudanças de processo ou procedimento são comunicadas com antecedência e incluem treinamento adequado?' },
+        { id: 'd04', texto: 'Os trabalhadores têm possibilidade de interromper atividades quando identificam risco iminente, sem risco de sanção?' },
       ]
     },
-    ambiente: {
-      titulo: 'Condições Ambientais', icone: '🌡️',
+    comunicacao: {
+      titulo: 'Comunicação Organizacional', icone: '📢',
       itens: [
-        { id: 'amb_01', texto: 'O nível de iluminamento é adequado para a exigência visual da tarefa? (NR-17 item 17.5.3)' },
-        { id: 'amb_02', texto: 'Não há reflexos, ofuscamentos ou sombras que prejudiquem a visão no posto de trabalho?' },
-        { id: 'amb_03', texto: 'O nível de ruído não interfere na comunicação verbal nem na concentração dos trabalhadores?' },
-        { id: 'amb_04', texto: 'A temperatura e umidade estão em níveis confortáveis para o tipo de atividade realizada?' },
-        { id: 'amb_05', texto: 'A ventilação e a qualidade do ar interior são satisfatórias?' },
-        { id: 'amb_06', texto: 'Não há odores, vapores ou agentes químicos em concentração incômoda no ambiente?' },
-        { id: 'amb_07', texto: 'O espaço físico do posto é suficiente, organizado e permite livre movimentação?' },
+        { id: 'e01', texto: 'Existe comunicação regular e estruturada entre liderança e equipes operacionais?' },
+        { id: 'e02', texto: 'As informações relevantes para o trabalho chegam aos trabalhadores de forma clara, tempestiva e sem distorção?' },
+        { id: 'e03', texto: 'A liderança imediata tem habilidade e prática de comunicar objetivos, expectativas e feedbacks de forma clara?' },
+        { id: 'e04', texto: 'Existe acesso a documentos, procedimentos e informações técnicas necessárias para a execução segura do trabalho?' },
       ]
     },
-    cognitiva: {
-      titulo: 'Demandas Cognitivas', icone: '🧠',
+    suporte: {
+      titulo: 'Suporte Social e Liderança', icone: '🤝',
       itens: [
-        { id: 'cog_01', texto: 'As demandas de atenção e concentração são compatíveis com as capacidades dos trabalhadores?' },
-        { id: 'cog_02', texto: 'Não há exigência simultânea de múltiplas tarefas incompatíveis ou que gerem sobrecarga cognitiva?' },
-        { id: 'cog_03', texto: 'A carga de memorização exigida é compatível com as condições e suportes disponíveis no posto?' },
-        { id: 'cog_04', texto: 'O trabalhador dispõe de tempo adequado para tomada de decisão nas situações críticas da tarefa?' },
-        { id: 'cog_05', texto: 'O ambiente de trabalho é livre de interrupções frequentes que comprometam a execução das tarefas?' },
-        { id: 'cog_06', texto: 'A carga mental total imposta é compatível com os recursos e suportes disponíveis ao trabalhador?' },
-        { id: 'cog_07', texto: 'Não há pressão temporal que comprometa a qualidade das decisões ou a segurança operacional?' },
+        { id: 'f01', texto: 'A liderança imediata demonstra interesse genuíno pelo bem-estar e pelas dificuldades dos trabalhadores?' },
+        { id: 'f02', texto: 'Trabalhadores em situação de dificuldade (sobrecarga, conflito, problema pessoal) sabem para onde podem recorrer?' },
+        { id: 'f03', texto: 'A liderança intervém ativamente quando detecta sinais de sobrecarga ou esgotamento em membros da equipe?' },
+        { id: 'f04', texto: 'Novos colaboradores recebem suporte explícito da equipe e da liderança durante o período de adaptação?' },
       ]
     },
-    psicossocial: {
-      titulo: 'Aspectos Psicossociais', icone: '🧩',
+    reconhecimento: {
+      titulo: 'Reconhecimento e Valorização', icone: '⭐',
       itens: [
-        { id: 'psi_01', texto: 'O trabalhador tem suporte social adequado de colegas e da chefia imediata?' },
-        { id: 'psi_02', texto: 'Há comunicação clara sobre expectativas, objetivos e mudanças que afetam o trabalho?' },
-        { id: 'psi_03', texto: 'O trabalhador recebe reconhecimento adequado pelo trabalho realizado?' },
-        { id: 'psi_04', texto: 'Há equilíbrio entre as demandas impostas e os recursos disponíveis para realizá-las?' },
-        { id: 'psi_05', texto: 'Os limites físicos e emocionais dos trabalhadores são respeitados?' },
-        { id: 'psi_06', texto: 'Não há relatos ou evidências de assédio moral, discriminação ou violência no trabalho?' },
+        { id: 'g01', texto: 'Existe prática regular de reconhecimento do trabalho bem realizado pelos trabalhadores?' },
+        { id: 'g02', texto: 'Os critérios para promoção, benefícios ou valorização são claros e percebidos como justos pelos trabalhadores?' },
+        { id: 'g03', texto: 'Os trabalhadores recebem feedback regular sobre seu desempenho — não apenas em situações de problema?' },
       ]
-    }
+    },
+    relacoes: {
+      titulo: 'Relações Interpessoais e Clima', icone: '👥',
+      itens: [
+        { id: 'h01', texto: 'O clima geral entre colegas no setor avaliado é percebido como cooperativo e respeitoso?' },
+        { id: 'h02', texto: 'Existem conflitos interpessoais recorrentes não resolvidos no setor?' },
+        { id: 'h03', texto: 'A empresa possui política formal e canal de denúncia para situações de assédio moral ou sexual?' },
+        { id: 'h04', texto: 'Há relatos ou registros de situações de tratamento desrespeitoso, humilhação ou intimidação por parte de lideranças?' },
+      ]
+    },
+    emocional: {
+      titulo: 'Demandas Emocionais', icone: '❤️',
+      itens: [
+        { id: 'i01', texto: 'A função avaliada envolve contato frequente com situações de sofrimento, conflito, violência ou morte?' },
+        { id: 'i02', texto: 'Existem protocolos e suporte organizacional para trabalhadores após eventos emocionalmente críticos (morte, violência, acidente grave)?' },
+        { id: 'i03', texto: 'Os trabalhadores são capacitados para lidar com situações de alta carga emocional típicas de sua função?' },
+        { id: 'i04', texto: 'Os trabalhadores conseguem "desligar" do trabalho emocionalmente ao final do expediente?' },
+      ]
+    },
+    recursos: {
+      titulo: 'Recursos e Condições Operacionais', icone: '🔧',
+      itens: [
+        { id: 'j01', texto: 'Os trabalhadores têm acesso aos materiais, equipamentos e ferramentas necessários para realizar suas tarefas?' },
+        { id: 'j02', texto: 'As condições físicas do ambiente de trabalho (iluminação, temperatura, ruído, espaço) são adequadas para o tipo de atividade realizada?' },
+        { id: 'j03', texto: 'O dimensionamento do quadro de pessoal é adequado para o volume e tipo de trabalho realizado?' },
+        { id: 'j04', texto: 'Existe investimento em capacitação e desenvolvimento que permita aos trabalhadores se manterem atualizados e competentes para suas funções?' },
+      ]
+    },
   };
 
-  const ORDEM_BLOCOS = ['organizacao', 'cargas', 'mobiliario', 'maquinas', 'ambiente', 'cognitiva', 'psicossocial'];
-  let _blocoAtivo = 'organizacao';
+  const ORDEM_BLOCOS = ['jornada','ritmo','tarefas','autonomia','comunicacao','suporte','reconhecimento','relacoes','emocional','recursos'];
+  let _blocoAtivo = 'jornada';
   let _empresaImpressaoAEP = 'engenhalves';
   let _nrAEPAtual = '';
 
@@ -141,41 +149,56 @@ const ModuloAEP = (() => {
 
   /* ── Textos de recomendação por bloco ────────────────────── */
   const _RECS_BLOCO = {
-    organizacao: {
-      imediata: 'Revisar imediatamente jornada, pausas e ritmo de trabalho conforme NR-17 item 17.4.1; suspender exigências incompatíveis com a saúde dos trabalhadores',
-      alta:     'Adequar distribuição de tarefas, pausas regulares e sistema de metas; documentar ações no PGR',
-      media:    'Revisar organização do trabalho e planejar melhorias nas condições de ritmo e autonomia'
+    jornada: {
+      imediata: 'Verificar imediatamente se a jornada praticada excede os limites legais; suspender horas extras habituais; garantir cumprimento efetivo das pausas — NR-17 e CLT',
+      alta:     'Revisar jornadas e escalas; implantar registro de ponto confiável; comunicar escalas com antecedência mínima de 48 horas',
+      media:    'Monitorar cumprimento das pausas; verificar frequência e volume de horas extras; avaliar previsibilidade das escalas'
     },
-    cargas: {
-      imediata: 'Suspender levantamento manual acima dos limites NIOSH; fornecer imediatamente equipamentos de apoio e orientação técnica',
-      alta:     'Aplicar equação NIOSH; implementar treinamento de movimentação de cargas e fornecer EPIs adequados',
-      media:    'Revisar procedimentos de manuseio de cargas; orientar trabalhadores sobre posturas e limites seguros'
+    ritmo: {
+      imediata: 'Suspender exigências de ritmo incompatíveis com a segurança; revisar metas com base em análise técnica da capacidade real — NR-17',
+      alta:     'Revisar sistema de metas e cadência de produção; verificar se pressão por ritmo gera comportamentos de risco; documentar no PGR',
+      media:    'Analisar processo de definição de metas; implantar mecanismos de ajuste para situações excepcionais'
     },
-    mobiliario: {
-      imediata: 'Substituir ou adaptar imediatamente mobiliário que represente risco postural significativo conforme NR-17 item 17.2',
-      alta:     'Adequar mobiliário às normas ergonômicas; fornecer cadeiras reguláveis e superfícies adequadas',
-      media:    'Ajustar regulagens de cadeiras e bancadas; verificar apoios lombares e para os pés'
+    tarefas: {
+      imediata: 'Formalizar imediatamente descrições de cargo para funções com escopo indefinido; corrigir acúmulos excessivos sem recursos adequados',
+      alta:     'Revisar distribuição de tarefas; implantar processo estruturado de integração de novos trabalhadores; avaliar equidade da carga',
+      media:    'Atualizar descrições de função; verificar equidade na distribuição de tarefas; melhorar processo de onboarding'
     },
-    maquinas: {
-      imediata: 'Avaliar e corrigir imediatamente configurações de máquinas que geram risco ergonômico iminente',
-      alta:     'Revisar configuração e manutenção de equipamentos; instalar suportes, apoios e atenuadores de vibração',
-      media:    'Adequar configurações ergonômicas de máquinas e ferramentas conforme NR-17 item 17.3'
+    autonomia: {
+      imediata: 'Garantir que trabalhadores possam interromper atividades de risco sem sanção — direito garantido pela NR-01; investigar barreiras existentes',
+      alta:     'Criar canal formal de sugestões e comunicação de problemas; revisar processo de gestão de mudanças; implantar treinamentos antes das mudanças',
+      media:    'Ampliar margem de autonomia operacional; estruturar canais de participação; comunicar mudanças com antecedência'
     },
-    ambiente: {
-      imediata: 'Realizar medições imediatas de iluminação, ruído e temperatura; implementar correções urgentes das condições ambientais',
-      alta:     'Adequar condições ambientais (iluminação, ruído, temperatura, ventilação) conforme NR-17 item 17.5',
-      media:    'Verificar e melhorar progressivamente as condições ambientais do posto de trabalho'
+    comunicacao: {
+      imediata: 'Estabelecer urgentemente fluxo mínimo de comunicação entre liderança e equipe; garantir acesso a documentos de segurança',
+      alta:     'Implantar reuniões periódicas estruturadas; revisar fluxos de comunicação formal; capacitar lideranças em comunicação assertiva',
+      media:    'Melhorar regularidade e clareza da comunicação; verificar acessibilidade de procedimentos técnicos'
     },
-    cognitiva: {
-      imediata: 'Revisar imediatamente a carga cognitiva e reorganizar tarefas para prevenir erros críticos por sobrecarga mental',
-      alta:     'Implementar pausas cognitivas estruturadas; reduzir interrupções; revisar interface e fluxo de trabalho',
-      media:    'Analisar e organizar melhor as demandas cognitivas; fornecer suportes e recursos adequados'
+    suporte: {
+      imediata: 'Identificar trabalhadores em situação crítica de sobrecarga ou esgotamento; acionar RH e gestão para suporte imediato',
+      alta:     'Capacitar lideranças em identificação de sinais de sobrecarga; implantar protocolo de suporte a trabalhadores em dificuldade',
+      media:    'Melhorar disponibilidade e acolhimento da liderança; estruturar suporte formal para novos colaboradores'
     },
-    psicossocial: {
-      imediata: 'Implementar medidas imediatas de suporte psicossocial; comunicar RH e gestão; considerar avaliação por saúde do trabalho',
-      alta:     'Desenvolver programa de gestão de riscos psicossociais; promover comunicação e reconhecimento no trabalho',
-      media:    'Melhorar suporte social, comunicação e equilíbrio entre demandas e recursos disponíveis'
-    }
+    reconhecimento: {
+      imediata: 'Nenhuma ação de emergência — mas registrar como risco de médio prazo para engajamento e retenção',
+      alta:     'Implantar práticas regulares de reconhecimento; tornar critérios de valorização explícitos e justos; estruturar processo de feedback',
+      media:    'Melhorar frequência e qualidade do feedback; verificar percepção de justiça nos processos de valorização'
+    },
+    relacoes: {
+      imediata: 'Investigar imediatamente relatos de assédio ou tratamento degradante; acionar RH e gestão; proteger informantes',
+      alta:     'Implantar política formal antiassédio com canal de denúncia; mediar conflitos interpessoais não resolvidos; capacitar lideranças',
+      media:    'Monitorar clima relacional; criar oportunidades de integração; verificar existência de normas de convivência'
+    },
+    emocional: {
+      imediata: 'Verificar se funções com alta exposição emocional têm suporte mínimo; acionar saúde do trabalho se necessário',
+      alta:     'Implantar protocolos de suporte pós-evento crítico; capacitar trabalhadores para manejo de situações emocionalmente intensas',
+      media:    'Avaliar nível de exposição emocional da função; verificar possibilidade de rodízio ou limitação de exposição'
+    },
+    recursos: {
+      imediata: 'Identificar e corrigir imediatamente falta de recursos que comprometa a segurança da execução do trabalho',
+      alta:     'Revisar dimensionamento de pessoal; garantir condições físicas adequadas; implantar programa de capacitação contínua',
+      media:    'Avaliar regularidade do fornecimento de recursos; verificar adequação das condições físicas; planejar capacitações'
+    },
   };
 
   const _RECS_EXPOSICAO = {
@@ -196,12 +219,12 @@ const ModuloAEP = (() => {
 
   /* ── Motor de criticidade (score 0–100) ──────────────────── */
   const MOTOR_AEP = {
-    PESOS: { fisica: 0.35, organizacional: 0.25, cognitiva: 0.20, psicossocial: 0.20 },
+    PESOS: { fisica: 0.15, organizacional: 0.55, cognitiva: 0.00, psicossocial: 0.30 },
 
     BLOCO_DOMINIO: {
-      organizacao: 'organizacional', cargas: 'fisica',
-      mobiliario: 'fisica', maquinas: 'fisica',
-      ambiente: 'fisica', cognitiva: 'cognitiva', psicossocial: 'psicossocial'
+      jornada: 'organizacional', ritmo: 'organizacional', tarefas: 'organizacional',
+      autonomia: 'organizacional', comunicacao: 'organizacional', recursos: 'organizacional',
+      suporte: 'psicossocial', reconhecimento: 'psicossocial', relacoes: 'psicossocial', emocional: 'psicossocial',
     },
 
     EXP_MULT: {
