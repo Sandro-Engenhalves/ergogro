@@ -146,7 +146,9 @@ const ConsultaAEP = (() => {
       const av      = App.obterAvaliacaoAtual();
       const link    = await _criarOuAtualizar(perfil);
       const funcoes = _montarFuncoes(av.projetoId, perfil);
-      _mostrarModalLink(perfil, link, funcoes.length);
+      const proj    = Storage.buscarProjeto(av.projetoId);
+      const emp     = proj ? Storage.buscarEmpresa(proj.empresaId) : null;
+      _mostrarModalLink(perfil, link, funcoes.length, emp?.nome || '', emp?.cnpj || '');
     } catch (err) {
       App.mostrarToast('Erro ao gerar consulta: ' + err.message, 'erro');
     } finally {
@@ -272,12 +274,14 @@ const ConsultaAEP = (() => {
   }
 
   /* Modal com link + copiar + WhatsApp */
-  function _mostrarModalLink(perfil, link, numFuncoes) {
+  function _mostrarModalLink(perfil, link, numFuncoes, empresaNome, empresaCnpj) {
     document.getElementById('modal-consulta-aep')?.remove();
-    const label  = _PERFIL_LABEL[perfil];
+    const label     = _PERFIL_LABEL[perfil];
     const funcLabel = numFuncoes === 1 ? '1 função' : `${numFuncoes} funções`;
+    const clienteInfo = [empresaNome, empresaCnpj ? `CNPJ: ${empresaCnpj}` : ''].filter(Boolean).join(' — ');
     const waMsg  = encodeURIComponent(
-      `Olá! Preciso da sua colaboração para a Avaliação Ergonômica.\n` +
+      `Olá! Preciso da sua colaboração para a Avaliação Ergonômica` +
+      `${clienteInfo ? ` de ${clienteInfo}` : ''}.\n` +
       `Este link cobre ${funcLabel} — basta responder uma única vez:\n${link}`
     );
     const waLink = `https://wa.me/?text=${waMsg}`;
