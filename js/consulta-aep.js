@@ -281,7 +281,7 @@ const ConsultaAEP = (() => {
     const clienteInfo = [empresaNome, empresaCnpj ? `CNPJ: ${empresaCnpj}` : ''].filter(Boolean).join(' — ');
     const waMsg  = encodeURIComponent(
       `Olá! Preciso da sua colaboração para a Avaliação Ergonômica` +
-      `${clienteInfo ? ` de ${clienteInfo}` : ''}.\n` +
+      `${clienteInfo ? ` da ${clienteInfo}` : ''}.\n` +
       `Este link cobre ${funcLabel} — basta responder uma única vez:\n${link}`
     );
     const waLink = `https://wa.me/?text=${waMsg}`;
