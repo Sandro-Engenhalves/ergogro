@@ -11,8 +11,9 @@
       → IIFE ao final — detecta token na URL e renderiza o form
    ============================================================ */
 
-/* ── Coleção Firestore ────────────────────────────────────── */
+/* ── Coleções Firestore ───────────────────────────────────── */
 const _COL_CONSULTAS = 'ergogro_consultas_aep';
+const _COL_GRUPOS    = 'ergogro_grupos_aep';
 
 /* ── Itens do checklist por perfil de respondente ─────────── */
 const _PERFIL_ITENS = {
@@ -97,6 +98,43 @@ const ConsultaAEP = (() => {
         itens,
       } : null;
     }).filter(Boolean);
+  }
+
+  /* Token de grupo: hash djb2 dos projetoIds ordenados + perfil → string curta */
+  function _tokenGrupo(projetoIds, perfil) {
+    const str = [...projetoIds].sort().join(',') + '|' + perfil;
+    let h = 5381;
+    for (let i = 0; i < str.length; i++) { h = ((h << 5) + h) ^ str.charCodeAt(i); h |= 0; }
+    return `grupo_${Math.abs(h).toString(36)}_${perfil}`;
+  }
+
+  /* Cria/atualiza o doc individual de um projetoId específico (sem depender de AvaliacaoAtual) */
+  async function _criarTokenProjeto(projetoId, perfil) {
+    const proj    = Storage.buscarProjeto(projetoId);
+    const emp     = proj ? Storage.buscarEmpresa(proj.empresaId) : null;
+    const funcoes = _montarFuncoes(projetoId, perfil);
+    if (!funcoes.length) return null;
+
+    const token      = _token(projetoId, perfil);
+    const ref        = firebase.firestore().collection(_COL_CONSULTAS).doc(token);
+    const snapExist  = await ref.get();
+    const respostasAntigas = snapExist.exists ? (snapExist.data().respostas || {}) : {};
+    const totalItens = funcoes.reduce((s, f) => s + f.itens.length, 0);
+
+    await ref.set({
+      token, projetoId, perfil,
+      perfilLabel:  _PERFIL_LABEL[perfil],
+      empresaNome:  emp?.nome  || '',
+      empresaCnpj:  emp?.cnpj  || '',
+      funcoes, totalItens,
+      status:       'pendente',
+      criadaEm:     snapExist.exists ? snapExist.data().criadaEm : new Date().toISOString(),
+      atualizadaEm: new Date().toISOString(),
+      respondidaEm: null, respondidoPor: null,
+      respostas:    respostasAntigas,
+    });
+
+    return { projetoId, token, empresaNome: emp?.nome || '', empresaCnpj: emp?.cnpj || '', funcoes, totalItens };
   }
 
   /* Cria ou atualiza o doc do projeto no Firestore preservando respostas existentes */
@@ -266,6 +304,107 @@ const ConsultaAEP = (() => {
     } catch (e) { /* silencioso */ }
   }
 
+  /* Gera links de grupo (multi-CNPJ) para um perfil */
+  async function abrirConsultaGrupo(perfil, projetoIds) {
+    if (!inicializarFirebase()) { App.mostrarToast('Firebase não configurado', 'erro'); return; }
+    if (!projetoIds?.length)    { App.mostrarToast('Selecione ao menos um projeto', 'aviso'); return; }
+
+    App.mostrarToast('Gerando links… aguarde', 'info');
+    try {
+      const projetos = [];
+      for (const pid of projetoIds) {
+        const r = await _criarTokenProjeto(pid, perfil);
+        if (r) projetos.push(r);
+      }
+      if (!projetos.length) {
+        App.mostrarToast('Nenhum projeto selecionado tem avaliações cadastradas', 'aviso');
+        return;
+      }
+
+      const grupoToken = _tokenGrupo(projetoIds, perfil);
+      await firebase.firestore().collection(_COL_GRUPOS).doc(grupoToken).set({
+        grupoToken, perfil,
+        perfilLabel:   _PERFIL_LABEL[perfil],
+        projetos,
+        totalProjetos: projetos.length,
+        criadaEm:      new Date().toISOString(),
+        atualizadaEm:  new Date().toISOString(),
+      });
+
+      const link = `${_urlBase()}consulta.html?grupo=${grupoToken}`;
+      _mostrarModalGrupo(perfil, link, projetos);
+    } catch (err) {
+      App.mostrarToast('Erro ao gerar grupo: ' + err.message, 'erro');
+    }
+  }
+
+  /* Modal com link do grupo + lista de empresas incluídas */
+  function _mostrarModalGrupo(perfil, link, projetos) {
+    document.getElementById('modal-grupo-aep')?.remove();
+    const label  = _PERFIL_LABEL[perfil];
+    const total  = projetos.length;
+    const waMsg  = encodeURIComponent(
+      `Olá! Preciso da sua colaboração para a Avaliação Ergonômica de ${total} empresa${total > 1 ? 's' : ''}.\n` +
+      `Este link único cobre todas as empresas — basta acessar uma única vez:\n${link}`
+    );
+    const waLink = `https://wa.me/?text=${waMsg}`;
+
+    document.body.insertAdjacentHTML('beforeend', `
+      <div id="modal-grupo-aep" style="
+        position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:2000;
+        display:flex;align-items:center;justify-content:center;padding:16px">
+        <div style="background:var(--fundo-card);border:1px solid var(--borda);border-radius:var(--r3);
+                    max-width:480px;width:100%;padding:24px;max-height:90vh;overflow-y:auto">
+          <div style="font-size:var(--txt-base);font-weight:700;margin-bottom:8px">
+            📨 ${label} — Link do Grupo (${total} empresa${total > 1 ? 's' : ''})
+          </div>
+          <div style="font-size:var(--txt-xs);background:var(--superficie-alt);border-radius:var(--r2);
+                      padding:var(--s2) var(--s3);margin-bottom:12px;color:var(--texto-sec)">
+            ✅ Um único link cobre <strong>todas as ${total} empresa${total > 1 ? 's' : ''}</strong> —
+            envie <strong>uma única vez</strong> para o responsável.
+          </div>
+
+          <div style="font-size:var(--txt-xs);color:var(--texto-sec);margin-bottom:6px;font-weight:600">
+            EMPRESAS INCLUÍDAS:
+          </div>
+          <div style="background:var(--fundo);border:1px solid var(--borda);border-radius:var(--r2);
+                      padding:8px 12px;margin-bottom:16px;max-height:150px;overflow-y:auto">
+            ${projetos.map((p, i) => `
+              <div style="font-size:var(--txt-xs);color:var(--texto-sec);padding:3px 0;
+                          ${i < projetos.length - 1 ? 'border-bottom:1px solid var(--borda)' : ''}">
+                <strong>${i + 1}.</strong> ${p.empresaNome}
+                ${p.empresaCnpj ? `<span style="opacity:.7"> — ${p.empresaCnpj}</span>` : ''}
+              </div>
+            `).join('')}
+          </div>
+
+          <div style="background:var(--fundo);border:1px solid var(--borda);border-radius:var(--r2);
+                      padding:10px 12px;font-size:11px;font-family:monospace;
+                      word-break:break-all;margin-bottom:16px;color:var(--texto-sec);user-select:all">
+            ${link}
+          </div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px">
+            <button class="btn btn-primario" style="flex:1"
+                    onclick="ConsultaAEP._copiarLink('${link.replace(/'/g, "\\'")}')">
+              📋 Copiar Link
+            </button>
+            <a href="${waLink}" target="_blank" rel="noopener"
+               style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;
+                      background:#25D366;color:#fff;font-weight:700;font-size:var(--txt-sm);
+                      border-radius:var(--r2);padding:var(--s2) var(--s3);text-decoration:none;
+                      border:none;cursor:pointer">
+              💬 WhatsApp
+            </a>
+          </div>
+          <button class="btn btn-secundario" style="width:100%"
+                  onclick="document.getElementById('modal-grupo-aep').remove()">
+            Fechar
+          </button>
+        </div>
+      </div>
+    `);
+  }
+
   function _getBlocoDeItem(itemId) {
     for (const [blocoKey, bloco] of Object.entries(ModuloAEP.BLOCOS)) {
       if (bloco.itens.some(i => i.id === itemId)) return blocoKey;
@@ -337,7 +476,7 @@ const ConsultaAEP = (() => {
       .catch(() => App.mostrarToast('Selecione e copie manualmente', 'aviso'));
   }
 
-  return { abrirConsulta, importarRespostas, verificarStatus, _copiarLink };
+  return { abrirConsulta, importarRespostas, verificarStatus, _copiarLink, abrirConsultaGrupo };
 })();
 
 
@@ -347,6 +486,9 @@ const ConsultaAEP = (() => {
 ══════════════════════════════════════════════════════════ */
 (function () {
   if (!document.getElementById('consulta-body')) return;
+
+  /* Estado do modo grupo (persiste entre empresas) */
+  let _grupoState = null;
 
   /* Toast mínimo para página sem App */
   function _toast(msg, tipo) {
@@ -361,10 +503,14 @@ const ConsultaAEP = (() => {
   async function _init() {
     const params = new URLSearchParams(window.location.search);
     const token  = params.get('token');
+    const grupo  = params.get('grupo');
     const body   = document.getElementById('consulta-body');
 
-    if (!token) { body.innerHTML = _htmlErro('Link inválido', 'Este link não contém um código de consulta.'); return; }
+    if (!token && !grupo) { body.innerHTML = _htmlErro('Link inválido', 'Este link não contém um código de consulta.'); return; }
     if (!inicializarFirebase()) { body.innerHTML = _htmlErro('Erro de conexão', 'Não foi possível conectar ao servidor.'); return; }
+
+    /* Modo grupo: multi-CNPJ */
+    if (grupo) { await _initGrupo(grupo); return; }
 
     try {
       const snap = await firebase.firestore().collection(_COL_CONSULTAS).doc(token).get();
@@ -470,6 +616,215 @@ const ConsultaAEP = (() => {
       _toast('Erro ao enviar: ' + err.message, 'erro');
       if (btn) { btn.disabled = false; btn.textContent = '✅ Enviar Respostas'; }
     }
+  }
+
+  /* ── Modo grupo (multi-CNPJ) ─────────────────────────── */
+
+  async function _initGrupo(grupoToken) {
+    const body = document.getElementById('consulta-body');
+    try {
+      const snap = await firebase.firestore().collection(_COL_GRUPOS).doc(grupoToken).get();
+      if (!snap.exists) { body.innerHTML = _htmlErro('Grupo não encontrado', 'Link inválido ou expirado.'); return; }
+      const grupo = snap.data();
+      _grupoState  = { grupoToken, grupo, projetoIdx: 0, respondidoPor: '' };
+      _renderizarProjetoGrupo();
+    } catch (err) {
+      body.innerHTML = _htmlErro('Erro ao carregar', err.message);
+    }
+  }
+
+  function _renderizarProjetoGrupo() {
+    const body = document.getElementById('consulta-body');
+    body.innerHTML = _htmlFormularioGrupo(_grupoState.grupo, _grupoState.projetoIdx);
+    document.getElementById('form-consulta-grupo').addEventListener('submit', e => {
+      e.preventDefault();
+      _submeterProjetoGrupo();
+    });
+    window.scrollTo({ top: 0 });
+  }
+
+  async function _submeterProjetoGrupo() {
+    const { grupo, projetoIdx } = _grupoState;
+    const proj = grupo.projetos[projetoIdx];
+    const btn  = document.getElementById('btn-submit-grupo');
+    const isUltimo = projetoIdx >= grupo.projetos.length - 1;
+    if (btn) { btn.disabled = true; btn.textContent = '⏳ Enviando…'; }
+
+    /* Captura nome apenas na primeira empresa */
+    const nome = document.getElementById('consulta-nome')?.value?.trim() || '';
+    if (projetoIdx === 0) _grupoState.respondidoPor = nome;
+
+    const respostas  = {};
+    let incompleto   = false;
+
+    proj.funcoes.forEach(funcao => {
+      respostas[funcao.avaliacaoId] = {};
+      funcao.itens.forEach(item => {
+        const val = document.querySelector(`input[name="resp_${funcao.avaliacaoId}_${item.id}"]:checked`)?.value;
+        if (!val) { incompleto = true; return; }
+        respostas[funcao.avaliacaoId][item.id] = {
+          resposta:   val,
+          observacao: document.getElementById(`obs_${funcao.avaliacaoId}_${item.id}`)?.value?.trim() || '',
+        };
+      });
+    });
+
+    if (incompleto) {
+      _toast('Responda todos os itens antes de continuar', 'erro');
+      if (btn) { btn.disabled = false; btn.textContent = isUltimo ? '✅ Concluir' : `→ Próxima Empresa (${projetoIdx + 2} de ${grupo.projetos.length})`; }
+      return;
+    }
+
+    try {
+      await firebase.firestore().collection(_COL_CONSULTAS).doc(proj.token).update({
+        respostas,
+        status:        'respondida',
+        respondidaEm:  new Date().toISOString(),
+        respondidoPor: _grupoState.respondidoPor,
+      });
+
+      _grupoState.projetoIdx++;
+      if (_grupoState.projetoIdx >= grupo.projetos.length) {
+        document.getElementById('consulta-body').innerHTML = _htmlSucessoGrupo(grupo);
+      } else {
+        _renderizarProjetoGrupo();
+      }
+    } catch (err) {
+      _toast('Erro ao enviar: ' + err.message, 'erro');
+      if (btn) { btn.disabled = false; btn.textContent = isUltimo ? '✅ Concluir' : `→ Próxima Empresa (${projetoIdx + 2} de ${grupo.projetos.length})`; }
+    }
+  }
+
+  function _htmlFormularioGrupo(grupo, projetoIdx) {
+    const proj       = grupo.projetos[projetoIdx];
+    const total      = grupo.projetos.length;
+    const isUltimo   = projetoIdx === total - 1;
+    const funcoes    = proj.funcoes || [];
+    const totalItens = funcoes.reduce((s, f) => s + f.itens.length, 0);
+
+    let offsetGlobal = 0;
+    const gruposHTML = funcoes.map((funcao, fi) => {
+      const offset   = offsetGlobal;
+      offsetGlobal  += funcao.itens.length;
+
+      const itensHTML = funcao.itens.map((item, idx) => `
+        <div class="card" style="margin-bottom:var(--s3)">
+          <div style="font-size:var(--txt-xs);color:var(--texto-sec);margin-bottom:var(--s2);font-weight:600">
+            ${item.blocoIcone || ''} ${item.blocoTitulo} — Item ${offset + idx + 1} de ${totalItens}
+          </div>
+          <div style="font-size:var(--txt-sm);font-weight:500;line-height:1.55;margin-bottom:var(--s3)">
+            ${item.texto}
+          </div>
+          <div style="display:flex;gap:var(--s2);flex-wrap:wrap;margin-bottom:var(--s3)">
+            ${[['sim','✓ SIM','#4caf50'],['nao','✗ NÃO','#f44336'],['na','— N/A','#888']].map(([val, label, cor]) => `
+              <label style="display:flex;align-items:center;gap:6px;cursor:pointer;flex:1;min-width:80px;
+                            background:var(--fundo);border:2px solid var(--borda);border-radius:var(--r2);
+                            padding:var(--s2) var(--s3);font-size:var(--txt-sm);font-weight:700;
+                            color:${cor};transition:border-color .15s"
+                     onclick="this.style.borderColor='${cor}'">
+                <input type="radio" name="resp_${funcao.avaliacaoId}_${item.id}" value="${val}"
+                       style="accent-color:${cor};flex-shrink:0">
+                ${label}
+              </label>
+            `).join('')}
+          </div>
+          <div class="grupo-campo" style="margin:0">
+            <input type="text" id="obs_${funcao.avaliacaoId}_${item.id}"
+                   placeholder="Observação ou justificativa (opcional)"
+                   style="font-size:var(--txt-xs)">
+          </div>
+        </div>
+      `).join('');
+
+      return `
+        <div style="background:var(--superficie-alt);border-left:3px solid var(--primario);
+                    border-radius:var(--r2);padding:var(--s3) var(--s4);
+                    margin:var(--s5) 0 var(--s3)">
+          <div style="font-size:var(--txt-xs);color:var(--texto-sec);font-weight:600;
+                      letter-spacing:.04em;margin-bottom:2px">
+            FUNÇÃO ${fi + 1} DE ${funcoes.length}
+          </div>
+          <div style="font-size:var(--txt-base);font-weight:700">${funcao.funcaoNome || 'Função'}</div>
+          <div style="font-size:var(--txt-sm);color:var(--texto-sec)">
+            Setor: ${funcao.setorNome || '—'} &nbsp;·&nbsp; ${funcao.itens.length} item(ns)
+          </div>
+        </div>
+        ${itensHTML}
+      `;
+    }).join('');
+
+    const btnLabel = isUltimo ? '✅ Concluir' : `→ Próxima Empresa (${projetoIdx + 2} de ${total})`;
+
+    return `
+      <!-- Barra de progresso do grupo -->
+      <div style="background:var(--fundo);border-bottom:1px solid var(--borda);
+                  padding:var(--s3) var(--s4);margin-bottom:var(--s3)">
+        <div style="font-size:var(--txt-xs);color:var(--texto-sec);margin-bottom:var(--s1)">
+          Empresa ${projetoIdx + 1} de ${total} — ${grupo.perfilLabel}
+        </div>
+        <div style="background:var(--borda);border-radius:99px;height:5px;overflow:hidden">
+          <div style="background:var(--primario);height:100%;
+                      width:${Math.round(((projetoIdx + 1) / total) * 100)}%;
+                      transition:width .3s"></div>
+        </div>
+      </div>
+
+      <div class="card" style="border-color:var(--primario);margin-bottom:var(--s4)">
+        <div style="font-size:var(--txt-lg);font-weight:700;margin-bottom:var(--s1)">
+          📋 ${proj.empresaNome || 'Empresa'}
+        </div>
+        ${proj.empresaCnpj ? `<div style="font-size:var(--txt-xs);color:var(--texto-sec)">CNPJ: ${proj.empresaCnpj}</div>` : ''}
+        <div style="margin-top:var(--s3);padding:var(--s2) var(--s3);background:var(--fundo);
+                    border-radius:var(--r2);font-size:var(--txt-xs);color:var(--texto-sec)">
+          Destinado a: <strong>${grupo.perfilLabel}</strong> &nbsp;·&nbsp;
+          <strong>${funcoes.length} função(ões)</strong> &nbsp;·&nbsp;
+          <strong>${totalItens} itens</strong> &nbsp;·&nbsp;
+          Tempo estimado: <strong>${Math.ceil(totalItens * 0.5)} min</strong>
+        </div>
+      </div>
+
+      <div class="aviso-tecnico info" style="margin-bottom:var(--s4)">
+        <span>ℹ️</span>
+        <span>Responda com base na realidade de cada posto de trabalho.
+        Em caso de dúvida, use <strong>N/A</strong> e adicione uma observação.</span>
+      </div>
+
+      <form id="form-consulta-grupo">
+        ${gruposHTML}
+
+        ${projetoIdx === 0 ? `
+        <div class="card" style="margin-top:var(--s5)">
+          <div class="grupo-campo" style="margin:0">
+            <label for="consulta-nome">Seu nome
+              <span style="color:var(--texto-sec);font-weight:400">(opcional)</span>
+            </label>
+            <input type="text" id="consulta-nome" placeholder="Nome do respondente">
+          </div>
+        </div>` : ''}
+
+        <button id="btn-submit-grupo" type="submit" class="btn-bloco" style="margin-top:var(--s4)">
+          ${btnLabel}
+        </button>
+        <div style="height:var(--s6)"></div>
+      </form>
+    `;
+  }
+
+  function _htmlSucessoGrupo(grupo) {
+    return `
+      <div class="card" style="text-align:center;padding:var(--s6)">
+        <div style="font-size:3rem;margin-bottom:var(--s3)">🎉</div>
+        <div style="font-weight:700;font-size:var(--txt-base);margin-bottom:var(--s2)">
+          Todas as empresas respondidas!
+        </div>
+        <div style="font-size:var(--txt-sm);color:var(--texto-sec);line-height:1.6">
+          Obrigado pela colaboração.<br>
+          Suas respostas cobriram <strong>${grupo.totalProjetos || grupo.projetos?.length || ''} empresa${(grupo.totalProjetos || grupo.projetos?.length) > 1 ? 's' : ''}</strong>
+          e serão incorporadas às avaliações.<br><br>
+          Você já pode fechar esta página.
+        </div>
+      </div>
+    `;
   }
 
   /* ── Templates HTML ───────────────────────────────────── */

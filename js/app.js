@@ -350,6 +350,10 @@ const App = (() => {
               📋 Relatórios
             </button>
           </div>
+          <button class="btn btn-secundario" style="padding:var(--s4);font-size:var(--txt-base)"
+                  onclick="App.abrirModalLinksGrupo()">
+            🔗 Links de Grupo (multi-CNPJ)
+          </button>
         </div>
       </div>
     `;
@@ -811,6 +815,139 @@ const App = (() => {
     }
   }
 
+  /* ── Modal Links de Grupo (multi-CNPJ) ─────────────────────── */
+
+  function abrirModalLinksGrupo() {
+    document.getElementById('modal-links-grupo')?.remove();
+
+    const projetos = Storage.listarProjetos();
+    if (!projetos.length) {
+      mostrarToast('Nenhum projeto cadastrado', 'aviso');
+      return;
+    }
+
+    /* Agrupa projetos por empresa */
+    const porEmpresa = {};
+    projetos.forEach(p => {
+      if (!porEmpresa[p.empresaId]) {
+        porEmpresa[p.empresaId] = { emp: Storage.buscarEmpresa(p.empresaId), lista: [] };
+      }
+      porEmpresa[p.empresaId].lista.push(p);
+    });
+
+    const empresasHTML = Object.values(porEmpresa).map(({ emp, lista }) => `
+      <div style="margin-bottom:var(--s4)">
+        <div style="font-size:var(--txt-xs);font-weight:700;color:var(--texto-sec);
+                    margin-bottom:var(--s2);letter-spacing:.04em">
+          ${emp?.nome || 'Empresa'}
+          ${emp?.cnpj ? `<span style="font-weight:400;opacity:.7"> — ${emp.cnpj}</span>` : ''}
+        </div>
+        ${lista.map(p => {
+          const avs = Storage.listarPorProjeto(p.id).length;
+          return `
+            <label style="display:flex;align-items:center;gap:var(--s2);padding:var(--s2) var(--s3);
+                          cursor:pointer;border-radius:var(--r2);
+                          border:1px solid var(--borda);margin-bottom:var(--s1);
+                          background:var(--fundo)">
+              <input type="checkbox" class="grupo-proj-check" value="${p.id}"
+                     style="flex-shrink:0;width:16px;height:16px;cursor:pointer">
+              <span style="flex:1">
+                <span style="font-size:var(--txt-sm)">${p.nome || 'Projeto'}</span>
+                <span style="font-size:var(--txt-xs);color:var(--texto-sec);margin-left:var(--s2)">
+                  ${avs} av.
+                </span>
+              </span>
+            </label>
+          `;
+        }).join('')}
+      </div>
+    `).join('');
+
+    document.body.insertAdjacentHTML('beforeend', `
+      <div id="modal-links-grupo" style="
+        position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:2000;
+        display:flex;align-items:center;justify-content:center;padding:16px">
+        <div style="background:var(--fundo-card);border:1px solid var(--borda);border-radius:var(--r3);
+                    max-width:480px;width:100%;padding:24px;max-height:92vh;
+                    display:flex;flex-direction:column;gap:var(--s3)">
+
+          <div style="font-size:var(--txt-base);font-weight:700">
+            🔗 Gerar Links de Grupo
+          </div>
+          <div style="font-size:var(--txt-xs);color:var(--texto-sec)">
+            Selecione os projetos e o perfil. Será gerado <strong>um único link</strong>
+            que cobre todas as empresas selecionadas.
+          </div>
+
+          <!-- Seleção de perfil -->
+          <div>
+            <div style="font-size:var(--txt-xs);font-weight:600;color:var(--texto-sec);
+                        margin-bottom:var(--s2)">PERFIL DO RESPONDENTE:</div>
+            <div style="display:flex;gap:var(--s2);flex-wrap:wrap">
+              ${[['rh','🧑‍💼 RH'],['tecnico','⚙️ Técnico/SESMT'],['lider','👷 Líder de Setor']].map(([val, label]) => `
+                <label style="display:flex;align-items:center;gap:6px;cursor:pointer;
+                              padding:var(--s2) var(--s3);border-radius:var(--r2);
+                              border:2px solid var(--borda);font-size:var(--txt-sm);font-weight:600;
+                              background:var(--fundo)">
+                  <input type="radio" name="grupo-perfil" value="${val}"
+                         ${val === 'rh' ? 'checked' : ''}
+                         style="flex-shrink:0">
+                  ${label}
+                </label>
+              `).join('')}
+            </div>
+          </div>
+
+          <!-- Botão selecionar todos -->
+          <div style="display:flex;justify-content:flex-end">
+            <button class="btn btn-fantasma btn-sm" onclick="App._toggleTodosProjetos()">
+              ☑️ Selecionar / limpar todos
+            </button>
+          </div>
+
+          <!-- Lista de projetos com scroll -->
+          <div style="overflow-y:auto;flex:1;min-height:100px;max-height:300px;
+                      border:1px solid var(--borda);border-radius:var(--r2);
+                      padding:var(--s3)">
+            ${empresasHTML}
+          </div>
+
+          <!-- Botões de ação -->
+          <div style="display:flex;gap:var(--s3)">
+            <button class="btn btn-primario" style="flex:1"
+                    onclick="App.gerarLinksGrupo()">
+              🔗 Gerar Link
+            </button>
+            <button class="btn btn-secundario"
+                    onclick="document.getElementById('modal-links-grupo').remove()">
+              Cancelar
+            </button>
+          </div>
+        </div>
+      </div>
+    `);
+  }
+
+  function _toggleTodosProjetos() {
+    const checks = document.querySelectorAll('.grupo-proj-check');
+    const algumMarcado = Array.from(checks).some(c => c.checked);
+    checks.forEach(c => { c.checked = !algumMarcado; });
+  }
+
+  async function gerarLinksGrupo() {
+    const checks  = document.querySelectorAll('.grupo-proj-check:checked');
+    const ids     = Array.from(checks).map(c => c.value);
+    const perfil  = document.querySelector('input[name="grupo-perfil"]:checked')?.value || 'rh';
+
+    if (!ids.length) {
+      mostrarToast('Selecione ao menos um projeto', 'aviso');
+      return;
+    }
+
+    document.getElementById('modal-links-grupo')?.remove();
+    await ConsultaAEP.abrirConsultaGrupo(perfil, ids);
+  }
+
   /* ── Toast ─────────────────────────────────────────────────── */
   let _toastTimer = null;
   function mostrarToast(mensagem, tipo = 'info') {
@@ -834,6 +971,8 @@ const App = (() => {
     abrirAvaliacao, obterAvaliacaoAtual, confirmarExclusao, voltarParaProjeto,
     /* Toast */
     mostrarToast,
+    /* Links de Grupo */
+    abrirModalLinksGrupo, _toggleTodosProjetos, gerarLinksGrupo,
     /* Auth */
     confirmarLogout,
     /* Admin — gerenciamento de usuários */

@@ -1425,6 +1425,7 @@ Retorne APENAS o texto da conclusão, sem introdução, sem formatação especia
     /* ── Resultados AEP por função ── */
     const NIVEL_COR = { baixo: '#4caf50', medio: '#ff9800', alto: '#f44336', critico: '#b71c1c' };
     const PRIO_L    = { alta: 'Alta', media: 'Média', baixa: 'Baixa' };
+    const HIER_L    = { eliminacao: 'Eliminação', reducao: 'Redução', administrativo: 'Administrativo', monitoramento: 'Monitoramento' };
     const linhasAEP = avsAEP.map(av => {
       const s         = av.setorId  ? Storage.buscarSetor(av.setorId)   : null;
       const f         = av.funcaoId ? Storage.buscarFuncao(av.funcaoId) : null;
@@ -1910,7 +1911,7 @@ Retorne APENAS o texto da conclusão, sem introdução, sem formatação especia
                 ${aprovadosPsi.map(r => `<tr>
                   <td style="font-weight:600;font-size:var(--txt-xs)">${r.titulo || '—'}</td>
                   <td style="font-size:var(--txt-xs)">${r.textoGRO || '—'}</td>
-                  <td style="font-size:var(--txt-xs)">${r.hierarquia || '—'}</td>
+                  <td style="font-size:var(--txt-xs)">${HIER_L[r.hierarquia] || r.hierarquia || '—'}</td>
                 </tr>`).join('')}
               </tbody>
             </table>
