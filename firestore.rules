@@ -36,6 +36,11 @@ service cloud.firestore {
     match /ergogro_campanhas/{id} { allow read, write: if true; }
     match /ergogro_respostas/{id} { allow read, write: if true; }
 
+    // ── Consulta AEP (link para respondente externo) ───────
+    // Públicas: respondentes externos acessam sem login via link.
+    match /ergogro_consultas_aep/{id} { allow read, write: if true; }
+    match /ergogro_grupos_aep/{id}    { allow read, write: if true; }
+
     // ── Dados de laudos (equipe compartilhada) ─────────────
     // Qualquer usuário autorizado pode ler e escrever.
     // Dados não são filtrados por userId — toda a equipe vê tudo.

@@ -864,31 +864,29 @@ const App = (() => {
     `).join('');
 
     document.body.insertAdjacentHTML('beforeend', `
-      <div id="modal-links-grupo" style="
-        position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:2000;
-        display:flex;align-items:center;justify-content:center;padding:16px">
-        <div style="background:var(--fundo-card);border:1px solid var(--borda);border-radius:var(--r3);
-                    max-width:480px;width:100%;padding:24px;max-height:92vh;
-                    display:flex;flex-direction:column;gap:var(--s3)">
+      <div id="modal-links-grupo" class="modal-overlay">
+        <div class="modal-panel">
 
-          <div style="font-size:var(--txt-base);font-weight:700">
+          <div class="modal-titulo">
             🔗 Gerar Links de Grupo
+            <button class="btn-icone"
+                    onclick="document.getElementById('modal-links-grupo').remove()">✕</button>
           </div>
-          <div style="font-size:var(--txt-xs);color:var(--texto-sec)">
+
+          <p style="font-size:var(--txt-sm);color:var(--texto-sec);margin-bottom:var(--s4)">
             Selecione os projetos e o perfil. Será gerado <strong>um único link</strong>
             que cobre todas as empresas selecionadas.
-          </div>
+          </p>
 
           <!-- Seleção de perfil -->
-          <div>
+          <div style="margin-bottom:var(--s4)">
             <div style="font-size:var(--txt-xs);font-weight:600;color:var(--texto-sec);
                         margin-bottom:var(--s2)">PERFIL DO RESPONDENTE:</div>
             <div style="display:flex;gap:var(--s2);flex-wrap:wrap">
               ${[['rh','🧑‍💼 RH'],['tecnico','⚙️ Técnico/SESMT'],['lider','👷 Líder de Setor']].map(([val, label]) => `
                 <label style="display:flex;align-items:center;gap:6px;cursor:pointer;
                               padding:var(--s2) var(--s3);border-radius:var(--r2);
-                              border:2px solid var(--borda);font-size:var(--txt-sm);font-weight:600;
-                              background:var(--fundo)">
+                              border:2px solid var(--borda);font-size:var(--txt-sm);font-weight:600">
                   <input type="radio" name="grupo-perfil" value="${val}"
                          ${val === 'rh' ? 'checked' : ''}
                          style="flex-shrink:0">
@@ -899,16 +897,16 @@ const App = (() => {
           </div>
 
           <!-- Botão selecionar todos -->
-          <div style="display:flex;justify-content:flex-end">
+          <div style="display:flex;justify-content:flex-end;margin-bottom:var(--s2)">
             <button class="btn btn-fantasma btn-sm" onclick="App._toggleTodosProjetos()">
               ☑️ Selecionar / limpar todos
             </button>
           </div>
 
           <!-- Lista de projetos com scroll -->
-          <div style="overflow-y:auto;flex:1;min-height:100px;max-height:300px;
+          <div style="overflow-y:auto;max-height:38vh;
                       border:1px solid var(--borda);border-radius:var(--r2);
-                      padding:var(--s3)">
+                      padding:var(--s3);margin-bottom:var(--s4)">
             ${empresasHTML}
           </div>
 
@@ -923,6 +921,7 @@ const App = (() => {
               Cancelar
             </button>
           </div>
+
         </div>
       </div>
     `);

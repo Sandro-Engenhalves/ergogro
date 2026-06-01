@@ -350,25 +350,27 @@ const ConsultaAEP = (() => {
     const waLink = `https://wa.me/?text=${waMsg}`;
 
     document.body.insertAdjacentHTML('beforeend', `
-      <div id="modal-grupo-aep" style="
-        position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:2000;
-        display:flex;align-items:center;justify-content:center;padding:16px">
-        <div style="background:var(--fundo-card);border:1px solid var(--borda);border-radius:var(--r3);
-                    max-width:480px;width:100%;padding:24px;max-height:90vh;overflow-y:auto">
-          <div style="font-size:var(--txt-base);font-weight:700;margin-bottom:8px">
+      <div id="modal-grupo-aep" class="modal-overlay">
+        <div class="modal-panel">
+
+          <div class="modal-titulo">
             📨 ${label} — Link do Grupo (${total} empresa${total > 1 ? 's' : ''})
+            <button class="btn-icone"
+                    onclick="document.getElementById('modal-grupo-aep').remove()">✕</button>
           </div>
+
           <div style="font-size:var(--txt-xs);background:var(--superficie-alt);border-radius:var(--r2);
-                      padding:var(--s2) var(--s3);margin-bottom:12px;color:var(--texto-sec)">
+                      padding:var(--s2) var(--s3);margin-bottom:var(--s4);color:var(--texto-sec)">
             ✅ Um único link cobre <strong>todas as ${total} empresa${total > 1 ? 's' : ''}</strong> —
             envie <strong>uma única vez</strong> para o responsável.
           </div>
 
-          <div style="font-size:var(--txt-xs);color:var(--texto-sec);margin-bottom:6px;font-weight:600">
+          <div style="font-size:var(--txt-xs);color:var(--texto-sec);margin-bottom:var(--s2);font-weight:600">
             EMPRESAS INCLUÍDAS:
           </div>
-          <div style="background:var(--fundo);border:1px solid var(--borda);border-radius:var(--r2);
-                      padding:8px 12px;margin-bottom:16px;max-height:150px;overflow-y:auto">
+          <div style="border:1px solid var(--borda);border-radius:var(--r2);
+                      padding:var(--s2) var(--s3);margin-bottom:var(--s4);
+                      max-height:140px;overflow-y:auto">
             ${projetos.map((p, i) => `
               <div style="font-size:var(--txt-xs);color:var(--texto-sec);padding:3px 0;
                           ${i < projetos.length - 1 ? 'border-bottom:1px solid var(--borda)' : ''}">
@@ -378,12 +380,14 @@ const ConsultaAEP = (() => {
             `).join('')}
           </div>
 
-          <div style="background:var(--fundo);border:1px solid var(--borda);border-radius:var(--r2);
+          <div style="border:1px solid var(--borda);border-radius:var(--r2);
                       padding:10px 12px;font-size:11px;font-family:monospace;
-                      word-break:break-all;margin-bottom:16px;color:var(--texto-sec);user-select:all">
+                      word-break:break-all;margin-bottom:var(--s4);
+                      color:var(--texto-sec);user-select:all">
             ${link}
           </div>
-          <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px">
+
+          <div style="display:flex;gap:var(--s3);flex-wrap:wrap;margin-bottom:var(--s3)">
             <button class="btn btn-primario" style="flex:1"
                     onclick="ConsultaAEP._copiarLink('${link.replace(/'/g, "\\'")}')">
               📋 Copiar Link
@@ -400,6 +404,7 @@ const ConsultaAEP = (() => {
                   onclick="document.getElementById('modal-grupo-aep').remove()">
             Fechar
           </button>
+
         </div>
       </div>
     `);
