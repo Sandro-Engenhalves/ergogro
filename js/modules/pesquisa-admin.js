@@ -414,9 +414,15 @@ const ModuloPesquisaAdmin = (() => {
       <div class="grupo-campo">
         <input type="text" id="ps-link-url" value="${url}" readonly
           style="font-size:12px;background:var(--superficie-alt)">
-        <button class="btn btn-secundario" style="margin-top:var(--s2)" onclick="ModuloPesquisaAdmin.copiarLink()">
-          📋 Copiar link
-        </button>
+        <div style="display:flex;gap:var(--s2);margin-top:var(--s2);flex-wrap:wrap">
+          <button class="btn btn-secundario" onclick="ModuloPesquisaAdmin.copiarLink()">
+            📋 Copiar link
+          </button>
+          <button class="btn btn-primario" style="background:#25d366;border-color:#25d366;flex:1"
+            onclick="ModuloPesquisaAdmin.compartilharWhatsApp()">
+            📲 Compartilhar via WhatsApp
+          </button>
+        </div>
       </div>
 
       <!-- QR Code -->
@@ -501,6 +507,29 @@ const ModuloPesquisaAdmin = (() => {
     a.download = `qr-pesquisa-${_campanhaAberta?.id?.slice(0,8) || 'ergogro'}.png`;
     a.target   = '_blank';
     a.click();
+  }
+
+  function compartilharWhatsApp() {
+    const c = _campanhaAberta;
+    if (!c?.id) return;
+
+    const base = window.PS_BASE_URL || window.location.origin + window.location.pathname.replace('index.html', '');
+    const url  = `${base}pesquisa.html?c=${c.id}`;
+
+    /* Busca dados da empresa para montar mensagem profissional */
+    const empId = c.empresaId || App.obterProjetoAtual()?.empresaId;
+    const emp   = empId ? Storage.buscarEmpresa(empId) : null;
+    const nome  = c.empresaNome || emp?.nome || '';
+    const cnpj  = emp?.cnpj || '';
+
+    const clienteInfo = [nome, cnpj ? `CNPJ: ${cnpj}` : ''].filter(Boolean).join(' — ');
+    const msg = encodeURIComponent(
+      `Olá! Preciso da sua colaboração para a Pesquisa Psicossocial` +
+      `${clienteInfo ? ` da ${clienteInfo}` : ''}.\n` +
+      `O questionário é anônimo e leva de 5 a 10 minutos — basta responder uma única vez:\n${url}`
+    );
+
+    window.open(`https://wa.me/?text=${msg}`, '_blank');
   }
 
   /* ══════════════════════════════════════════════════════════
@@ -2469,6 +2498,7 @@ Retorne APENAS o texto da conclusão, sem introdução, sem formatação especia
     executarImportacaoCPFs,
     copiarLink,
     baixarQR,
+    compartilharWhatsApp,
     abrirCampanha,
     confirmarEncerramento,
     confirmarReativacao,
