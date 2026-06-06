@@ -218,7 +218,8 @@ const ConsultaAEP = (() => {
         const respostas = consulta.respostas || {};
 
         Object.entries(respostas).forEach(([avaliacaoId, itemRespostas]) => {
-          const targetAv = Storage.buscar(avaliacaoId);
+          /* Usa o objeto em memória quando for a avaliação atual para atualizar _avaliacaoAtual diretamente */
+          const targetAv = avaliacaoId === av.id ? av : Storage.buscar(avaliacaoId);
           if (!targetAv) return;
 
           Object.entries(itemRespostas || {}).forEach(([itemId, resp]) => {
