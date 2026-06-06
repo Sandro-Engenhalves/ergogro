@@ -758,9 +758,42 @@ Retorne APENAS o texto da conclusão, sem introdução, sem formatação especia
     `;
   }
 
+  /* Verifica quais perfis de respondente já importaram respostas para esta avaliação */
+  function _respondentesQueResponderam(av) {
+    const res = { lider: false, rh: false, tecnico: false };
+    if (!av?.aep) return res;
+    const labels = {
+      lider:   'Líder de Setor',
+      rh:      'Recursos Humanos (RH)',
+      tecnico: 'Técnico de Segurança / SESMT',
+    };
+    Object.values(av.aep).forEach(bloco => {
+      if (!bloco || typeof bloco !== 'object') return;
+      Object.values(bloco).forEach(resp => {
+        if (!resp?.importadaDe) return;
+        Object.entries(labels).forEach(([perfil, label]) => {
+          if (resp.importadaDe === label) res[perfil] = true;
+        });
+      });
+    });
+    return res;
+  }
+
   function _htmlItemAv(av) {
     const funcao    = av.funcaoId ? Storage.buscarFuncao(av.funcaoId) : null;
     const indicaAET = av.tipo === 'aep' && (av.aep?.analise?.indicaAET || av.relatorio?.necessitaAET || false);
+
+    let respondentesHtml = '';
+    if (av.tipo === 'aep') {
+      const resp = _respondentesQueResponderam(av);
+      respondentesHtml = `
+        <div class="item-respondentes">
+          <span class="badge-respondente ${resp.lider   ? 'respondido' : 'pendente'}">👷 Líder</span>
+          <span class="badge-respondente ${resp.rh      ? 'respondido' : 'pendente'}">🧑‍💼 RH</span>
+          <span class="badge-respondente ${resp.tecnico ? 'respondido' : 'pendente'}">⚙️ Técnico</span>
+        </div>`;
+    }
+
     return `
       <div class="item-avaliacao" style="margin-bottom:var(--s2)"
            onclick="App.abrirAvaliacao('${av.id}')">
@@ -777,6 +810,7 @@ Retorne APENAS o texto da conclusão, sem introdução, sem formatação especia
               ${av.status==='concluida'?'Concluída':'Em andamento'}
             </span>
           </div>
+          ${respondentesHtml}
         </div>
         <div onclick="event.stopPropagation()" style="display:flex;gap:var(--s1);align-items:center">
           ${indicaAET ? `<button

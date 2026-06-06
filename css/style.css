@@ -434,6 +434,36 @@ textarea { resize: vertical; min-height: 80px; }
   flex-wrap: wrap;
 }
 
+.item-avaliacao .item-respondentes {
+  display: flex;
+  gap: var(--s2);
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
+.badge-respondente {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 1px 6px;
+  border-radius: var(--raio-full);
+  font-size: 10px;
+  font-weight: 600;
+  white-space: nowrap;
+  line-height: 1.6;
+}
+
+.badge-respondente.respondido {
+  background: #3fb95022;
+  color: var(--sucesso);
+}
+
+.badge-respondente.pendente {
+  background: #8b949e14;
+  color: var(--texto-sec);
+  opacity: 0.6;
+}
+
 .item-avaliacao .item-acoes {
   display: flex;
   gap: var(--s2);
