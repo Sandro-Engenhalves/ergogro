@@ -78,15 +78,15 @@ const ModuloAEP = (() => {
       titulo: 'Relações Interpessoais e Clima', icone: '👥',
       itens: [
         { id: 'h01', texto: 'O clima geral entre colegas no setor avaliado é percebido como cooperativo e respeitoso?' },
-        { id: 'h02', texto: 'Existem conflitos interpessoais recorrentes não resolvidos no setor?' },
+        { id: 'h02', texto: 'Existem conflitos interpessoais recorrentes não resolvidos no setor?', riscoQuandoSim: true },
         { id: 'h03', texto: 'A empresa possui política formal e canal de denúncia para situações de assédio moral ou sexual?' },
-        { id: 'h04', texto: 'Há relatos ou registros de situações de tratamento desrespeitoso, humilhação ou intimidação por parte de lideranças?' },
+        { id: 'h04', texto: 'Há relatos ou registros de situações de tratamento desrespeitoso, humilhação ou intimidação por parte de lideranças?', riscoQuandoSim: true },
       ]
     },
     emocional: {
       titulo: 'Demandas Emocionais', icone: '❤️',
       itens: [
-        { id: 'i01', texto: 'A função avaliada envolve contato frequente com situações de sofrimento, conflito, violência ou morte?' },
+        { id: 'i01', texto: 'A função avaliada envolve contato frequente com situações de sofrimento, conflito, violência ou morte?', riscoQuandoSim: true },
         { id: 'i02', texto: 'Existem protocolos e suporte organizacional para trabalhadores após eventos emocionalmente críticos (morte, violência, acidente grave)?' },
         { id: 'i03', texto: 'Os trabalhadores são capacitados para lidar com situações de alta carga emocional típicas de sua função?' },
         { id: 'i04', texto: 'Os trabalhadores conseguem "desligar" do trabalho emocionalmente ao final do expediente?' },
@@ -245,7 +245,7 @@ const ModuloAEP = (() => {
 
         bloco.itens.forEach(item => {
           const r = respostas[item.id];
-          if (r?.resposta === 'nao') {
+          if (_ehRisco(item, r?.resposta)) {
             pts += r.risco === 'alto' ? 3 : r.risco === 'medio' ? 2 : 1;
           }
         });
@@ -855,6 +855,10 @@ const ModuloAEP = (() => {
     `;
   }
 
+  function _ehRisco(item, resposta) {
+    return item.riscoQuandoSim ? resposta === 'sim' : resposta === 'nao';
+  }
+
   function _htmlBloco(chave, av) {
     const bloco = BLOCOS[chave];
     const respostas = av?.aep?.[chave] || {};
@@ -862,7 +866,8 @@ const ModuloAEP = (() => {
 
     const itensHTML = bloco.itens.map((item, idx) => {
       const resp = respostas[item.id] || {};
-      const classeItem = resp.resposta === 'sim' ? 'conforme' : resp.resposta === 'nao' ? 'nao-conforme' : resp.resposta === 'na' ? 'nao-aplica' : '';
+      const eRisco = _ehRisco(item, resp.resposta);
+      const classeItem = resp.resposta === 'na' ? 'nao-aplica' : eRisco ? 'nao-conforme' : resp.resposta ? 'conforme' : '';
 
       return `
         <div class="item-checklist ${classeItem}" id="item-${item.id}">
@@ -878,7 +883,7 @@ const ModuloAEP = (() => {
               </div>
             `).join('')}
           </div>
-          <div class="secao-risco ${resp.resposta === 'nao' ? '' : 'oculto'}" id="risco_${item.id}">
+          <div class="secao-risco ${eRisco ? '' : 'oculto'}" id="risco_${item.id}">
             <div style="font-size:var(--txt-sm);font-weight:600;color:var(--texto-sec);margin-bottom:var(--s2)">
               Classificar o risco identificado:
             </div>
@@ -947,16 +952,18 @@ const ModuloAEP = (() => {
     if (!av.aep[blocoChave]) av.aep[blocoChave] = {};
     if (!av.aep[blocoChave][itemId]) av.aep[blocoChave][itemId] = {};
     av.aep[blocoChave][itemId].resposta = valor;
+    const itemDef = BLOCOS[blocoChave]?.itens?.find(i => i.id === itemId);
+    const eRisco  = itemDef ? _ehRisco(itemDef, valor) : valor === 'nao';
     const secaoRisco = document.getElementById(`risco_${itemId}`);
-    if (secaoRisco) secaoRisco.classList.toggle('oculto', valor !== 'nao');
+    if (secaoRisco) secaoRisco.classList.toggle('oculto', !eRisco);
     const divItem = document.getElementById(`item-${itemId}`);
     if (divItem) {
       divItem.className = 'item-checklist';
-      if (valor === 'sim') divItem.classList.add('conforme');
-      if (valor === 'nao') divItem.classList.add('nao-conforme');
-      if (valor === 'na')  divItem.classList.add('nao-aplica');
+      if (valor === 'na') divItem.classList.add('nao-aplica');
+      else if (eRisco)    divItem.classList.add('nao-conforme');
+      else if (valor)     divItem.classList.add('conforme');
     }
-    if (valor !== 'nao') delete av.aep[blocoChave][itemId].risco;
+    if (!eRisco) delete av.aep[blocoChave][itemId].risco;
   }
 
   function onRiscoChange(blocoChave, itemId, nivel) {
@@ -2117,7 +2124,7 @@ Retorne APENAS o texto da justificativa, sem introdução, sem formatação espe
     itens.forEach(item => {
       const r = respostas[item.id];
       if (r?.resposta) respondidos++;
-      if (r?.resposta === 'nao') {
+      if (_ehRisco(item, r?.resposta)) {
         if (r.risco === 'alto')  alto++;
         if (r.risco === 'medio') medio++;
         if (r.risco === 'baixo') baixo++;
@@ -2149,7 +2156,7 @@ Retorne APENAS o texto da justificativa, sem introdução, sem formatação espe
       const respostas = avaliacao?.aep?.[chave] || {};
       bloco.itens.forEach(item => {
         const r = respostas[item.id];
-        if (r?.resposta === 'nao') {
+        if (_ehRisco(item, r?.resposta)) {
           itens.push({
             blocoChave: chave, blocoTitulo: bloco.titulo,
             itemId: item.id, itemTexto: item.texto,
