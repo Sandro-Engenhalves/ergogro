@@ -879,7 +879,7 @@ const ModuloAEP = (() => {
                 <input type="radio" name="r_${item.id}" id="${v}_${item.id}" value="${v}"
                   ${resp.resposta === v ? 'checked' : ''}
                   onchange="ModuloAEP.onRespostaChange('${chave}','${item.id}','${v}')">
-                <label for="${v}_${item.id}">${v === 'sim' ? '✓ Sim' : v === 'nao' ? '✗ Não' : '— N/A'}</label>
+                <label for="${v}_${item.id}">${v === 'na' ? '— N/A' : v === 'sim' ? (item.riscoQuandoSim ? '✗ Sim' : '✓ Sim') : (item.riscoQuandoSim ? '✓ Não' : '✗ Não')}</label>
               </div>
             `).join('')}
           </div>
