@@ -1627,9 +1627,9 @@ Retorne APENAS o texto da conclusão, sem introdução, sem formatação especia
           .rpt-footer { display:block !important; border-top:1px solid #0D47A1; margin-top:6pt; padding-top:6pt; font-size:7.5pt; color:#444; text-align:center; line-height:1.6; page-break-before:avoid !important; page-break-inside:avoid !important; break-inside:avoid !important; }
           .rpt-secao h3, .relatorio-secao h3 { background:#0D47A1 !important; color:#fff !important; padding:5pt 9pt !important; font-size:9pt !important; font-weight:700 !important; text-transform:uppercase !important; letter-spacing:.5pt !important; margin:0 0 6pt !important; border-radius:0 !important; page-break-after:avoid !important; }
           table { width:100% !important; border-collapse:collapse !important; font-size:8pt !important; margin-bottom:6pt !important; }
-          th { background:#0D47A1 !important; color:#fff !important; padding:3pt 6pt !important; font-weight:600 !important; text-align:left !important; border:1px solid #0D47A1 !important; }
+          th { background:#0D47A1 !important; color:#fff; padding:3pt 6pt !important; font-weight:600 !important; text-align:left !important; border:1px solid #0D47A1 !important; }
           th:not(:first-child) { text-align:center !important; }
-          td { padding:3pt 6pt !important; border:1px solid #ccc !important; color:#111 !important; }
+          td { padding:3pt 6pt !important; border:1px solid #ccc !important; color:#111; }
           td:not(:first-child) { text-align:center !important; }
           tr:nth-child(even) td { background:#f0f4f8 !important; }
           .card { border:none !important; border-bottom:1px solid #e8e8e8 !important; background:#fff !important; border-radius:0 !important; padding:6pt 0 !important; margin-bottom:8pt !important; color:#000 !important; }
