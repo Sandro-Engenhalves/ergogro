@@ -1412,7 +1412,7 @@ Retorne APENAS o texto da conclusão, sem introdução, sem formatação especia
     const secRiscoPsi    = aprovadosPsi.length > 0 ? _n++ : null;
     const temOrientacoes = aprovadosPsi.some(r => r.estrategia || r.textoGRO);
     const secOrientacoes = temOrientacoes ? _n++ : null;
-    const secPlano       = (totalAcoes > 0 || acoesPsi.length > 0) ? _n++ : null;
+    const secPlano       = _n++;
     const secConc    = _n++;
     const secAssin   = _n++;
 
@@ -1599,6 +1599,7 @@ Retorne APENAS o texto da conclusão, sem introdução, sem formatação especia
           #app-header, #nav-principal, .subnav-abas,
           .nao-imprimir, .btn, #toast { display: none !important; }
           body { background:#fff !important; color:#000 !important; font-family:Arial,Helvetica,sans-serif !important; font-size:9pt !important; line-height:1.4 !important; margin:0 !important; }
+          .container { max-width:100% !important; width:100% !important; padding:0 !important; margin:0 !important; }
           .rpt-capa { display:flex !important; flex-direction:column; justify-content:space-between; align-items:stretch; min-height:297mm; padding:0; text-align:center; page-break-after:always; break-after:always; background:#fff; }
           .rpt-capa-barra-topo { background:#0D47A1; color:#fff; padding:10pt 16pt; font-size:8pt; font-weight:700; letter-spacing:1pt; text-transform:uppercase; text-align:center; }
           .rpt-capa-corpo { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:space-between; text-align:center; padding:10mm 20mm 8mm; }
@@ -1627,7 +1628,9 @@ Retorne APENAS o texto da conclusão, sem introdução, sem formatação especia
           .rpt-secao h3, .relatorio-secao h3 { background:#0D47A1 !important; color:#fff !important; padding:5pt 9pt !important; font-size:9pt !important; font-weight:700 !important; text-transform:uppercase !important; letter-spacing:.5pt !important; margin:0 0 6pt !important; border-radius:0 !important; page-break-after:avoid !important; }
           table { width:100% !important; border-collapse:collapse !important; font-size:8pt !important; margin-bottom:6pt !important; }
           th { background:#0D47A1 !important; color:#fff !important; padding:3pt 6pt !important; font-weight:600 !important; text-align:left !important; border:1px solid #0D47A1 !important; }
+          th:not(:first-child) { text-align:center !important; }
           td { padding:3pt 6pt !important; border:1px solid #ccc !important; color:#111 !important; }
+          td:not(:first-child) { text-align:center !important; }
           tr:nth-child(even) td { background:#f0f4f8 !important; }
           .card { border:none !important; border-bottom:1px solid #e8e8e8 !important; background:#fff !important; border-radius:0 !important; padding:6pt 0 !important; margin-bottom:8pt !important; color:#000 !important; }
           .badge { border:1px solid #ccc !important; font-size:7pt !important; padding:1pt 4pt !important; }
@@ -1716,11 +1719,10 @@ Retorne APENAS o texto da conclusão, sem introdução, sem formatação especia
             if (secResAFP)   rows += _si(secResAFP, 'Resultados — Avaliações Psicossociais (AFP)', secResAEP ? 7 : 6, 'rpt-secao-afp');
             if (secRiscoPsi)    rows += _si(secRiscoPsi, 'Riscos Psicossociais Identificados', (secResAEP||secResAFP) ? 8 : 7, 'rpt-secao-afp');
             if (secOrientacoes) rows += _si(secOrientacoes, 'Orientações de Controle Psicossocial', (secResAEP||secResAFP) ? 9 : 8, 'rpt-secao-afp');
-            const _pgPlano = secPlano ? ((secResAEP||secResAFP||secRiscoPsi) ? 10 : 6) : null;
-            const _pgConc  = _pgPlano ? _pgPlano + 1
-                           : ((secResAEP||secResAFP||secRiscoPsi||secOrientacoes) ? 9 : 7);
+            const _pgPlano = (secResAEP||secResAFP||secRiscoPsi) ? 10 : 6;
+            const _pgConc  = _pgPlano + 1;
             const _pgAssin = _pgConc + 1;
-            if (secPlano)       rows += '<div class="rpt-sumario-sep"></div>' + _si(secPlano, 'Plano de Ação', _pgPlano);
+            rows += '<div class="rpt-sumario-sep"></div>' + _si(secPlano, 'Plano de Ação', _pgPlano);
             rows += '<div class="rpt-sumario-sep"></div>' + _si(secConc, 'Conclusão Técnica', _pgConc);
             rows += _si(secAssin, 'Assinatura', _pgAssin);
             return rows;
@@ -1996,12 +1998,11 @@ Retorne APENAS o texto da conclusão, sem introdução, sem formatação especia
         </div>` : ''}
 
         <!-- Plano de ação -->
-        ${(totalAcoes > 0 || acoesPsi.length > 0) ? `
         <div class="relatorio-secao">
           <h3>${secPlano}. Plano de Ação</h3>
           <div style="overflow-x:auto">
             <table class="tabela-simples">
-              <thead><tr><th>#</th><th>Ação / Recomendação</th><th>Setor · Função</th><th>Medida</th><th>Prior.</th><th>Responsável</th><th>Prazo</th><th>Status</th></tr></thead>
+              <thead><tr><th>#</th><th style="text-align:left">Ação / Recomendação</th><th style="text-align:left">Setor · Função</th><th>Medida</th><th>Prior.</th><th>Responsável</th><th>Prazo</th><th>Status</th></tr></thead>
               <tbody>
                 ${(() => {
                   const PRIO_COR = { alta: '#f44336', media: '#ff9800', baixa: '#4caf50' };
@@ -2013,9 +2014,9 @@ Retorne APENAS o texto da conclusão, sem introdução, sem formatação especia
                     const s = av.setorId  ? Storage.buscarSetor(av.setorId)   : null;
                     const f = av.funcaoId ? Storage.buscarFuncao(av.funcaoId) : null;
                     return (av.planoAcao || []).map(acao => `<tr>
-                      <td>${++n}</td>
-                      <td style="font-size:var(--txt-xs)">${acao.descricao||'—'}</td>
-                      <td style="font-size:var(--txt-xs)">${s?.nome||'—'}${f?.nome?' · '+f.nome:''}</td>
+                      <td style="text-align:center">${++n}</td>
+                      <td style="font-size:var(--txt-xs);text-align:left">${acao.descricao||'—'}</td>
+                      <td style="font-size:var(--txt-xs);text-align:left">${s?.nome||'—'}${f?.nome?' · '+f.nome:''}</td>
                       <td style="font-size:var(--txt-xs)">${MEDIDA_L[acao.medida]||'—'}</td>
                       <td style="font-weight:700;color:${PRIO_COR[acao.prioridade]||'#888'};font-size:var(--txt-xs)">${PRIO_L[acao.prioridade]||acao.prioridade||'—'}</td>
                       <td style="font-size:var(--txt-xs)">${acao.responsavel||'—'}</td>
@@ -2024,24 +2025,25 @@ Retorne APENAS o texto da conclusão, sem introdução, sem formatação especia
                     </tr>`);
                   }).join('');
                   const linhasPsi = acoesPsi.map(acao => `<tr>
-                    <td>${++n}</td>
-                    <td style="font-size:var(--txt-xs)">
+                    <td style="text-align:center">${++n}</td>
+                    <td style="font-size:var(--txt-xs);text-align:left">
                       ${acao.risco ? `<div style="font-size:9px;color:#90caf9;margin-bottom:2px">🧠 ${acao.risco}</div>` : ''}
                       ${acao.descricao||'—'}
                     </td>
-                    <td style="font-size:var(--txt-xs)">—</td>
+                    <td style="font-size:var(--txt-xs);text-align:left">—</td>
                     <td style="font-size:var(--txt-xs)">Organizacional</td>
                     <td style="font-weight:700;color:${PRIO_COR[acao.prioridade]||'#888'};font-size:var(--txt-xs)">${PRIO_L[acao.prioridade]||acao.prioridade||'—'}</td>
                     <td style="font-size:var(--txt-xs)">${acao.responsavel||'—'}</td>
                     <td style="font-size:var(--txt-xs)">${_fd(acao.prazo)}</td>
                     <td style="font-size:var(--txt-xs)">${STATUS_L[acao.status]||acao.status||'—'}</td>
                   </tr>`).join('');
-                  return linhasAv + linhasPsi;
+                  const todasLinhas = linhasAv + linhasPsi;
+                  return todasLinhas || `<tr><td colspan="8" style="text-align:center;color:#888;font-style:italic">Nenhuma ação cadastrada.</td></tr>`;
                 })()}
               </tbody>
             </table>
           </div>
-        </div>` : ''}
+        </div>
 
         <!-- Conclusão técnica -->
         <div class="relatorio-secao">
