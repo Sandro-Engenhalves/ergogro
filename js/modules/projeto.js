@@ -1432,7 +1432,7 @@ Retorne APENAS o texto da conclusão, sem introdução, sem formatação especia
       ...(isAFP_r ? [{ n: 'COPSOQ-III Brasil (versão reduzida)', r: 'Ferramenta de Avaliação de Fatores Psicossociais', cls: 'rpt-secao-afp' }] : []),
       { n: 'Manual de Aplicação da NR-17',          r: 'Secretaria de Inspeção do Trabalho — SIT/MTb' },
       { n: 'ABNT NBR ISO 9241-210',                 r: 'Ergonomia da interação humano-sistema' },
-    ].map(({n, r, cls}) => `<tr${cls ? ` class="${cls}"` : ''}><td style="font-weight:600;width:50%">${n}</td><td>${r}</td></tr>`).join('');
+    ].map(({n, r, cls}) => `<tr${cls ? ` class="${cls}"` : ''}><td style="font-weight:600;width:50%">${n}</td><td style="text-align:left">${r}</td></tr>`).join('');
 
     /* ── Tabela de escopo: setores / funções ── */
     const tabelaEscopo = setores.flatMap(s => {
@@ -1448,10 +1448,10 @@ Retorne APENAS o texto da conclusão, sem introdução, sem formatação especia
           ? `<td rowspan="${funcs.length}" style="font-weight:600;vertical-align:middle;border-right:2px solid #0D47A1">${s.nome}</td>`
           : '';
         return `<tr>${tdSetor}
-          <td>${f.nome}</td>
+          <td style="text-align:left">${f.nome}</td>
           <td style="text-align:center">${f.numTrabalhadores || '—'}</td>
-          <td style="font-size:var(--txt-xs)">${f.atividadesPrincipais?.slice(0, 70) || '—'}</td>
-          <td style="font-size:var(--txt-xs)">${tiposAv || '—'}</td>
+          <td style="text-align:left;font-size:var(--txt-xs)">${f.atividadesPrincipais?.slice(0, 70) || '—'}</td>
+          <td style="text-align:center;font-size:var(--txt-xs)">${tiposAv || '—'}</td>
         </tr>`;
       });
     }).join('');
@@ -1475,8 +1475,8 @@ Retorne APENAS o texto da conclusão, sem introdução, sem formatação especia
       const indicaAET = av.aep?.analise?.indicaAET || av.relatorio?.necessitaAET || false;
       const justifAET = av.aep?.analise?.justificativaAET || av.relatorio?.justificativaAET || '';
       return `<tr>
-        <td style="font-weight:600">${f?.nome || '—'}</td>
-        <td>${s?.nome || '—'}</td>
+        <td style="font-weight:600;text-align:left">${f?.nome || '—'}</td>
+        <td style="text-align:left">${s?.nome || '—'}</td>
         <td style="text-align:center">${f?.numTrabalhadores || '—'}</td>
         <td style="text-align:center;font-weight:700;color:${corSc}">${score.valor}</td>
         <td style="text-align:center;font-weight:700;color:${NIVEL_COR[nivel] || '#888'}">${nivelStr}</td>
@@ -1795,17 +1795,17 @@ Retorne APENAS o texto da conclusão, sem introdução, sem formatação especia
           <div style="overflow-x:auto">
             <table class="tabela-simples">
               <tbody>
-                <tr><td style="font-weight:600;width:40%">Empresa / Cliente</td><td>${emp?.nome || '—'}</td></tr>
-                <tr><td style="font-weight:600">CNPJ</td><td>${emp?.cnpj || '—'}</td></tr>
-                <tr><td style="font-weight:600">Endereço</td><td>${emp?.endereco || '—'}</td></tr>
-                <tr><td style="font-weight:600">Cidade / Estado</td><td>${[emp?.cidade, emp?.estado].filter(Boolean).join(' / ') || '—'}</td></tr>
-                <tr><td style="font-weight:600">Projeto / Dossiê</td><td>${proj.nome || '—'}</td></tr>
-                <tr><td style="font-weight:600">Tipo de Avaliação</td><td>${{ aep:'AEP — Avaliação Ergonômica Preliminar', psicossocial:'AFP — Avaliação de Fatores Psicossociais', aep_afp:'AEP + AFP — Ergonômico com Pesquisa Psicossocial', aet:'AET — Análise Ergonômica do Trabalho', integrado:'Integrado (AEP + AFP + AET)' }[proj.tipo] || proj.tipo || '—'}</td></tr>
-                <tr><td style="font-weight:600">N° do Laudo</td><td>${_nrProjetoAtual}</td></tr>
-                <tr><td style="font-weight:600">Data de Emissão</td><td>${_dataEmissao}</td></tr>
-                <tr><td style="font-weight:600">Período de Avaliação</td><td>${_fd(proj.dataInicio) || '—'}${proj.dataFim ? ' a ' + _fd(proj.dataFim) : ''}</td></tr>
-                <tr><td style="font-weight:600">Responsável Técnico</td><td>${proj.responsavelTecnico || '—'}</td></tr>
-                <tr><td style="font-weight:600">Registro Profissional</td><td>${proj.registroProfissional || '—'} ${proj.cargoResponsavel ? '· ' + proj.cargoResponsavel : ''}</td></tr>
+                <tr><td style="font-weight:600;width:40%">Empresa / Cliente</td><td style="text-align:left">${emp?.nome || '—'}</td></tr>
+                <tr><td style="font-weight:600">CNPJ</td><td style="text-align:left">${emp?.cnpj || '—'}</td></tr>
+                <tr><td style="font-weight:600">Endereço</td><td style="text-align:left">${emp?.endereco || '—'}</td></tr>
+                <tr><td style="font-weight:600">Cidade / Estado</td><td style="text-align:left">${[emp?.cidade, emp?.estado].filter(Boolean).join(' / ') || '—'}</td></tr>
+                <tr><td style="font-weight:600">Projeto / Dossiê</td><td style="text-align:left">${proj.nome || '—'}</td></tr>
+                <tr><td style="font-weight:600">Tipo de Avaliação</td><td style="text-align:left">${{ aep:'AEP — Avaliação Ergonômica Preliminar', psicossocial:'AFP — Avaliação de Fatores Psicossociais', aep_afp:'AEP + AFP — Ergonômico com Pesquisa Psicossocial', aet:'AET — Análise Ergonômica do Trabalho', integrado:'Integrado (AEP + AFP + AET)' }[proj.tipo] || proj.tipo || '—'}</td></tr>
+                <tr><td style="font-weight:600">N° do Laudo</td><td style="text-align:left">${_nrProjetoAtual}</td></tr>
+                <tr><td style="font-weight:600">Data de Emissão</td><td style="text-align:left">${_dataEmissao}</td></tr>
+                <tr><td style="font-weight:600">Período de Avaliação</td><td style="text-align:left">${_fd(proj.dataInicio) || '—'}${proj.dataFim ? ' a ' + _fd(proj.dataFim) : ''}</td></tr>
+                <tr><td style="font-weight:600">Responsável Técnico</td><td style="text-align:left">${proj.responsavelTecnico || '—'}</td></tr>
+                <tr><td style="font-weight:600">Registro Profissional</td><td style="text-align:left">${proj.registroProfissional || '—'} ${proj.cargoResponsavel ? '· ' + proj.cargoResponsavel : ''}</td></tr>
               </tbody>
             </table>
           </div>
@@ -1855,7 +1855,7 @@ Retorne APENAS o texto da conclusão, sem introdução, sem formatação especia
           ${setores.length > 0 ? `
           <div style="overflow-x:auto">
             <table class="tabela-simples">
-              <thead><tr><th>Setor</th><th>Função</th><th style="text-align:center">Trab.</th><th>Atividades</th><th>Tipo de Avaliação</th></tr></thead>
+              <thead><tr><th>Setor</th><th style="text-align:left">Função</th><th style="text-align:center">Trab.</th><th style="text-align:left">Atividades</th><th style="text-align:center">Tipo de Avaliação</th></tr></thead>
               <tbody>${tabelaEscopo}</tbody>
             </table>
           </div>` : '<p style="font-size:var(--txt-sm);color:var(--texto-sec)">Nenhum setor cadastrado.</p>'}
@@ -1873,7 +1873,7 @@ Retorne APENAS o texto da conclusão, sem introdução, sem formatação especia
           </div>
           <div style="overflow-x:auto">
             <table class="tabela-simples">
-              <thead><tr><th>Função</th><th>Setor</th><th style="text-align:center">Trab.</th><th style="text-align:center">Score</th><th style="text-align:center">Nível de Risco</th><th style="text-align:center">NC Alto</th><th style="text-align:center">NC Médio</th><th>Prioridade</th><th style="text-align:center">AET?</th><th>Data</th></tr></thead>
+              <thead><tr><th>Função</th><th style="text-align:left">Setor</th><th style="text-align:center">Trab.</th><th style="text-align:center">Score</th><th style="text-align:center">Nível de Risco</th><th style="text-align:center">NC Alto</th><th style="text-align:center">NC Médio</th><th style="text-align:center">Prioridade</th><th style="text-align:center">AET?</th><th style="text-align:center">Data</th></tr></thead>
               <tbody>${linhasAEP || '<tr><td colspan="10" style="text-align:center;color:var(--texto-sec)">Nenhuma avaliação AEP encontrada</td></tr>'}</tbody>
             </table>
           </div>
@@ -1945,9 +1945,9 @@ Retorne APENAS o texto da conclusão, sem introdução, sem formatação especia
               </thead>
               <tbody>
                 ${aprovadosPsi.map(r => `<tr>
-                  <td style="font-weight:600;font-size:var(--txt-xs)">${r.titulo || '—'}</td>
-                  <td style="font-size:var(--txt-xs)">${r.textoGRO || '—'}</td>
-                  <td style="font-size:var(--txt-xs)">${HIER_L[r.hierarquia] || r.hierarquia || '—'}</td>
+                  <td style="font-weight:600;font-size:var(--txt-xs);text-align:left">${r.titulo || '—'}</td>
+                  <td style="font-size:var(--txt-xs);text-align:left">${r.textoGRO || '—'}</td>
+                  <td style="font-size:var(--txt-xs);text-align:center">${HIER_L[r.hierarquia] || r.hierarquia || '—'}</td>
                 </tr>`).join('')}
               </tbody>
             </table>
