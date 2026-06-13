@@ -1119,6 +1119,7 @@ body.sem-nav #toast {
   .relatorio-secao { page-break-inside: avoid; }
   :root {
     --fundo: #fff; --superficie: #fff; --texto: #000; --texto-sec: #555; --borda: #ddd;
+    --primaria: #0D47A1; --primaria-hover: #1565C0; --primaria-muted: #e3f2fd;
   }
 
   /* Análise técnica: campos editáveis viram texto puro no PDF */

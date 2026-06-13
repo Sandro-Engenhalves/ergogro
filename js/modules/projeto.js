@@ -1448,7 +1448,7 @@ Retorne APENAS o texto da conclusão, sem introdução, sem formatação especia
           ? `<td rowspan="${funcs.length}" style="font-weight:600;vertical-align:middle;border-right:2px solid #0D47A1">${s.nome}</td>`
           : '';
         return `<tr>${tdSetor}
-          <td style="text-align:left">${f.nome}</td>
+          <td style="text-align:left;color:#000 !important">${f.nome}</td>
           <td style="text-align:center">${f.numTrabalhadores || '—'}</td>
           <td style="text-align:left;font-size:var(--txt-xs)">${f.atividadesPrincipais?.slice(0, 70) || '—'}</td>
           <td style="text-align:center;font-size:var(--txt-xs)">${tiposAv || '—'}</td>
@@ -1475,8 +1475,8 @@ Retorne APENAS o texto da conclusão, sem introdução, sem formatação especia
       const indicaAET = av.aep?.analise?.indicaAET || av.relatorio?.necessitaAET || false;
       const justifAET = av.aep?.analise?.justificativaAET || av.relatorio?.justificativaAET || '';
       return `<tr>
-        <td style="font-weight:600;text-align:left">${f?.nome || '—'}</td>
-        <td style="text-align:left">${s?.nome || '—'}</td>
+        <td style="font-weight:600;text-align:left;color:#000 !important">${f?.nome || '—'}</td>
+        <td style="text-align:left;color:#000 !important">${s?.nome || '—'}</td>
         <td style="text-align:center">${f?.numTrabalhadores || '—'}</td>
         <td style="text-align:center;font-weight:700;color:${corSc}">${score.valor}</td>
         <td style="text-align:center;font-weight:700;color:${NIVEL_COR[nivel] || '#888'}">${nivelStr}</td>
