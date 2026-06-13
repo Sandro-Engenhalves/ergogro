@@ -1450,7 +1450,7 @@ Retorne APENAS o texto da conclusão, sem introdução, sem formatação especia
         return `<tr>${tdSetor}
           <td style="text-align:left;color:#000 !important">${f.nome}</td>
           <td style="text-align:center">${f.numTrabalhadores || '—'}</td>
-          <td style="text-align:left;font-size:var(--txt-xs)">${f.atividadesPrincipais?.slice(0, 70) || '—'}</td>
+          <td style="text-align:center;font-size:var(--txt-xs)">${f.atividadesPrincipais?.slice(0, 70) || '—'}</td>
           <td style="text-align:center;font-size:var(--txt-xs)">${tiposAv || '—'}</td>
         </tr>`;
       });
@@ -1548,9 +1548,10 @@ Retorne APENAS o texto da conclusão, sem introdução, sem formatação especia
       <td style="font-weight:600;text-align:left">${d.nome}</td>
       <td>
         <div style="display:flex;align-items:center;gap:6px">
-          <div style="flex:1;height:10px;background:#e0e0e0;border-radius:999px;overflow:hidden !important;min-width:60px">
-            <div style="height:100%;width:${d.media ?? 0}%;background:${NIVEL_AFP_COR[d.nivel] || '#888'};border-radius:999px;-webkit-print-color-adjust:exact;print-color-adjust:exact"></div>
-          </div>
+          <svg style="flex:1;min-width:60px;height:10px" viewBox="0 0 100 10" preserveAspectRatio="none">
+            <rect x="0" y="0" width="100" height="10" rx="4" fill="#e0e0e0"/>
+            <rect x="0" y="0" width="${d.media ?? 0}" height="10" rx="4" fill="${NIVEL_AFP_COR[d.nivel] || '#888'}"/>
+          </svg>
           <span style="font-weight:700;min-width:28px;text-align:right">${d.media ?? '—'}</span>
         </div>
       </td>
@@ -1856,7 +1857,7 @@ Retorne APENAS o texto da conclusão, sem introdução, sem formatação especia
           ${setores.length > 0 ? `
           <div style="overflow-x:auto">
             <table class="tabela-simples">
-              <thead><tr><th>Setor</th><th style="text-align:left">Função</th><th style="text-align:center">Trab.</th><th style="text-align:left">Atividades</th><th style="text-align:center">Tipo de Avaliação</th></tr></thead>
+              <thead><tr><th>Setor</th><th style="text-align:left">Função</th><th style="text-align:center">Trab.</th><th style="text-align:center">Atividades</th><th style="text-align:center">Tipo de Avaliação</th></tr></thead>
               <tbody>${tabelaEscopo}</tbody>
             </table>
           </div>` : '<p style="font-size:var(--txt-sm);color:var(--texto-sec)">Nenhum setor cadastrado.</p>'}
@@ -2122,8 +2123,8 @@ Retorne APENAS o texto da conclusão, sem introdução, sem formatação especia
 
   function _li(label, valor) {
     if (!valor && valor !== 0) return '';
-    return `<div style="display:flex;padding:var(--s2) 0;border-bottom:1px solid var(--borda)">
-      <span style="color:var(--texto-sec);font-size:var(--txt-sm);width:160px;flex-shrink:0">${label}</span>
+    return `<div style="display:flex;gap:16px;padding:var(--s2) 0;border-bottom:1px solid var(--borda)">
+      <span style="color:var(--texto-sec);font-size:var(--txt-sm);min-width:220px;flex-shrink:0">${label}</span>
       <span style="font-size:var(--txt-sm);font-weight:500">${valor}</span>
     </div>`;
   }
