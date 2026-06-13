@@ -1545,12 +1545,10 @@ Retorne APENAS o texto da conclusão, sem introdução, sem formatação especia
     const NIVEL_AFP_COR = { favoravel: '#4caf50', intermediario: '#ff9800', desfavoravel: '#f44336', sem_dados: '#888' };
     const NIVEL_AFP_T   = { favoravel: 'Favorável', intermediario: 'Intermediário', desfavoravel: 'Desfavorável', sem_dados: 'Sem dados' };
     const dimAFPLinhas  = (afpR?.consolidado || []).map(d => `<tr>
-      <td style="font-weight:600">${d.nome}</td>
+      <td style="font-weight:600;text-align:left">${d.nome}</td>
       <td>
         <div style="display:flex;align-items:center;gap:6px">
-          <div style="flex:1;height:8px;background:#e0e0e0;border-radius:999px;overflow:hidden;min-width:60px">
-            <div style="height:100%;width:${d.media ?? 0}%;background:${NIVEL_AFP_COR[d.nivel] || '#888'};border-radius:999px"></div>
-          </div>
+          <div style="flex:1;height:10px;border-radius:999px;min-width:60px;background:linear-gradient(to right,${NIVEL_AFP_COR[d.nivel]||'#888'} ${d.media??0}%,#e0e0e0 ${d.media??0}%);-webkit-print-color-adjust:exact;print-color-adjust:exact"></div>
           <span style="font-weight:700;min-width:28px;text-align:right">${d.media ?? '—'}</span>
         </div>
       </td>
@@ -1625,14 +1623,15 @@ Retorne APENAS o texto da conclusão, sem introdução, sem formatação especia
           .rpt-header-logo { display:flex; align-items:center; gap:6pt; }
           .rpt-header-info { font-size:7pt; color:#555; text-align:right; line-height:1.5; }
           .rpt-footer { display:block !important; border-top:1px solid #0D47A1; margin-top:6pt; padding-top:6pt; font-size:7.5pt; color:#444; text-align:center; line-height:1.6; page-break-before:avoid !important; page-break-inside:avoid !important; break-inside:avoid !important; }
-          .rpt-secao h3, .relatorio-secao h3 { background:#0D47A1 !important; color:#fff !important; padding:5pt 9pt !important; font-size:9pt !important; font-weight:700 !important; text-transform:uppercase !important; letter-spacing:.5pt !important; margin:0 0 6pt !important; border-radius:0 !important; page-break-after:avoid !important; }
+          .rpt-secao h3, .relatorio-secao h3 { background:#0D47A1 !important; color:#fff !important; padding:5pt 9pt !important; font-size:9pt !important; font-weight:700 !important; text-transform:uppercase !important; letter-spacing:.5pt !important; margin:0 0 12pt !important; border-radius:0 !important; page-break-after:avoid !important; }
           table { width:100% !important; border-collapse:collapse !important; font-size:8pt !important; margin-bottom:6pt !important; }
-          th { background:#0D47A1 !important; color:#fff; padding:3pt 6pt !important; font-weight:600 !important; text-align:left !important; border:1px solid #0D47A1 !important; }
+          th { background:#0D47A1 !important; color:#fff !important; padding:3pt 6pt !important; font-weight:600 !important; text-align:left !important; border:1px solid #0D47A1 !important; }
+          .tabela-simples th { color:#fff !important; }
           th:not(:first-child) { text-align:center; }
           td { padding:3pt 6pt !important; border:1px solid #ccc !important; color:#111; }
           td:not(:first-child) { text-align:center; }
           tr:nth-child(even) td { background:#f0f4f8 !important; }
-          .card { border:none !important; border-bottom:1px solid #e8e8e8 !important; background:#fff !important; border-radius:0 !important; padding:6pt 0 !important; margin-bottom:8pt !important; color:#000 !important; }
+          .card { border:none !important; border-bottom:1px solid #e8e8e8 !important; background:#fff !important; border-radius:0 !important; padding:8pt 0 !important; margin-bottom:8pt !important; color:#000 !important; }
           .badge { border:1px solid #ccc !important; font-size:7pt !important; padding:1pt 4pt !important; }
           .badge-alto { background:#f8d7da !important; color:#721c24 !important; border-color:#f5c6cb !important; }
           .badge-medio { background:#fff3cd !important; color:#856404 !important; border-color:#ffeeba !important; }
