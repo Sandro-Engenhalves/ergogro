@@ -68,44 +68,69 @@ function _urlBase() {
 ══════════════════════════════════════════════════════════ */
 const ConsultaAEP = (() => {
 
-  /* Token determinístico: um por projeto × perfil */
-  function _token(projetoId, perfil) {
-    return `proj_${projetoId}_${perfil}`;
+  /* Token determinístico: um por projeto × perfil, ou por projeto × perfil × setor(es) quando o link é por setor */
+  function _token(projetoId, perfil, setorIds) {
+    if (!setorIds || !setorIds.length) return `proj_${projetoId}_${perfil}`;
+    return `proj_${projetoId}_${perfil}_s${_hashStr([...setorIds].sort().join(','))}`;
   }
 
-  /* Monta lista de funções com os itens do perfil para todas as avaliações do projeto */
-  function _montarFuncoes(projetoId, perfil) {
+  /* Monta lista de funções com os itens do perfil para as avaliações do projeto.
+     Se setorIds for informado, restringe às avaliações desses setores (link por setor). */
+  function _montarFuncoes(projetoId, perfil, setorIds) {
     const avaliacoes = Storage.listarPorProjeto(projetoId);
-    const idsAlvo    = new Set(_PERFIL_ITENS[perfil] || []);
-    return avaliacoes.map(av => {
-      const setor  = av.setorId  ? Storage.buscarSetor(av.setorId)   : null;
-      const funcao = av.funcaoId ? Storage.buscarFuncao(av.funcaoId) : null;
-      const itens  = [];
-      ModuloAEP.ORDEM_BLOCOS.forEach(blocoKey => {
-        const bloco = ModuloAEP.BLOCOS[blocoKey];
-        bloco.itens.forEach(item => {
-          if (idsAlvo.has(item.id)) itens.push({
-            id: item.id, bloco: blocoKey,
-            blocoTitulo: bloco.titulo, blocoIcone: bloco.icone,
-            texto: item.texto,
+    const idsAlvo     = new Set(_PERFIL_ITENS[perfil] || []);
+    const filtroSetor = setorIds && setorIds.length ? new Set(setorIds) : null;
+    return avaliacoes
+      .filter(av => !filtroSetor || filtroSetor.has(av.setorId))
+      .map(av => {
+        const setor  = av.setorId  ? Storage.buscarSetor(av.setorId)   : null;
+        const funcao = av.funcaoId ? Storage.buscarFuncao(av.funcaoId) : null;
+        const itens  = [];
+        ModuloAEP.ORDEM_BLOCOS.forEach(blocoKey => {
+          const bloco = ModuloAEP.BLOCOS[blocoKey];
+          bloco.itens.forEach(item => {
+            if (idsAlvo.has(item.id)) itens.push({
+              id: item.id, bloco: blocoKey,
+              blocoTitulo: bloco.titulo, blocoIcone: bloco.icone,
+              texto: item.texto,
+            });
           });
         });
-      });
-      return itens.length ? {
-        avaliacaoId: av.id,
-        setorNome:   setor?.nome  || av.setor  || '',
-        funcaoNome:  funcao?.nome || av.funcao || '',
-        itens,
-      } : null;
-    }).filter(Boolean);
+        return itens.length ? {
+          avaliacaoId: av.id,
+          setorId:     av.setorId || null,
+          setorNome:   setor?.nome  || av.setor  || '',
+          funcaoNome:  funcao?.nome || av.funcao || '',
+          itens,
+        } : null;
+      }).filter(Boolean);
   }
 
-  /* Token de grupo: hash djb2 dos projetoIds ordenados + perfil → string curta */
-  function _tokenGrupo(projetoIds, perfil) {
-    const str = [...projetoIds].sort().join(',') + '|' + perfil;
+  /* Lista os setores do projeto que têm itens para o perfil — usado no seletor de link por setor */
+  function _listarSetoresDisponiveis(projetoId, perfil) {
+    const mapa = new Map();
+    _montarFuncoes(projetoId, perfil).forEach(f => {
+      if (!f.setorId) return;
+      if (!mapa.has(f.setorId)) {
+        mapa.set(f.setorId, { setorId: f.setorId, setorNome: f.setorNome || 'Sem nome', funcoes: 0, itens: 0 });
+      }
+      const reg = mapa.get(f.setorId);
+      reg.funcoes++;
+      reg.itens += f.itens.length;
+    });
+    return [...mapa.values()];
+  }
+
+  /* Hash djb2 curto, usado para gerar tokens determinísticos a partir de listas de ids */
+  function _hashStr(str) {
     let h = 5381;
     for (let i = 0; i < str.length; i++) { h = ((h << 5) + h) ^ str.charCodeAt(i); h |= 0; }
-    return `grupo_${Math.abs(h).toString(36)}_${perfil}`;
+    return Math.abs(h).toString(36);
+  }
+
+  /* Token de grupo: hash dos projetoIds ordenados + perfil → string curta */
+  function _tokenGrupo(projetoIds, perfil) {
+    return `grupo_${_hashStr([...projetoIds].sort().join(',') + '|' + perfil)}_${perfil}`;
   }
 
   /* Cria/atualiza o doc individual de um projetoId específico (sem depender de AvaliacaoAtual) */
@@ -137,8 +162,10 @@ const ConsultaAEP = (() => {
     return { projetoId, token, empresaNome: emp?.nome || '', empresaCnpj: emp?.cnpj || '', funcoes, totalItens };
   }
 
-  /* Cria ou atualiza o doc do projeto no Firestore preservando respostas existentes */
-  async function _criarOuAtualizar(perfil) {
+  /* Cria ou atualiza o doc do projeto no Firestore preservando respostas existentes.
+     setorIds (opcional): restringe o link aos setores informados — permite dividir a
+     consulta entre vários membros da equipe em empresas com muitos setores. */
+  async function _criarOuAtualizar(perfil, setorIds) {
     if (!inicializarFirebase()) throw new Error('Firebase não configurado');
     const av = App.obterAvaliacaoAtual();
     if (!av)           throw new Error('Nenhuma avaliação carregada');
@@ -148,21 +175,26 @@ const ConsultaAEP = (() => {
     const proj = Storage.buscarProjeto(projetoId);
     const emp  = proj ? Storage.buscarEmpresa(proj.empresaId) : null;
 
-    const funcoes = _montarFuncoes(projetoId, perfil);
-    if (!funcoes.length) throw new Error('Nenhuma avaliação cadastrada neste projeto');
+    const funcoes = _montarFuncoes(projetoId, perfil, setorIds);
+    if (!funcoes.length) {
+      throw new Error(setorIds?.length ? 'Nenhuma avaliação cadastrada nos setores selecionados' : 'Nenhuma avaliação cadastrada neste projeto');
+    }
 
-    const token     = _token(projetoId, perfil);
+    const token     = _token(projetoId, perfil, setorIds);
     const ref       = firebase.firestore().collection(_COL_CONSULTAS).doc(token);
     const snapExist = await ref.get();
 
     /* Preserva respostas já recebidas ao regenerar */
     const respostasAntigas = snapExist.exists ? (snapExist.data().respostas || {}) : {};
     const totalItens = funcoes.reduce((s, f) => s + f.itens.length, 0);
+    const setorNomes = [...new Set(funcoes.map(f => f.setorNome).filter(Boolean))];
 
     await ref.set({
       token, projetoId, perfil,
       perfilLabel:  _PERFIL_LABEL[perfil],
       empresaNome:  emp?.nome || '',
+      setorIds:     setorIds && setorIds.length ? setorIds : [],
+      setorNomes,
       funcoes, totalItens,
       status:       'pendente',
       criadaEm:     snapExist.exists ? snapExist.data().criadaEm : new Date().toISOString(),
@@ -206,14 +238,12 @@ const ConsultaAEP = (() => {
     try {
       let totalImportados = 0;
 
-      /* ── Docs novos (nível projeto) ── */
-      const tokens = ['lider', 'rh', 'tecnico'].map(p => _token(av.projetoId, p));
-      const snaps  = await Promise.all(tokens.map(t =>
-        firebase.firestore().collection(_COL_CONSULTAS).doc(t).get()
-      ));
+      /* ── Docs novos (nível projeto) — inclui link único e todos os links por setor ── */
+      const snaps = await firebase.firestore().collection(_COL_CONSULTAS)
+        .where('projetoId', '==', av.projetoId)
+        .get();
 
       snaps.forEach(snap => {
-        if (!snap.exists) return;
         const consulta  = snap.data();
         const respostas = consulta.respostas || {};
 
@@ -279,19 +309,17 @@ const ConsultaAEP = (() => {
     }
   }
 
-  /* Verifica status dos 3 links do projeto */
+  /* Verifica status de todos os links do projeto (link único + links por setor) */
   async function verificarStatus() {
     const av = App.obterAvaliacaoAtual();
     if (!av || !inicializarFirebase()) return;
     try {
-      const tokens = ['lider', 'rh', 'tecnico'].map(p => _token(av.projetoId, p));
-      const snaps  = await Promise.all(tokens.map(t =>
-        firebase.firestore().collection(_COL_CONSULTAS).doc(t).get()
-      ));
+      const snaps = await firebase.firestore().collection(_COL_CONSULTAS)
+        .where('projetoId', '==', av.projetoId)
+        .get();
 
       let pendentes = 0, respondidas = 0;
       snaps.forEach(snap => {
-        if (!snap.exists) return;
         if (snap.data().status === 'respondida') respondidas++;
         else pendentes++;
       });
@@ -299,7 +327,7 @@ const ConsultaAEP = (() => {
       const badge = document.getElementById('consulta-status-badge');
       if (!badge || respondidas + pendentes === 0) return;
       badge.textContent = respondidas
-        ? `${respondidas} perfil(s) respondido(s) — clique em Importar`
+        ? `${respondidas} link(s) respondido(s) — clique em Importar`
         : `${pendentes} link(s) gerado(s) — aguardando resposta`;
       badge.style.color = respondidas ? '#4caf50' : 'var(--texto-sec)';
     } catch (e) { /* silencioso */ }
@@ -482,7 +510,127 @@ const ConsultaAEP = (() => {
       .catch(() => App.mostrarToast('Selecione e copie manualmente', 'aviso'));
   }
 
-  return { abrirConsulta, importarRespostas, verificarStatus, _copiarLink, abrirConsultaGrupo };
+  /* ══════════════════════════════════════════════════════════
+     LINK POR SETOR — divide a consulta entre vários membros da
+     equipe (cada um recebe um link cobrindo só os setores dele)
+  ══════════════════════════════════════════════════════════ */
+
+  /* Abre o seletor: link único (comportamento atual) ou link por setor(es) */
+  function abrirSeletorSetores(perfil) {
+    const av = App.obterAvaliacaoAtual();
+    if (!av || !av.projetoId) { App.mostrarToast('Avaliação sem projeto associado', 'erro'); return; }
+    const setores = _listarSetoresDisponiveis(av.projetoId, perfil);
+    _mostrarSeletorSetores(perfil, setores);
+  }
+
+  function _mostrarSeletorSetores(perfil, setores) {
+    document.getElementById('modal-seletor-setores')?.remove();
+    const label = _PERFIL_LABEL[perfil];
+    const icone = _PERFIL_ICONE[perfil];
+
+    const linhasSetores = setores.map(s => `
+      <label style="display:flex;align-items:center;gap:10px;padding:8px 4px;
+                    border-bottom:1px solid var(--borda);cursor:pointer;font-size:var(--txt-sm)">
+        <input type="checkbox" class="chk-setor-link" value="${s.setorId}" data-nome="${s.setorNome}"
+               style="flex-shrink:0;width:16px;height:16px">
+        <span style="flex:1">
+          <strong>${s.setorNome}</strong>
+          <span style="color:var(--texto-sec);font-size:var(--txt-xs)"> — ${s.funcoes} função(ões), ${s.itens} item(ns)</span>
+        </span>
+      </label>
+    `).join('');
+
+    document.body.insertAdjacentHTML('beforeend', `
+      <div id="modal-seletor-setores" style="
+        position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:2000;
+        display:flex;align-items:center;justify-content:center;padding:16px">
+        <div style="background:var(--fundo-card);border:1px solid var(--borda);border-radius:var(--r3);
+                    max-width:520px;width:100%;padding:24px;max-height:90vh;overflow-y:auto">
+          <div style="font-size:var(--txt-base);font-weight:700;margin-bottom:4px">
+            ${icone} ${label} — Gerar Link
+          </div>
+          <div style="font-size:var(--txt-xs);color:var(--texto-sec);margin-bottom:16px">
+            Em empresas com muitos setores, divida a tarefa entre vários membros da equipe
+            gerando um link por setor (ou por grupo de setores) para cada pessoa.
+          </div>
+
+          <button class="btn btn-secundario" style="width:100%;margin-bottom:16px"
+                  onclick="document.getElementById('modal-seletor-setores').remove();ConsultaAEP.abrirConsulta('${perfil}')">
+            🔗 Link Único — cobre todos os setores
+          </button>
+
+          ${setores.length ? `
+            <div style="font-size:var(--txt-xs);color:var(--texto-sec);font-weight:600;margin-bottom:8px">
+              OU SELECIONE SETOR(ES) PARA UM LINK ESPECÍFICO:
+            </div>
+            <div style="border:1px solid var(--borda);border-radius:var(--r2);max-height:220px;overflow-y:auto;margin-bottom:12px">
+              ${linhasSetores}
+            </div>
+            <button class="btn btn-primario" style="width:100%;margin-bottom:8px"
+                    onclick="ConsultaAEP._gerarLinkSelecionados('${perfil}')">
+              📨 Gerar Link para Setor(es) Selecionado(s)
+            </button>
+            <div style="font-size:var(--txt-xs);color:var(--texto-sec);margin-bottom:12px">
+              Após gerar, desmarque e selecione o próximo grupo de setores para criar outro link
+              (um para cada membro da equipe).
+            </div>
+            <div id="links-setor-gerados-${perfil}"></div>
+          ` : `
+            <div style="font-size:var(--txt-xs);color:var(--texto-sec);margin-bottom:12px">
+              Nenhum setor com itens cadastrados para este perfil.
+            </div>
+          `}
+
+          <button class="btn btn-secundario" style="width:100%"
+                  onclick="document.getElementById('modal-seletor-setores').remove()">
+            Fechar
+          </button>
+        </div>
+      </div>
+    `);
+  }
+
+  /* Gera um link cobrindo só os setores marcados, sem fechar o seletor — permite gerar vários links em sequência */
+  async function _gerarLinkSelecionados(perfil) {
+    const checks = [...document.querySelectorAll('.chk-setor-link:checked')];
+    if (!checks.length) { App.mostrarToast('Selecione ao menos um setor', 'aviso'); return; }
+
+    const setorIds  = checks.map(c => c.value);
+    const setorNomes = checks.map(c => c.dataset.nome).join(', ');
+
+    try {
+      const link = await _criarOuAtualizar(perfil, setorIds);
+      checks.forEach(c => { c.checked = false; });
+
+      const cont = document.getElementById(`links-setor-gerados-${perfil}`);
+      if (!cont) return;
+      cont.insertAdjacentHTML('beforeend', `
+        <div style="border:1px solid var(--borda);border-radius:var(--r2);padding:10px 12px;
+                    margin-bottom:8px;font-size:var(--txt-xs)">
+          <div style="font-weight:600;margin-bottom:4px">✅ ${setorNomes}</div>
+          <div style="font-family:monospace;word-break:break-all;color:var(--texto-sec);
+                      margin-bottom:6px;user-select:all">${link}</div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-secundario" style="font-size:var(--txt-xs);padding:4px 10px"
+                    onclick="ConsultaAEP._copiarLink('${link.replace(/'/g, "\\'")}')">📋 Copiar</button>
+            <a href="https://wa.me/?text=${encodeURIComponent(`Olá! Preciso da sua colaboração na Avaliação Ergonômica do(s) setor(es) ${setorNomes}:\n${link}`)}"
+               target="_blank" rel="noopener"
+               style="display:inline-flex;align-items:center;gap:4px;background:#25D366;color:#fff;
+                      font-weight:700;border-radius:var(--r2);padding:4px 10px;text-decoration:none">
+              💬 WhatsApp
+            </a>
+          </div>
+        </div>
+      `);
+    } catch (err) {
+      App.mostrarToast('Erro ao gerar link: ' + err.message, 'erro');
+    }
+  }
+
+  return {
+    abrirConsulta, importarRespostas, verificarStatus, _copiarLink, abrirConsultaGrupo,
+    abrirSeletorSetores, _gerarLinkSelecionados,
+  };
 })();
 
 
@@ -898,6 +1046,7 @@ const ConsultaAEP = (() => {
         </div>
         <div style="font-size:var(--txt-sm);color:var(--texto-sec);line-height:1.6">
           <strong>Empresa:</strong> ${c.empresaNome || '—'}
+          ${c.setorNomes?.length ? `<br><strong>Setor(es):</strong> ${c.setorNomes.join(', ')}` : ''}
         </div>
         <div style="margin-top:var(--s3);padding:var(--s2) var(--s3);background:var(--fundo);
                     border-radius:var(--r2);font-size:var(--txt-xs);color:var(--texto-sec)">

@@ -825,23 +825,24 @@ const ModuloAEP = (() => {
           </div>
           <div style="font-size:var(--txt-xs);color:var(--texto-sec);margin-bottom:var(--s3)">
             Envie um link para cada responsável preencher os itens pertinentes, sem precisar de login.
-            Quando responderem, clique em <strong>Importar Respostas</strong>.
+            Em empresas com muitos setores, gere um link por setor para dividir a tarefa entre vários
+            membros da equipe (líderes, RH ou SESMT). Quando responderem, clique em <strong>Importar Respostas</strong>.
           </div>
           <div id="consulta-status-badge"
                style="font-size:var(--txt-xs);color:var(--texto-sec);margin-bottom:var(--s3)"></div>
           <div style="display:flex;gap:var(--s2);flex-wrap:wrap">
             <button id="btn-consulta-lider"
-                    onclick="ConsultaAEP.abrirConsulta('lider')"
+                    onclick="ConsultaAEP.abrirSeletorSetores('lider')"
                     class="btn btn-secundario" style="flex:1;font-size:var(--txt-xs)">
               👷 Líder de Setor
             </button>
             <button id="btn-consulta-rh"
-                    onclick="ConsultaAEP.abrirConsulta('rh')"
+                    onclick="ConsultaAEP.abrirSeletorSetores('rh')"
                     class="btn btn-secundario" style="flex:1;font-size:var(--txt-xs)">
               🧑‍💼 RH
             </button>
             <button id="btn-consulta-tecnico"
-                    onclick="ConsultaAEP.abrirConsulta('tecnico')"
+                    onclick="ConsultaAEP.abrirSeletorSetores('tecnico')"
                     class="btn btn-secundario" style="flex:1;font-size:var(--txt-xs)">
               ⚙️ Técnico / SESMT
             </button>
