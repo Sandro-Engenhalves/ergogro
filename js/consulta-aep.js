@@ -237,6 +237,10 @@ const ConsultaAEP = (() => {
 
     try {
       let totalImportados = 0;
+      /* Blocos da avaliação atualmente aberta que receberam resposta nova — usado para
+         pular automaticamente para uma aba com conteúdo (a aba ativa pode não ter nenhum
+         item do perfil que respondeu, dando a falsa impressão de que nada foi importado) */
+      const blocosAvAtual = new Set();
 
       /* ── Docs novos (nível projeto) — inclui link único e todos os links por setor ── */
       const snaps = await firebase.firestore().collection(_COL_CONSULTAS)
@@ -249,7 +253,8 @@ const ConsultaAEP = (() => {
 
         Object.entries(respostas).forEach(([avaliacaoId, itemRespostas]) => {
           /* Usa o objeto em memória quando for a avaliação atual para atualizar _avaliacaoAtual diretamente */
-          const targetAv = avaliacaoId === av.id ? av : Storage.buscar(avaliacaoId);
+          const ehAvAtual = avaliacaoId === av.id;
+          const targetAv  = ehAvAtual ? av : Storage.buscar(avaliacaoId);
           if (!targetAv) return;
 
           Object.entries(itemRespostas || {}).forEach(([itemId, resp]) => {
@@ -264,6 +269,7 @@ const ConsultaAEP = (() => {
                 importadaDe: consulta.perfilLabel,
               };
               totalImportados++;
+              if (ehAvAtual) blocosAvAtual.add(blocoKey);
             }
           });
           Storage.salvar(targetAv);
@@ -290,6 +296,7 @@ const ConsultaAEP = (() => {
               importadaDe: consulta.perfilLabel,
             };
             totalImportados++;
+            blocosAvAtual.add(blocoKey);
           }
         });
       });
@@ -301,6 +308,11 @@ const ConsultaAEP = (() => {
       }
       App.mostrarToast(`${totalImportados} resposta(s) importada(s)`, 'sucesso');
       ModuloAEP.trocarSecao('checklist');
+
+      /* Se a avaliação aberta recebeu respostas novas, mostra a primeira aba com conteúdo —
+         a aba que já estava ativa pode não ter nenhum item do perfil que respondeu */
+      const primeiroBloco = ModuloAEP.ORDEM_BLOCOS.find(b => blocosAvAtual.has(b));
+      if (primeiroBloco) ModuloAEP.trocarBloco(primeiroBloco);
 
     } catch (err) {
       App.mostrarToast('Erro ao importar: ' + err.message, 'erro');
