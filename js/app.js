@@ -202,6 +202,7 @@ const App = (() => {
     else if (tela === 'empresas')   ModuloCadastro.renderizar();
     else if (tela === 'plano-geral')ModuloPlano.renderizarGeral();
     else if (tela === 'relatorios') ModuloRelatorios.renderizar();
+    else if (tela === 'armazenamento') _renderizarArmazenamento();
     else if (tela === 'projeto')    ModuloProjeto.renderizar(secao || 'visao-geral');
     else if (tela === 'aep')        ModuloAEP.renderizar(secao || 'identificacao');
     else if (tela === 'fp')         ModuloFP.renderizar(secao || 'identificacao');
@@ -354,9 +355,134 @@ const App = (() => {
                   onclick="App.abrirModalLinksGrupo()">
             🔗 Links de Grupo (multi-CNPJ)
           </button>
+          <button class="btn btn-fantasma" style="padding:var(--s3);font-size:var(--txt-sm)"
+                  onclick="App.navegarPara('armazenamento')">
+            💾 Armazenamento do Dispositivo
+          </button>
         </div>
       </div>
     `;
+  }
+
+  /* ── Diagnóstico de Armazenamento ─────────────────────────── */
+  const _QUOTA_REFERENCIA_BYTES = 5 * 1024 * 1024; /* 5MB — referência conservadora; varia por navegador */
+
+  function _fmtBytes(b) {
+    if (b < 1024) return `${b} B`;
+    if (b < 1024 * 1024) return `${(b / 1024).toFixed(1)} KB`;
+    return `${(b / (1024 * 1024)).toFixed(2)} MB`;
+  }
+
+  function _renderizarArmazenamento() {
+    const el = document.getElementById('tela-armazenamento');
+    if (!el) return;
+    const diag = Storage.diagnosticoArmazenamento();
+    const pct  = Math.min(100, Math.round((diag.totalBytes / _QUOTA_REFERENCIA_BYTES) * 100));
+    const corBarra = pct >= 90 ? 'var(--perigo)' : pct >= 70 ? 'var(--aviso)' : 'var(--sucesso)';
+
+    const NOMES_CHAVE = {
+      ergogro_avaliacoes:      'Avaliações',
+      ergogro_empresas:        'Empresas',
+      ergogro_projetos:        'Projetos de Laudo',
+      ergogro_setores:         'Setores (projeto)',
+      ergogro_funcoes:         'Funções (projeto)',
+      ergogro_setores_master:  'Setores (catálogo mestre)',
+      ergogro_funcoes_master:  'Funções (catálogo mestre)',
+      ergogro_anthropic_key:   'Chave API IA',
+      ergogro_perfil_tecnico:  'Perfil do responsável técnico',
+    };
+
+    const linhasChaves = diag.chaves.map(c => `
+      <div style="display:flex;justify-content:space-between;padding:var(--s2) 0;border-bottom:1px solid var(--borda)">
+        <span style="font-size:var(--txt-sm)">${NOMES_CHAVE[c.chave] || c.chave}</span>
+        <span style="font-size:var(--txt-sm);color:var(--texto-sec)">${_fmtBytes(c.bytes)}</span>
+      </div>`).join('');
+
+    const top10 = diag.avaliacoesDetalhe.slice(0, 10);
+    const linhasAv = top10.length === 0
+      ? `<p style="font-size:var(--txt-sm);color:var(--texto-sec)">Nenhuma avaliação salva.</p>`
+      : top10.map(a => `
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:var(--s2);padding:var(--s2) 0;border-bottom:1px solid var(--borda)">
+          <div style="min-width:0">
+            <div style="font-size:var(--txt-sm);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${a.nome}</div>
+            <div style="font-size:var(--txt-xs);color:var(--texto-sec);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${[a.empresa, a.projeto].filter(Boolean).join(' · ')}</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:var(--s2);flex-shrink:0">
+            <span style="font-size:var(--txt-xs);color:var(--texto-sec)">${_fmtBytes(a.bytes)}</span>
+            <button class="btn-icone" title="Exportar JSON (backup antes de excluir)" onclick="App._exportarAvaliacaoArmazenamento('${a.id}')">📤</button>
+            <button class="btn-icone" title="Excluir avaliação" onclick="App._excluirAvaliacaoArmazenamento('${a.id}')">🗑️</button>
+          </div>
+        </div>`).join('');
+
+    el.innerHTML = `
+      <div class="container" style="padding-top:var(--s4)">
+        <div class="card" style="margin-bottom:var(--s4)">
+          <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:var(--s2)">
+            <span style="font-weight:700">${_fmtBytes(diag.totalBytes)} usados</span>
+            <span style="font-size:var(--txt-xs);color:var(--texto-sec)">~${pct}% de uma cota típica de 5MB</span>
+          </div>
+          <div style="height:8px;border-radius:4px;background:var(--superficie-alt);overflow:hidden">
+            <div style="height:100%;width:${pct}%;background:${corBarra}"></div>
+          </div>
+          <p style="font-size:var(--txt-xs);color:var(--texto-sec);margin-top:var(--s2)">
+            O navegador limita o espaço por site (cota varia por aparelho/navegador).
+            Quando o espaço esgota, novos salvamentos falham com erro de "espaço insuficiente".
+            Exporte e exclua avaliações antigas/concluídas para liberar espaço.
+          </p>
+        </div>
+
+        <div class="card" style="margin-bottom:var(--s4)">
+          <div class="card-titulo" style="margin-bottom:var(--s2)">Uso por categoria</div>
+          ${linhasChaves}
+        </div>
+
+        <div class="card" style="margin-bottom:var(--s4)">
+          <div class="card-titulo" style="margin-bottom:var(--s2)">Maiores avaliações (top 10)</div>
+          ${linhasAv}
+        </div>
+
+        <button class="btn btn-secundario" style="width:100%" onclick="App._exportarTudoArmazenamento()">
+          📦 Exportar Backup Completo (JSON)
+        </button>
+        <div style="height:var(--s4)"></div>
+      </div>
+    `;
+  }
+
+  function _exportarAvaliacaoArmazenamento(id) {
+    try {
+      const json = Storage.exportarJSON(id);
+      const av   = Storage.buscar(id);
+      _baixarArquivo(json, `avaliacao-${av?.nome || id}.json`);
+    } catch (e) { mostrarToast(e.message, 'erro'); }
+  }
+
+  function _excluirAvaliacaoArmazenamento(id) {
+    const av = Storage.buscar(id);
+    if (!confirm(`Excluir a avaliação "${av?.nome || id}"? Exporte antes se ainda precisar dela. Esta ação não pode ser desfeita.`)) return;
+    Storage.excluir(id);
+    mostrarToast('Avaliação excluída', 'sucesso');
+    _renderizarArmazenamento();
+  }
+
+  function _exportarTudoArmazenamento() {
+    const dump = {};
+    for (let i = 0; i < localStorage.length; i++) {
+      const chave = localStorage.key(i);
+      try { dump[chave] = JSON.parse(localStorage.getItem(chave)); }
+      catch { dump[chave] = localStorage.getItem(chave); }
+    }
+    _baixarArquivo(JSON.stringify(dump, null, 2), `ergogro-backup-${new Date().toISOString().slice(0,10)}.json`);
+    mostrarToast('Backup completo exportado', 'sucesso');
+  }
+
+  function _baixarArquivo(conteudo, nomeArquivo) {
+    const blob = new Blob([conteudo], { type: 'application/json' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href = url; a.download = nomeArquivo;
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
   }
 
   /* ── Contexto de empresa (entre dashboard e projeto) ─────── */
@@ -764,6 +890,9 @@ const App = (() => {
     if (tela === 'empresa') {
       titulo.textContent = _empresaAtual?.nome || 'Empresa';
       badge.innerHTML    = '';
+    } else if (tela === 'armazenamento') {
+      titulo.textContent = 'Armazenamento';
+      badge.innerHTML    = '';
     } else if (emProjeto) {
       const emp = _projetoAtual?.empresaId ? Storage.buscarEmpresa(_projetoAtual.empresaId) : null;
       titulo.textContent = _projetoAtual?.nome || 'Projeto';
@@ -975,7 +1104,9 @@ const App = (() => {
     /* Auth */
     confirmarLogout,
     /* Admin — gerenciamento de usuários */
-    abrirPainelUsuarios, fecharPainelUsuarios, adicionarUsuario, removerUsuario
+    abrirPainelUsuarios, fecharPainelUsuarios, adicionarUsuario, removerUsuario,
+    /* Armazenamento */
+    _exportarAvaliacaoArmazenamento, _excluirAvaliacaoArmazenamento, _exportarTudoArmazenamento
   };
 })();
 

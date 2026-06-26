@@ -625,6 +625,42 @@ const Storage = (() => {
   }
 
   /* ─────────────────────────────────────────────────────────
+     DIAGNÓSTICO DE ARMAZENAMENTO (localStorage)
+  ───────────────────────────────────────────────────────── */
+
+  /* Tamanho aproximado em bytes de uma string no localStorage (UTF-16) */
+  function _tamanhoBytes(str) { return (str || '').length * 2; }
+
+  function diagnosticoArmazenamento() {
+    let totalBytes = 0;
+    const chaves = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const chave = localStorage.key(i);
+      const valor = localStorage.getItem(chave) || '';
+      const bytes = _tamanhoBytes(chave) + _tamanhoBytes(valor);
+      totalBytes += bytes;
+      chaves.push({ chave, bytes });
+    }
+    chaves.sort((a, b) => b.bytes - a.bytes);
+
+    const avaliacoesDetalhe = listar().map(av => {
+      const proj = av.projetoId ? buscarProjeto(av.projetoId) : null;
+      const emp  = av.empresaId ? buscarEmpresa(av.empresaId) : (proj?.empresaId ? buscarEmpresa(proj.empresaId) : null);
+      const fun  = av.funcaoId  ? buscarFuncao(av.funcaoId)   : null;
+      return {
+        id: av.id,
+        nome: fun?.nome || av.nome || 'Avaliação sem nome',
+        empresa: emp?.nome || '',
+        projeto: proj?.nome || '',
+        atualizadaEm: av.atualizadaEm || av.criadaEm || '',
+        bytes: _tamanhoBytes(JSON.stringify(av))
+      };
+    }).sort((a, b) => b.bytes - a.bytes);
+
+    return { totalBytes, chaves, avaliacoesDetalhe };
+  }
+
+  /* ─────────────────────────────────────────────────────────
      ESTRUTURAS INTERNAS
   ───────────────────────────────────────────────────────── */
 
@@ -666,6 +702,6 @@ const Storage = (() => {
     /* Export */
     exportarJSON, exportarProjeto, importarJSON,
     /* Stats */
-    estatisticas
+    estatisticas, diagnosticoArmazenamento
   };
 })();
