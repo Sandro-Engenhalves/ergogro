@@ -17,6 +17,7 @@ const Storage = (() => {
   const CHAVE_PROJETOS        = 'ergogro_projetos';
   const CHAVE_SETORES_MASTER  = 'ergogro_setores_master'; /* catálogo mestre */
   const CHAVE_FUNCOES_MASTER  = 'ergogro_funcoes_master'; /* catálogo mestre */
+  const CHAVE_AV_OCULTAS_LOCAL = 'ergogro_avaliacoes_ocultas_local'; /* tombstones — ver removerLocalApenas() */
 
   /* ─────────────────────────────────────────────────────────
      UTILITÁRIOS INTERNOS
@@ -381,6 +382,22 @@ const Storage = (() => {
     _cloudDel('deleteAvaliacao', id);
   }
 
+  /* Remove APENAS do localStorage deste dispositivo — nunca da nuvem.
+     Usado para liberar espaço local sem destruir o backup da equipe
+     (modelo de equipe compartilhada: a nuvem tem o histórico de todos).
+     Registra o id como "tombstone" para que o próximo syncInicial()
+     não baixe a avaliação de volta — ver firebase-storage.js. */
+  function removerLocalApenas(id) {
+    _gravar(CHAVE_AV, listar().filter(a => a.id !== id));
+    const ocultos = _ler(CHAVE_AV_OCULTAS_LOCAL);
+    if (!ocultos.includes(id)) {
+      ocultos.push(id);
+      _gravar(CHAVE_AV_OCULTAS_LOCAL, ocultos);
+    }
+  }
+
+  function idsOcultosLocal() { return _ler(CHAVE_AV_OCULTAS_LOCAL); }
+
   /* Cria avaliação vinculada ao ProjetoLaudo */
   function criarAvaliacao(tipo = 'aep', projetoId, setorId, funcaoId) {
     const proj   = projetoId ? buscarProjeto(projetoId)  : null;
@@ -695,6 +712,7 @@ const Storage = (() => {
     importarDoMestre,
     /* Avaliações */
     listar, buscar, listarPorTipo, listarPorProjeto, salvar, excluir, criarAvaliacao,
+    removerLocalApenas, idsOcultosLocal,
     /* Migração */
     migrar,
     /* Helpers */

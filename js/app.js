@@ -409,8 +409,8 @@ const App = (() => {
           </div>
           <div style="display:flex;align-items:center;gap:var(--s2);flex-shrink:0">
             <span style="font-size:var(--txt-xs);color:var(--texto-sec)">${_fmtBytes(a.bytes)}</span>
-            <button class="btn-icone" title="Exportar JSON (backup antes de excluir)" onclick="App._exportarAvaliacaoArmazenamento('${a.id}')">📤</button>
-            <button class="btn-icone" title="Excluir avaliação" onclick="App._excluirAvaliacaoArmazenamento('${a.id}')">🗑️</button>
+            <button class="btn-icone" title="Exportar JSON" onclick="App._exportarAvaliacaoArmazenamento('${a.id}')">📤</button>
+            <button class="btn-icone" title="Remover deste aparelho (continua salva na nuvem)" onclick="App._removerLocalArmazenamento('${a.id}')">🧹</button>
           </div>
         </div>`).join('');
 
@@ -427,7 +427,8 @@ const App = (() => {
           <p style="font-size:var(--txt-xs);color:var(--texto-sec);margin-top:var(--s2)">
             O navegador limita o espaço por site (cota varia por aparelho/navegador).
             Quando o espaço esgota, novos salvamentos falham com erro de "espaço insuficiente".
-            Exporte e exclua avaliações antigas/concluídas para liberar espaço.
+            Use 🧹 para remover avaliações antigas <strong>deste aparelho</strong> — elas continuam
+            salvas na nuvem e disponíveis para toda a equipe, só não ocupam mais espaço aqui.
           </p>
         </div>
 
@@ -457,11 +458,11 @@ const App = (() => {
     } catch (e) { mostrarToast(e.message, 'erro'); }
   }
 
-  function _excluirAvaliacaoArmazenamento(id) {
+  function _removerLocalArmazenamento(id) {
     const av = Storage.buscar(id);
-    if (!confirm(`Excluir a avaliação "${av?.nome || id}"? Exporte antes se ainda precisar dela. Esta ação não pode ser desfeita.`)) return;
-    Storage.excluir(id);
-    mostrarToast('Avaliação excluída', 'sucesso');
+    if (!confirm(`Remover "${av?.nome || id}" deste aparelho? A avaliação continua salva na nuvem para toda a equipe — só deixa de ocupar espaço local aqui.`)) return;
+    Storage.removerLocalApenas(id);
+    mostrarToast('Removida deste aparelho — permanece salva na nuvem', 'sucesso');
     _renderizarArmazenamento();
   }
 
@@ -1106,7 +1107,7 @@ const App = (() => {
     /* Admin — gerenciamento de usuários */
     abrirPainelUsuarios, fecharPainelUsuarios, adicionarUsuario, removerUsuario,
     /* Armazenamento */
-    _exportarAvaliacaoArmazenamento, _excluirAvaliacaoArmazenamento, _exportarTudoArmazenamento
+    _exportarAvaliacaoArmazenamento, _removerLocalArmazenamento, _exportarTudoArmazenamento
   };
 })();
 

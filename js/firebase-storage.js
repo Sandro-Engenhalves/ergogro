@@ -282,7 +282,15 @@ const StorageCloud = (() => {
     for (const { local, cloud } of MAPA_COLECOES) {
       try {
         /* Baixa documentos da coleção Firestore */
-        const docNuvem = await _baixarColecao(cloud);
+        let docNuvem = await _baixarColecao(cloud);
+
+        /* Avaliações removidas localmente (liberar espaço) não devem
+           voltar a cada sync — ficam só na nuvem até o usuário pedir
+           explicitamente (ver Storage.removerLocalApenas). */
+        if (local === 'ergogro_avaliacoes' && typeof Storage !== 'undefined') {
+          const ocultos = Storage.idsOcultosLocal();
+          if (ocultos.length > 0) docNuvem = docNuvem.filter(d => !ocultos.includes(d.id));
+        }
 
         if (docNuvem.length === 0) {
           console.log(`${_CLOUD_LOG} ${cloud}: sem dados na nuvem`);
