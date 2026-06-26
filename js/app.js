@@ -455,10 +455,38 @@ const App = (() => {
           <button class="btn btn-secundario" style="width:100%" onclick="App._carregarHistoricoArmazenamento()">
             📜 Carregar Histórico Completo da Equipe
           </button>
+          <button class="btn btn-perigo" style="width:100%" onclick="App._limparAvaliacoesLocaisArmazenamento()">
+            🧹 Limpar Avaliações Locais (${diag.avaliacoesDetalhe.length})
+          </button>
+          <p style="font-size:var(--txt-xs);color:var(--texto-sec);text-align:center">
+            Não apaga da nuvem. Faça com internet ligada — garante que tudo já foi salvo
+            antes de remover daqui. Suas próprias avaliações voltam sozinhas no próximo
+            carregamento do app.
+          </p>
         </div>
         <div style="height:var(--s4)"></div>
       </div>
     `;
+  }
+
+  function _limparAvaliacoesLocaisArmazenamento() {
+    const atual = obterAvaliacaoAtual();
+    const aRemover = Storage.listar().filter(a => a.id !== atual?.id);
+
+    if (aRemover.length === 0) { mostrarToast('Nenhuma avaliação local para remover', 'info'); return; }
+
+    const avisoOffline = navigator.onLine === false
+      ? '\n\n⚠️ Você parece estar OFFLINE agora — avaliações editadas sem internet podem ainda não ter sido enviadas à nuvem. Recomendo conectar antes de continuar.'
+      : '';
+    const msg = `Remover ${aRemover.length} avaliação(ões) deste aparelho?` +
+      '\n\nNão apaga da nuvem. Suas próprias avaliações voltam automaticamente no próximo ' +
+      'carregamento do app (com internet). Avaliações antigas de colegas só voltam se você ' +
+      'usar "Carregar Histórico Completo da Equipe".' + avisoOffline;
+    if (!confirm(msg)) return;
+
+    aRemover.forEach(a => Storage.removerLocalApenas(a.id));
+    mostrarToast(`${aRemover.length} avaliação(ões) removida(s) deste aparelho`, 'sucesso');
+    _renderizarArmazenamento();
   }
 
   async function _carregarHistoricoArmazenamento() {
@@ -1128,7 +1156,7 @@ const App = (() => {
     abrirPainelUsuarios, fecharPainelUsuarios, adicionarUsuario, removerUsuario,
     /* Armazenamento */
     _exportarAvaliacaoArmazenamento, _removerLocalArmazenamento, _exportarTudoArmazenamento,
-    _carregarHistoricoArmazenamento
+    _carregarHistoricoArmazenamento, _limparAvaliacoesLocaisArmazenamento
   };
 })();
 
