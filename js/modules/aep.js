@@ -722,6 +722,8 @@ const ModuloAEP = (() => {
   function _salvarPosto() {
     const av = App.obterAvaliacaoAtual();
     if (!av) return;
+    /* Seção "Posto" não está renderizada — evita zerar os campos já salvos */
+    if (!document.getElementById('posto-perfil')) return;
     if (!av.aep) av.aep = {};
     if (!av.aep.posto) av.aep.posto = {};
     const get = id => (document.getElementById(id) || {}).value?.trim() || '';
@@ -746,7 +748,13 @@ const ModuloAEP = (() => {
   function salvarPosto() {
     _salvarPosto();
     const av = App.obterAvaliacaoAtual();
-    if (av) try { Storage.salvar(av); App.mostrarToast('Posto salvo', 'sucesso'); } catch(e) {}
+    if (!av) return;
+    try {
+      Storage.salvar(av);
+      App.mostrarToast('Posto salvo', 'sucesso');
+    } catch(e) {
+      App.mostrarToast('Erro ao salvar: ' + e.message, 'erro');
+    }
   }
 
   function onExpChange(expId, campo, valor) {

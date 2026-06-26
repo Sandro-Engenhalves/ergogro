@@ -156,13 +156,21 @@ Preencha cada campo de texto com linguagem técnica objetiva, adequada para laud
   }
 
   function _dispararFileInput(campoId, contexto) {
+    /* Anexado ao DOM e posicionado fora da tela (NÃO display:none — em
+       alguns navegadores mobile/PWA, principalmente iOS, um input "display:none"
+       falha ao abrir a câmera ou perde o evento change ao voltar). */
     const input = document.createElement('input');
     input.type   = 'file';
     input.accept = 'image/*';
+    input.style.position = 'fixed';
+    input.style.top  = '-9999px';
+    input.style.left = '-9999px';
     input.onchange = e => {
       const file = e.target.files?.[0];
       if (file) _processarArquivo(file, campoId, contexto);
+      input.remove();
     };
+    document.body.appendChild(input);
     input.click();
   }
 
@@ -170,6 +178,10 @@ Preencha cada campo de texto com linguagem técnica objetiva, adequada para laud
     const campo = document.getElementById(campoId);
     if (!campo) return;
 
+    /* Captura a avaliação AGORA — a chamada à IA pode demorar (campo, sinal fraco)
+       e o usuário pode trocar de aba/tela enquanto espera, tornando `campo` órfão.
+       Persistir no objeto de dados (não só no DOM) evita perder o texto gerado. */
+    const av = App.obterAvaliacaoAtual();
     const textoAnterior = campo.value;
     const btn = document.getElementById(`cv-btn-${campoId}`);
 
@@ -177,24 +189,45 @@ Preencha cada campo de texto com linguagem técnica objetiva, adequada para laud
     campo.disabled = true;
     if (btn) { btn.disabled = true; btn.textContent = '⏳'; }
 
+    let valorFinal = null;
     try {
       const { base64, mediaType } = await _comprimirImagem(file);
       const descricao = await _chamarAPI(base64, mediaType, PROMPTS[contexto] || PROMPTS.evidencias);
-
-      campo.value = textoAnterior.trim()
+      valorFinal = textoAnterior.trim()
         ? textoAnterior.trim() + '\n\n' + descricao
         : descricao;
-
-      campo.dispatchEvent(new Event('blur', { bubbles: true }));
-      App.mostrarToast('Imagem analisada pela IA', 'sucesso');
     } catch (err) {
-      campo.value = textoAnterior;
+      const campoAtual = document.getElementById(campoId);
+      if (campoAtual) campoAtual.value = textoAnterior;
       _tratarErro(err);
-    } finally {
-      campo.disabled = false;
-      if (btn) { btn.disabled = false; btn.textContent = '📷 IA'; }
-      campo.focus();
     }
+
+    if (valorFinal !== null) {
+      /* Atualiza o campo se ele ainda estiver na tela (mesmo nó ou recriado) */
+      const campoAtual = document.getElementById(campoId);
+      if (campoAtual) campoAtual.value = valorFinal;
+
+      /* Salva direto no modelo de dados, independente da tela atual.
+         Mantém o texto gerado mesmo se a gravação falhar — evita
+         obrigar o usuário a refazer a foto em caso de erro de storage. */
+      try {
+        if (av) {
+          if (!av.aep) av.aep = {};
+          if (!av.aep.posto) av.aep.posto = {};
+          av.aep.posto[contexto] = valorFinal;
+          Storage.salvar(av);
+          App.mostrarToast('Imagem analisada pela IA — descrição salva', 'sucesso');
+        } else {
+          App.mostrarToast('Imagem analisada, mas nenhuma avaliação ativa — copie o texto manualmente', 'erro');
+        }
+      } catch (err) {
+        App.mostrarToast('Descrição gerada, mas falhou ao salvar: ' + err.message, 'erro');
+      }
+    }
+
+    const campoFinal = document.getElementById(campoId);
+    if (campoFinal) { campoFinal.disabled = false; campoFinal.focus(); }
+    if (btn) { btn.disabled = false; btn.textContent = '📷 IA'; }
   }
 
   /* ══════════════════════════════════════════════════════════
@@ -214,10 +247,15 @@ Preencha cada campo de texto com linguagem técnica objetiva, adequada para laud
     const input = document.createElement('input');
     input.type   = 'file';
     input.accept = 'image/*';
+    input.style.position = 'fixed';
+    input.style.top  = '-9999px';
+    input.style.left = '-9999px';
     input.onchange = e => {
       const file = e.target.files?.[0];
       if (file) _processarCompleto(file);
+      input.remove();
     };
+    document.body.appendChild(input);
     input.click();
   }
 
@@ -242,17 +280,14 @@ Preencha cada campo de texto com linguagem técnica objetiva, adequada para laud
   }
 
   function _aplicarDadosCompletos(dados) {
-    /* Selects */
+    /* Atualiza os campos na tela, se ainda estiverem presentes */
     _setSelect('posto-perfil',        dados.perfilPosto);
     _setSelect('posto-tipo-atividade', dados.tipoAtividade);
-
-    /* Textareas */
     _setTextarea('posto-ferramentas',    dados.ferramentas);
     _setTextarea('posto-layout',         dados.layout);
     _setTextarea('posto-atividade-real', dados.atividadeReal);
     _setTextarea('posto-evidencias',     dados.evidencias);
 
-    /* Exposições — marca SIM as identificadas, NÃO as demais */
     if (Array.isArray(dados.exposicoesPresentes) && typeof ModuloAEP !== 'undefined') {
       EXP_IDS.forEach(id => {
         const presente = dados.exposicoesPresentes.includes(id) ? 'sim' : 'nao';
@@ -260,8 +295,28 @@ Preencha cada campo de texto com linguagem técnica objetiva, adequada para laud
       });
     }
 
-    /* Salva silenciosamente */
-    try { if (typeof ModuloAEP !== 'undefined') ModuloAEP.salvarPosto(); } catch(e) {}
+    /* Salva direto no modelo de dados — a análise completa demora (foto + 2048
+       tokens), então não pode depender da tela "Posto" ainda estar aberta. */
+    const av = App.obterAvaliacaoAtual();
+    if (!av) {
+      App.mostrarToast('Análise gerada, mas nenhuma avaliação ativa — copie manualmente', 'erro');
+      return;
+    }
+    if (!av.aep) av.aep = {};
+    if (!av.aep.posto) av.aep.posto = {};
+    const p = av.aep.posto;
+    if (dados.perfilPosto)    p.perfilPosto    = dados.perfilPosto;
+    if (dados.tipoAtividade)  p.tipoAtividade  = dados.tipoAtividade;
+    if (dados.ferramentas)    p.ferramentas    = dados.ferramentas;
+    if (dados.layout)         p.layout         = dados.layout;
+    if (dados.atividadeReal)  p.atividadeReal  = dados.atividadeReal;
+    if (dados.evidencias)     p.evidencias     = dados.evidencias;
+
+    try {
+      Storage.salvar(av);
+    } catch(e) {
+      App.mostrarToast('Análise gerada, mas falhou ao salvar: ' + e.message, 'erro');
+    }
   }
 
   function _setSelect(id, val) {
@@ -273,7 +328,7 @@ Preencha cada campo de texto com linguagem técnica objetiva, adequada para laud
   function _setTextarea(id, val) {
     if (!val) return;
     const el = document.getElementById(id);
-    if (el) { el.value = val; el.dispatchEvent(new Event('blur', { bubbles: true })); }
+    if (el) el.value = val;
   }
 
   /* ══════════════════════════════════════════════════════════
