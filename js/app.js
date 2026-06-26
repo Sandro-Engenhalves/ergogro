@@ -430,6 +430,12 @@ const App = (() => {
             Use 🧹 para remover avaliações antigas <strong>deste aparelho</strong> — elas continuam
             salvas na nuvem e disponíveis para toda a equipe, só não ocupam mais espaço aqui.
           </p>
+          <p style="font-size:var(--txt-xs);color:var(--texto-sec);margin-top:var(--s2)">
+            Desde a última atualização, cada aparelho baixa por padrão só
+            <strong>suas próprias avaliações</strong> + qualquer avaliação da equipe
+            atualizada nos últimos 90 dias. Histórico antigo de outros técnicos não
+            vem mais automaticamente — use o botão abaixo se precisar consultá-lo.
+          </p>
         </div>
 
         <div class="card" style="margin-bottom:var(--s4)">
@@ -442,12 +448,26 @@ const App = (() => {
           ${linhasAv}
         </div>
 
-        <button class="btn btn-secundario" style="width:100%" onclick="App._exportarTudoArmazenamento()">
-          📦 Exportar Backup Completo (JSON)
-        </button>
+        <div style="display:flex;flex-direction:column;gap:var(--s2)">
+          <button class="btn btn-secundario" style="width:100%" onclick="App._exportarTudoArmazenamento()">
+            📦 Exportar Backup Completo (JSON)
+          </button>
+          <button class="btn btn-secundario" style="width:100%" onclick="App._carregarHistoricoArmazenamento()">
+            📜 Carregar Histórico Completo da Equipe
+          </button>
+        </div>
         <div style="height:var(--s4)"></div>
       </div>
     `;
+  }
+
+  async function _carregarHistoricoArmazenamento() {
+    if (typeof StorageCloud === 'undefined') { mostrarToast('Sincronização com a nuvem indisponível', 'erro'); return; }
+    mostrarToast('Carregando histórico completo da equipe...', 'info');
+    const res = await StorageCloud.carregarHistoricoCompleto();
+    if (!res.ok) { mostrarToast('Erro ao carregar histórico: ' + res.motivo, 'erro'); return; }
+    mostrarToast(`Histórico carregado: +${res.novos} novas, ~${res.atualizados} atualizadas`, 'sucesso');
+    _renderizarArmazenamento();
   }
 
   function _exportarAvaliacaoArmazenamento(id) {
@@ -1107,7 +1127,8 @@ const App = (() => {
     /* Admin — gerenciamento de usuários */
     abrirPainelUsuarios, fecharPainelUsuarios, adicionarUsuario, removerUsuario,
     /* Armazenamento */
-    _exportarAvaliacaoArmazenamento, _removerLocalArmazenamento, _exportarTudoArmazenamento
+    _exportarAvaliacaoArmazenamento, _removerLocalArmazenamento, _exportarTudoArmazenamento,
+    _carregarHistoricoArmazenamento
   };
 })();
 

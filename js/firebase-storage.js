@@ -180,6 +180,30 @@ const StorageCloud = (() => {
     return snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
   }
 
+  /* Janela de "avaliações recentes" baixada por padrão no syncInicial(). */
+  const DIAS_SYNC_PADRAO = 90;
+
+  /* Baixa só o "recorte ativo" de ergogro_avaliacoes:
+     • suas próprias avaliações (criadoPor) — qualquer idade, sempre disponíveis
+     • + qualquer avaliação (de qualquer técnico) atualizada nos últimos
+       DIAS_SYNC_PADRAO dias — mantém a colaboração em trabalho recente da equipe
+     Histórico antigo de colegas fica de fora até o usuário pedir
+     explicitamente (App.carregarHistoricoArmazenamento). Evita que cada
+     aparelho replique o histórico inteiro da equipe — que só cresce. */
+  async function _baixarAvaliacoesAtivas(nomeCol) {
+    const db = _getDb();
+    const cutoff = new Date(Date.now() - DIAS_SYNC_PADRAO * 24 * 60 * 60 * 1000).toISOString();
+    const uid = _getUid();
+
+    const consultas = [db.collection(nomeCol).where('atualizadaEm', '>=', cutoff).get()];
+    if (uid) consultas.push(db.collection(nomeCol).where('criadoPor', '==', uid).get());
+
+    const snaps = await Promise.all(consultas);
+    const mapa = {};
+    snaps.forEach(snap => snap.docs.forEach(doc => { mapa[doc.id] = { id: doc.id, ...doc.data() }; }));
+    return Object.values(mapa);
+  }
+
   /* Sobe um único documento ao Firestore usando set+merge.
      Injeta 'criadoPor' (uid do autor) para auditoria.
      Modelo equipe: não filtra por usuário — dados compartilhados. */
@@ -281,8 +305,13 @@ const StorageCloud = (() => {
 
     for (const { local, cloud } of MAPA_COLECOES) {
       try {
-        /* Baixa documentos da coleção Firestore */
-        let docNuvem = await _baixarColecao(cloud);
+        /* ergogro_avaliacoes: baixa só o recorte ativo (em andamento +
+           recentes) por padrão — a coleção inteira só cresce e replicar
+           tudo em todo aparelho é o que esgota a cota do localStorage.
+           Demais coleções (catálogo/estrutural) seguem sincronização total. */
+        let docNuvem = local === 'ergogro_avaliacoes'
+          ? await _baixarAvaliacoesAtivas(cloud)
+          : await _baixarColecao(cloud);
 
         /* Avaliações removidas localmente (liberar espaço) não devem
            voltar a cada sync — ficam só na nuvem até o usuário pedir
@@ -330,6 +359,32 @@ const StorageCloud = (() => {
       ` | ${resultado.erros.length} erro(s)`
     );
     return resultado;
+  }
+
+  /* ============================================================
+     HISTÓRICO COMPLETO — sob demanda
+     ─────────────────────────────────────────────────────────
+     syncInicial() só baixa o recorte ativo de avaliações (ver
+     _baixarAvaliacoesAtivas). Esta função baixa TODA a coleção
+     e mescla ao localStorage — usada quando o usuário pede
+     explicitamente para ver/buscar avaliações antigas/concluídas
+     que não vieram no sync automático.
+  ============================================================ */
+  async function carregarHistoricoCompleto() {
+    try { _verificarPreRequisitos(); }
+    catch (e) { return { ok: false, motivo: e.message, novos: 0, atualizados: 0 }; }
+
+    try {
+      const docNuvem = await _baixarColecao('ergogro_avaliacoes');
+      const docLocal = _lerLocal('ergogro_avaliacoes');
+      const { lista, novos, atualizados } = _mesclar(docLocal, docNuvem);
+      if (novos > 0 || atualizados > 0) _gravarLocal('ergogro_avaliacoes', lista);
+      console.log(`${_CLOUD_LOG} Histórico completo: +${novos} novos, ~${atualizados} atualizados`);
+      return { ok: true, novos, atualizados };
+    } catch (e) {
+      console.error(`${_CLOUD_LOG} carregarHistoricoCompleto: ${e.message}`);
+      return { ok: false, motivo: e.message, novos: 0, atualizados: 0 };
+    }
   }
 
   /* ============================================================
@@ -534,6 +589,7 @@ const StorageCloud = (() => {
   return {
     /* Sincronização */
     syncInicial,
+    carregarHistoricoCompleto,
     migrarLocal,
     status,
     /* Push — dual-write (Etapa 2) */
