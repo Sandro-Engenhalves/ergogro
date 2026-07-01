@@ -20,6 +20,86 @@ const Storage = (() => {
   const CHAVE_AV_OCULTAS_LOCAL = 'ergogro_avaliacoes_ocultas_local'; /* tombstones — ver removerLocalApenas() */
 
   /* ─────────────────────────────────────────────────────────
+     ARMAZENAMENTO — IndexedDB com cache em memória
+     _mem espelha o IDB e permite API síncrona para o restante
+     do app. _db é o handle do IndexedDB; null = fallback LS.
+  ───────────────────────────────────────────────────────── */
+
+  let _db  = null;
+  let _mem = {};
+
+  function _abrirIDB() {
+    return new Promise((resolve, reject) => {
+      const req = indexedDB.open('ergogro-idb', 1);
+      req.onupgradeneeded = e => {
+        if (!e.target.result.objectStoreNames.contains('kv'))
+          e.target.result.createObjectStore('kv');
+      };
+      req.onsuccess = e => resolve(e.target.result);
+      req.onerror   = e => reject(e.target.error);
+    });
+  }
+
+  function _idbPut(chave, valor) {
+    if (!_db) return Promise.resolve();
+    return new Promise((resolve, reject) => {
+      const tx = _db.transaction('kv', 'readwrite');
+      tx.objectStore('kv').put(valor, chave);
+      tx.oncomplete = resolve;
+      tx.onerror    = () => reject(tx.error);
+    });
+  }
+
+  function _idbCarregarTodos() {
+    return new Promise((resolve, reject) => {
+      const tx    = _db.transaction('kv', 'readonly');
+      const store = tx.objectStore('kv');
+      const kReq  = store.getAllKeys();
+      const vReq  = store.getAll();
+      tx.oncomplete = () => {
+        const mapa = {};
+        kReq.result.forEach((k, i) => { mapa[k] = vReq.result[i]; });
+        resolve(mapa);
+      };
+      tx.onerror = () => reject(tx.error);
+    });
+  }
+
+  async function _migrarLocalStorage() {
+    const CHAVES = [
+      CHAVE_AV, CHAVE_EMPRESAS, CHAVE_SETORES, CHAVE_FUNCOES,
+      CHAVE_PROJETOS, CHAVE_SETORES_MASTER, CHAVE_FUNCOES_MASTER,
+      CHAVE_AV_OCULTAS_LOCAL
+    ];
+    let migrou = false;
+    for (const chave of CHAVES) {
+      const raw = localStorage.getItem(chave);
+      if (!raw) continue;
+      try {
+        const parsed = JSON.parse(raw);
+        if (_mem[chave] === undefined) {
+          _mem[chave] = parsed;
+          await _idbPut(chave, parsed);
+        }
+        localStorage.removeItem(chave);
+        migrou = true;
+      } catch {}
+    }
+    if (migrou) console.log('[Storage] Dados migrados de localStorage para IndexedDB');
+  }
+
+  async function inicializar() {
+    try {
+      _db  = await _abrirIDB();
+      _mem = await _idbCarregarTodos();
+      await _migrarLocalStorage();
+    } catch (err) {
+      console.warn('[Storage] IndexedDB indisponível, usando localStorage:', err.message);
+      _db = null;
+    }
+  }
+
+  /* ─────────────────────────────────────────────────────────
      UTILITÁRIOS INTERNOS
   ───────────────────────────────────────────────────────── */
 
@@ -28,15 +108,19 @@ const Storage = (() => {
   }
 
   function _ler(chave) {
-    try { return JSON.parse(localStorage.getItem(chave) || '[]'); }
-    catch { return []; }
+    return _mem[chave] ?? [];
   }
 
   function _gravar(chave, lista) {
-    try { localStorage.setItem(chave, JSON.stringify(lista)); }
-    catch (e) {
-      console.error('ErgoGRO: erro ao gravar', e);
-      throw new Error('Espaço insuficiente no dispositivo.');
+    _mem[chave] = lista;
+    if (_db) {
+      _idbPut(chave, lista).catch(err => {
+        console.error('[Storage] Falha ao gravar no IndexedDB:', err);
+        window.dispatchEvent(new CustomEvent('ergogro:storage-error', { detail: err.message }));
+      });
+    } else {
+      try { localStorage.setItem(chave, JSON.stringify(lista)); }
+      catch (e) { throw new Error('Espaço insuficiente no dispositivo.'); }
     }
   }
 
@@ -360,7 +444,7 @@ const Storage = (() => {
      AVALIAÇÕES
   ───────────────────────────────────────────────────────── */
 
-  function listar()          { try { return JSON.parse(localStorage.getItem(CHAVE_AV) || '[]'); } catch { return []; } }
+  function listar()          { return _mem[CHAVE_AV] ?? []; }
   function buscar(id)        { return listar().find(a => a.id === id) || null; }
   function listarPorTipo(t)  { return listar().filter(a => (a.tipo || 'aep') === t); }
   function listarPorProjeto(projetoId) { return listar().filter(a => a.projetoId === projetoId); }
@@ -651,10 +735,9 @@ const Storage = (() => {
   function diagnosticoArmazenamento() {
     let totalBytes = 0;
     const chaves = [];
-    for (let i = 0; i < localStorage.length; i++) {
-      const chave = localStorage.key(i);
-      const valor = localStorage.getItem(chave) || '';
-      const bytes = _tamanhoBytes(chave) + _tamanhoBytes(valor);
+    for (const [chave, valor] of Object.entries(_mem)) {
+      const valorStr = JSON.stringify(valor);
+      const bytes = _tamanhoBytes(chave) + _tamanhoBytes(valorStr);
       totalBytes += bytes;
       chaves.push({ chave, bytes });
     }
@@ -695,6 +778,7 @@ const Storage = (() => {
   }
 
   return {
+    inicializar,
     gerarId,
     /* Empresas */
     listarEmpresas, buscarEmpresa, salvarEmpresa, excluirEmpresa, criarEmpresa,

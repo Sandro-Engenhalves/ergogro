@@ -17,10 +17,16 @@ const App = (() => {
   const TIPO_LABEL  = { aep:'AEP', psicossocial:'Fat. Psicossociais', aet:'AET' };
 
   /* ── Inicialização ───────────────────────────────────────── */
-  function init() {
+  async function init() {
+    /* IDB deve estar pronto antes de qualquer leitura/escrita de dados */
+    await Storage.inicializar();
     Storage.migrar();
     _configurarNavPrincipal();
     _configurarBotaoVoltar();
+
+    /* Erros assíncronos de gravação no IndexedDB (ex: disco cheio) */
+    window.addEventListener('ergogro:storage-error', e =>
+      mostrarToast('Erro ao salvar dados: ' + e.detail, 'erro'));
 
     /* Verifica autenticação antes de mostrar o app.
        Auth.onAuthChange(usuario, autorizado) dispara ao detectar sessão. */
@@ -365,7 +371,7 @@ const App = (() => {
   }
 
   /* ── Diagnóstico de Armazenamento ─────────────────────────── */
-  const _QUOTA_REFERENCIA_BYTES = 5 * 1024 * 1024; /* 5MB — referência conservadora; varia por navegador */
+  const _QUOTA_REFERENCIA_BYTES = 50 * 1024 * 1024; /* 50MB — referência para IndexedDB */
 
   function _fmtBytes(b) {
     if (b < 1024) return `${b} B`;
@@ -419,7 +425,7 @@ const App = (() => {
         <div class="card" style="margin-bottom:var(--s4)">
           <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:var(--s2)">
             <span style="font-weight:700">${_fmtBytes(diag.totalBytes)} usados</span>
-            <span style="font-size:var(--txt-xs);color:var(--texto-sec)">~${pct}% de uma cota típica de 5MB</span>
+            <span style="font-size:var(--txt-xs);color:var(--texto-sec)">armazenamento local (IndexedDB)</span>
           </div>
           <div style="height:8px;border-radius:4px;background:var(--superficie-alt);overflow:hidden">
             <div style="height:100%;width:${pct}%;background:${corBarra}"></div>
