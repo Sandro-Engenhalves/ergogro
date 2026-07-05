@@ -1017,7 +1017,12 @@ Retorne APENAS o texto da conclusão, sem introdução, sem formatação especia
       <div class="item-plano prioridade-${acao.prioridade}" id="item-acao-${acao.id}">
         <div class="item-plano-header">
           <div style="flex:1">
-            <div class="item-plano-titulo">${acao.descricao}</div>
+            <textarea class="item-plano-titulo" rows="2"
+                      style="width:100%;background:transparent;border:1px solid transparent;border-radius:var(--r2);font:inherit;color:inherit;resize:none;padding:2px 4px;cursor:text"
+                      onfocus="this.style.borderColor='var(--borda)';this.style.background='var(--superficie-alt)'"
+                      onblur="this.style.borderColor='transparent';this.style.background='transparent'"
+                      onchange="ModuloProjeto.salvarCampoAcao('${acao._avId}','${acao.id}','descricao',this.value)"
+            >${acao.descricao}</textarea>
             <div class="item-plano-meta" style="flex-wrap:wrap;gap:4px">
               <span class="status-chip status-${acao.status}">${STATUS_L[acao.status]||acao.status}</span>
               <span class="badge-tipo badge-tipo-${acao._tipo}">${TIPO_LABEL[acao._tipo]||acao._tipo}</span>
@@ -1116,7 +1121,12 @@ Retorne APENAS o texto da conclusão, sem introdução, sem formatação especia
               <div class="item-plano-header">
                 <div style="flex:1">
                   ${acao.risco ? `<div style="font-size:10px;color:var(--texto-sec);margin-bottom:4px">🧠 ${acao.risco}</div>` : ''}
-                  <div class="item-plano-titulo">${acao.descricao}</div>
+                  <textarea class="item-plano-titulo" rows="2"
+                            style="width:100%;background:transparent;border:1px solid transparent;border-radius:var(--r2);font:inherit;color:inherit;resize:none;padding:2px 4px;cursor:text"
+                            onfocus="this.style.borderColor='var(--borda)';this.style.background='var(--superficie-alt)'"
+                            onblur="this.style.borderColor='transparent';this.style.background='transparent'"
+                            onchange="ModuloProjeto.salvarCampoAcaoPsi('${acao.id}','descricao',this.value)"
+                  >${acao.descricao}</textarea>
                   <div class="item-plano-meta">
                     <span class="status-chip status-${acao.status}">${STATUS_L[acao.status]||acao.status}</span>
                     <span class="badge-tipo badge-tipo-psicossocial">AFP</span>
@@ -1156,6 +1166,18 @@ Retorne APENAS o texto da conclusão, sem introdução, sem formatação especia
         <!-- Nova ação manual -->
         <div class="card" style="margin-top:var(--s4)">
           <div class="card-titulo" style="margin-bottom:var(--s3)">➕ Nova Ação Manual</div>
+          ${avs.length > 1 ? `<div class="grupo-campo">
+            <label>Vincular à função / avaliação</label>
+            <select id="nova-acao-avid">
+              ${avs.map(av => {
+                const f = av.funcaoId ? Storage.buscarFuncao(av.funcaoId) : null;
+                const s = av.setorId  ? Storage.buscarSetor(av.setorId)  : null;
+                const nome = [f?.nome || av._funcaoNome, s?.nome || av._setorNome].filter(Boolean).join(' — ');
+                const tipo = {aep:'AEP',psicossocial:'AFP',aet:'AET'}[av.tipo] || av.tipo;
+                return `<option value="${av.id}">${nome || 'Avaliação'} (${tipo})</option>`;
+              }).join('')}
+            </select>
+          </div>` : (avs.length === 1 ? `<input type="hidden" id="nova-acao-avid" value="${avs[0].id}">` : '')}
           <div class="grupo-campo">
             <label>Descrição da ação</label>
             <textarea id="nova-acao-descricao" rows="2" placeholder="Descreva a ação corretiva ou preventiva..."></textarea>
@@ -1235,10 +1257,10 @@ Retorne APENAS o texto da conclusão, sem introdução, sem formatação especia
     const descricao = document.getElementById('nova-acao-descricao')?.value?.trim();
     if (!descricao) { App.mostrarToast('Preencha a descrição da ação', 'aviso'); return; }
 
-    /* Adiciona na primeira avaliação do projeto (ou cria lista genérica no projeto) */
     const avs = Storage.listarPorProjeto(proj.id);
-    const av  = avs[0];
-    if (!av) { App.mostrarToast('Projeto sem avaliações — crie uma avaliação primeiro', 'aviso'); return; }
+    if (!avs.length) { App.mostrarToast('Projeto sem avaliações — crie uma avaliação primeiro', 'aviso'); return; }
+    const avId = document.getElementById('nova-acao-avid')?.value;
+    const av   = (avId ? Storage.buscar(avId) : null) || avs[0];
 
     if (!av.planoAcao) av.planoAcao = [];
     av.planoAcao.push({
