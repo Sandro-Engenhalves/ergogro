@@ -1017,12 +1017,15 @@ Retorne APENAS o texto da conclusão, sem introdução, sem formatação especia
       <div class="item-plano prioridade-${acao.prioridade}" id="item-acao-${acao.id}">
         <div class="item-plano-header">
           <div style="flex:1">
-            <textarea class="item-plano-titulo" rows="2"
-                      style="width:100%;background:transparent;border:1px solid transparent;border-radius:var(--r2);font:inherit;color:inherit;resize:none;padding:2px 4px;cursor:text"
-                      onfocus="this.style.borderColor='var(--borda)';this.style.background='var(--superficie-alt)'"
-                      onblur="this.style.borderColor='transparent';this.style.background='transparent'"
-                      onchange="ModuloProjeto.salvarCampoAcao('${acao._avId}','${acao.id}','descricao',this.value)"
-            >${acao.descricao}</textarea>
+            <div style="display:flex;align-items:flex-start;gap:4px">
+              <textarea class="item-plano-titulo" rows="2"
+                        style="flex:1;background:transparent;border:1px dashed var(--borda);border-radius:var(--r2);font:inherit;color:inherit;resize:none;padding:4px 6px;cursor:text;opacity:.95"
+                        title="Clique para editar a descrição"
+                        onfocus="this.style.borderStyle='solid';this.style.background='var(--superficie-alt)';this.style.opacity='1'"
+                        onblur="this.style.borderStyle='dashed';this.style.background='transparent';this.style.opacity='.95'"
+                        onchange="ModuloProjeto.salvarCampoAcao('${acao._avId}','${acao.id}','descricao',this.value)"
+              >${acao.descricao}</textarea>
+            </div>
             <div class="item-plano-meta" style="flex-wrap:wrap;gap:4px">
               <span class="status-chip status-${acao.status}">${STATUS_L[acao.status]||acao.status}</span>
               <span class="badge-tipo badge-tipo-${acao._tipo}">${TIPO_LABEL[acao._tipo]||acao._tipo}</span>
@@ -1122,9 +1125,10 @@ Retorne APENAS o texto da conclusão, sem introdução, sem formatação especia
                 <div style="flex:1">
                   ${acao.risco ? `<div style="font-size:10px;color:var(--texto-sec);margin-bottom:4px">🧠 ${acao.risco}</div>` : ''}
                   <textarea class="item-plano-titulo" rows="2"
-                            style="width:100%;background:transparent;border:1px solid transparent;border-radius:var(--r2);font:inherit;color:inherit;resize:none;padding:2px 4px;cursor:text"
-                            onfocus="this.style.borderColor='var(--borda)';this.style.background='var(--superficie-alt)'"
-                            onblur="this.style.borderColor='transparent';this.style.background='transparent'"
+                            style="width:100%;background:transparent;border:1px dashed var(--borda);border-radius:var(--r2);font:inherit;color:inherit;resize:none;padding:4px 6px;cursor:text;opacity:.95"
+                            title="Clique para editar a descrição"
+                            onfocus="this.style.borderStyle='solid';this.style.background='var(--superficie-alt)';this.style.opacity='1'"
+                            onblur="this.style.borderStyle='dashed';this.style.background='transparent';this.style.opacity='.95'"
                             onchange="ModuloProjeto.salvarCampoAcaoPsi('${acao.id}','descricao',this.value)"
                   >${acao.descricao}</textarea>
                   <div class="item-plano-meta">
