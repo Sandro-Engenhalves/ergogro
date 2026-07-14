@@ -777,9 +777,18 @@ const Storage = (() => {
     return { solicitante:'', motivoSolicitacao:'', demandaApresentada:'', dataInicio:'', tarefaPrescrita:'', atividadeReal:'', variabilidades:'', modosOperatorios:'', observacaoAtividade:'', exigenciasBiomecanicas:'', exigenciasCognitivas:'', exigenciasOrganizacionais:'', ferramentasAplicadas:[], diagnosticoErgonomico:'', recomendacoes:'', planoTransformacao:[], conclusaoTecnica:'', necessitaReavaliacao:false, prazoReavaliacao:'' };
   }
 
+  /* Acesso genérico por chave — usado exclusivamente pela camada cloud
+     (StorageCloud) para ler/mesclar/gravar coleções inteiras contra o
+     mesmo armazenamento real (IndexedDB) que o resto do app usa. Nunca
+     usar para lógica de negócio — prefira as funções específicas acima. */
+  function lerColecaoRaw(chave)           { return _ler(chave); }
+  function gravarColecaoRaw(chave, lista) { _gravar(chave, lista); }
+
   return {
     inicializar,
     gerarId,
+    /* Acesso raw — uso exclusivo de StorageCloud (firebase-storage.js) */
+    lerColecaoRaw, gravarColecaoRaw,
     /* Empresas */
     listarEmpresas, buscarEmpresa, salvarEmpresa, excluirEmpresa, criarEmpresa,
     /* Projetos */

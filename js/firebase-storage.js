@@ -101,18 +101,21 @@ const StorageCloud = (() => {
     return firebase.firestore();
   }
 
-  /* Lê array do localStorage de forma silenciosa (nunca lança) */
+  /* Lê array do armazenamento real (IndexedDB, via Storage.lerColecaoRaw)
+     de forma silenciosa (nunca lança). NÃO usa localStorage diretamente:
+     storage.js migra tudo para IndexedDB e apaga as chaves do localStorage
+     na inicialização — gravar ali faria os dados sumirem a cada reload. */
   function _lerLocal(chave) {
-    try { return JSON.parse(localStorage.getItem(chave) || '[]'); }
+    try { return Storage.lerColecaoRaw(chave) || []; }
     catch (e) {
       console.warn(`${_CLOUD_LOG} Erro ao ler "${chave}":`, e.message);
       return [];
     }
   }
 
-  /* Grava array no localStorage de forma silenciosa (nunca lança) */
+  /* Grava array no armazenamento real (IndexedDB, via Storage.gravarColecaoRaw) */
   function _gravarLocal(chave, lista) {
-    try { localStorage.setItem(chave, JSON.stringify(lista)); }
+    try { Storage.gravarColecaoRaw(chave, lista); }
     catch (e) {
       console.error(`${_CLOUD_LOG} Erro ao gravar "${chave}":`, e.message);
     }
