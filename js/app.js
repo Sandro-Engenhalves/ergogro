@@ -174,6 +174,28 @@ const App = (() => {
     }
   }
 
+  /* Telas seguras para re-renderizar sozinhas após o sync: são
+     apenas listagens (sem formulário em edição), então recarregar
+     não descarta digitação nem move o foco do usuário. Telas de
+     edição (projeto/aep/fp/aet) ficam de fora de propósito. */
+  const TELAS_AUTO_REFRESH = {
+    dashboard:    _renderizarDashboard,
+    empresas:     () => {
+      /* Preserva o termo de busca digitado — renderizar() reconstrói o
+         input do zero e perderia o filtro em digitação no meio do sync */
+      const buscaAtual = document.getElementById('cl-busca')?.value || '';
+      ModuloCadastro.renderizar();
+      if (buscaAtual) {
+        const campo = document.getElementById('cl-busca');
+        if (campo) { campo.value = buscaAtual; ModuloCadastro._filtrar(); }
+      }
+    },
+    empresa:      _renderizarContextoEmpresa,
+    'plano-geral':() => ModuloPlano.renderizarGeral(),
+    relatorios:   () => ModuloRelatorios.renderizar(),
+    armazenamento:_renderizarArmazenamento,
+  };
+
   function _sincronizarCloud() {
     if (typeof StorageCloud === 'undefined') return;
     if (typeof CLOUD_SYNC_ENABLED !== 'undefined' && !CLOUD_SYNC_ENABLED) return;
@@ -182,9 +204,10 @@ const App = (() => {
       .then(resultado => {
         if (!resultado.ok) return;
         const temNovos = resultado.totalNovos > 0 || resultado.totalAt > 0;
-        if (temNovos && _telaAtual === 'dashboard') {
-          console.log('[App] Sync trouxe dados novos — atualizando dashboard');
-          _renderizarDashboard();
+        const renderizarTela = TELAS_AUTO_REFRESH[_telaAtual];
+        if (temNovos && renderizarTela) {
+          console.log(`[App] Sync trouxe dados novos — atualizando tela "${_telaAtual}"`);
+          renderizarTela();
         }
       })
       .catch(err => console.warn('[App] Sync cloud falhou (usando dados locais):', err.message));
