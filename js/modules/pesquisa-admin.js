@@ -452,6 +452,8 @@ const ModuloPesquisaAdmin = (() => {
       /* Chama a função global do firebase-pesquisa.js */
       const resultado = await importarCPFs(_campanhaAberta.id, linhas);
       _campanhaAberta.totalAutorizados = resultado.importados;
+            _campanhaAberta.totalRespostas   = resultado.totalRespostas;
+
 
       App.mostrarToast(
         `${resultado.importados} CPF(s) importados.${resultado.erros.length ? ' ' + resultado.erros.length + ' inválido(s) ignorados.' : ''}`,
@@ -561,7 +563,10 @@ const ModuloPesquisaAdmin = (() => {
 
       const resp  = campanha.totalRespostas   || 0;
       const total = campanha.totalAutorizados || 0;
-      const pct   = total > 0 ? Math.round((resp / total) * 100) : 0;
+            const pctReal = total > 0 ? Math.round((resp / total) * 100) : 0;
+      const pct  = Math.min(pctReal, 100);
+      const inconsistente = total > 0 && resp > total;
+
       const prazo = campanha.prazo ? _fd(campanha.prazo) : '—';
       const STATUS = { ativa: '🟢 Ativa', encerrada: '🔴 Encerrada', rascunho: '⚫ Rascunho' };
 
@@ -586,6 +591,14 @@ const ModuloPesquisaAdmin = (() => {
               <div style="height:100%;width:${pct}%;background:${pct >= 70 ? 'var(--sucesso)' : pct >= 40 ? 'var(--aviso)' : 'var(--primaria)'};border-radius:999px;transition:width .4s"></div>
             </div>
           ` : ''}
+          
+          ${inconsistente ? `
+            <div class="aviso-tecnico aviso" style="margin-top:var(--s3)">
+              <span>⚠️</span>
+              <span>Há mais respostas (${resp}) do que participantes autorizados (${total}). Isso costuma acontecer quando a campanha recebeu respostas em modo aberto antes de uma lista de CPFs ser importada, ou quando a lista foi reimportada com menos nomes. Reimporte a lista de CPFs atual para recalcular esses números.</span>
+            </div>
+          ` : ''}
+
         </div>
 
         <div class="card">

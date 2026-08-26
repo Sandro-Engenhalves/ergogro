@@ -187,15 +187,28 @@ async function importarCPFs(campanhaId, linhas) {
     } catch { erros.push(cpfRaw); }
   }
 
-  if (validos.length === 0) throw new Error('Nenhum CPF válido encontrado');
+    if (validos.length === 0) throw new Error('Nenhum CPF válido encontrado');
+
+  /* Reconcilia totalRespostas com a NOVA lista de autorizados.
+     Sem isso, uma reimportação que reduz a lista (ou uma campanha que
+     rodou em modo aberto antes de ganhar lista de CPFs) deixa "respostas" > "autorizados"
+     para sempre, gerando taxas de participação acima de 100%. */
+  const hashesAutorizados = new Set(validos.map(v => v.hash));
+  const snapRespostas = await _db_().collection('ergogro_respostas')
+    .where('campanhaId', '==', campanhaId)
+    .get();
+  const totalRespostasReconciliado = snapRespostas.docs
+    .filter(d => hashesAutorizados.has(d.data().cpfHash)).length;
 
   await atualizarCampanha(campanhaId, {
     cpfsAutorizados:  validos,
     totalAutorizados: validos.length,
+    totalRespostas:   totalRespostasReconciliado,
   });
 
-  return { importados: validos.length, erros };
+  return { importados: validos.length, erros, totalRespostas: totalRespostasReconciliado };
 }
+
 
 /* Verifica se CPF está autorizado e retorna dados de controle */
 async function verificarCPF(campanhaId, cpf) {
@@ -340,7 +353,8 @@ async function calcularRelatorio(campanhaId, minRespostasSetor = 5) {
     totalRespostas:    respostas.length,
     totalAutorizados:  campanha?.totalAutorizados  || 0,
     taxaParticipacao:  campanha?.totalAutorizados
-      ? Math.round((respostas.length / campanha.totalAutorizados) * 100)
+            ? Math.min(100, Math.round((respostas.length / campanha.totalAutorizados) * 100))
+
       : null,
     scoreGeral,
     consolidado,
