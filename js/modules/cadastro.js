@@ -143,7 +143,7 @@ const ModuloCadastro = (() => {
           <div style="flex:1">
             <div style="font-size:var(--txt-base);font-weight:700">${emp.nome || 'Sem nome'}</div>
             <div style="font-size:var(--txt-xs);color:var(--texto-sec)">
-              ${emp.cnpj ? `${emp.cnpj} · ` : ''}
+              ${_textoInscricaoLista(emp)}
               ${emp.cidade ? `📍 ${emp.cidade}${emp.estado?'/'+emp.estado:''} · ` : ''}
               ${projetos.length} projeto(s) · ${totalAvs} av.
             </div>
@@ -220,7 +220,7 @@ const ModuloCadastro = (() => {
     const filtrados = busca
       ? todos.filter(e => (e.nome||'').toLowerCase().includes(busca) ||
                           (e.cidade||'').toLowerCase().includes(busca) ||
-                          (e.cnpj||'').includes(busca))
+                          _casaInscricao(e, busca))
       : todos;
     const lista = document.getElementById('lista-empresas');
     if (!lista) return;
@@ -347,27 +347,130 @@ const ModuloCadastro = (() => {
      FORMULÁRIO — EMPRESA
   ══════════════════════════════════════════════════════════ */
 
+  /* ── Inscrição do cliente (CNPJ / CPF / CNO / CAEPF / CEI) ──────
+     Máscara, validação e metadados vêm de Inscricao (js/inscricao.js);
+     aqui só fica a interação do formulário. */
+
+  /* Estado da inscrição ao ABRIR o modal — base para saber se o usuário a ALTEROU.
+     numero === null significa legado não normalizável (compara-se o texto cru). */
+  let _inscOriginal = { tipo: 'cnpj', numero: '', bruto: '' };
+
+  /* Texto do campo de nome conforme o tipo (a propriedade persistida continua `nome`). */
+  const _TEXTO_NOME = {
+    cnpj:  { rotulo: 'Razão Social / Nome',          placeholder: 'Ex.: Indústria Alfa Ltda.' },
+    cpf:   { rotulo: 'Nome completo',                placeholder: 'Nome completo' },
+    cno:   { rotulo: 'Nome / Identificação da obra', placeholder: 'Ex.: Obra Edifício Central' },
+    caepf: { rotulo: 'Nome / Identificação',         placeholder: 'Nome ou identificação' },
+    cei:   { rotulo: 'Nome / Identificação',         placeholder: 'Nome ou identificação' },
+  };
+
+  const _esc = s => String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+  function _metaTipo(tipo) {
+    const todos = Inscricao.tipos();
+    return todos.find(t => t.tipo === tipo) || todos[0];
+  }
+
+  function _tipoInscricaoAtual() {
+    return document.getElementById('emp-tipo-insc')?.value || 'cnpj';
+  }
+
+  /* Comparação SEMÂNTICA com o estado original (tipo + número normalizado);
+     legado não normalizável compara o texto cru. Formatação diferente não conta. */
+  function _inscricaoAlterada(tipo, valor) {
+    if (tipo !== _inscOriginal.tipo) return true;
+    const n = Inscricao.normalizar(tipo, valor);
+    if (n === null || _inscOriginal.numero === null) return String(valor).trim() !== String(_inscOriginal.bruto).trim();
+    return n !== _inscOriginal.numero;
+  }
+
+  /* Aviso sob o campo: bloqueante (vermelho), aviso (âmbar) ou pendência de dado antigo. */
+  function _mostrarMensagemInscricao() {
+    const el = document.getElementById('emp-insc-msg');
+    if (!el) return;
+    const tipo  = _tipoInscricaoAtual();
+    const valor = (document.getElementById('emp-inscricao')?.value || '').trim();
+    const v = Inscricao.validar(tipo, valor);
+    let texto = '', cor = '';
+    if (!v.ok) {
+      if (!_inscricaoAlterada(tipo, valor)) { texto = `${v.mensagem} (dado já cadastrado: não impede salvar enquanto não for alterado)`; cor = 'var(--aviso)'; }
+      else if (v.bloqueante)                { texto = v.mensagem; cor = 'var(--perigo)'; }
+      else                                  { texto = `${v.mensagem} Você pode salvar mesmo assim.`; cor = 'var(--aviso)'; }
+    }
+    el.textContent = texto;
+    el.style.color = cor;
+  }
+
+  /* Troca de tipo: atualiza rótulos, placeholder, máscara e o botão Buscar.
+     O texto já digitado é reformatado SEM descartar caracteres. */
+  function _aoTrocarTipoInscricao() {
+    const tipo  = _tipoInscricaoAtual();
+    const meta  = _metaTipo(tipo);
+    const nome  = _TEXTO_NOME[tipo] || _TEXTO_NOME.cnpj;
+    const input = document.getElementById('emp-inscricao');
+    document.getElementById('emp-insc-label').textContent = meta.rotuloCurto;
+    document.getElementById('emp-nome-label').textContent = nome.rotulo;
+    document.getElementById('emp-nome').placeholder       = nome.placeholder;
+    input.placeholder = meta.placeholder;
+    input.setAttribute('maxlength', meta.tamanhoMaximo);
+    input.setAttribute('inputmode', meta.inputMode);
+    input.value = Inscricao.formatar(tipo, input.value);
+    const btn = document.getElementById('btn-buscar-cnpj');
+    if (btn) { btn.style.display = meta.buscaAutomatica ? '' : 'none'; btn.disabled = !meta.buscaAutomatica; }
+    _mostrarMensagemInscricao();
+  }
+
+  /* Texto da inscrição na lista: "CNPJ: 00.000.000/0000-00 · " (vazio se não houver). */
+  function _textoInscricaoLista(emp) {
+    const o = Inscricao.obter(emp);
+    return o.vazio ? '' : `${_esc(Inscricao.rotulo(o.tipo, true))}: ${_esc(o.formatado)} · `;
+  }
+
+  /* Busca da lista: casa pelo texto exibido ou pelo número sem máscara. */
+  function _casaInscricao(emp, busca) {
+    const o = Inscricao.obter(emp);
+    if (o.formatado.toLowerCase().includes(busca)) return true;
+    const n = Inscricao.normalizar(o.tipo, busca);
+    return !!(n && o.numero && o.numero.includes(n));
+  }
+
   function abrirFormEmpresa(id) {
     _isNovaEmpresa = !id;
     const emp = id ? Storage.buscarEmpresa(id) : Storage.criarEmpresa();
+    /* Legado sem tipoInscricao é lido como CNPJ. Abrir o modal NÃO grava nada. */
+    const insc = Inscricao.obter(emp);
+    _inscOriginal = { tipo: insc.tipo, numero: insc.numero, bruto: insc.formatado };
+    const meta = _metaTipo(insc.tipo);
+    const textoNome = _TEXTO_NOME[insc.tipo] || _TEXTO_NOME.cnpj;
     document.getElementById('modal-emp-titulo').textContent = id ? 'Editar Cliente' : 'Novo Cliente';
     document.getElementById('modal-emp-form').innerHTML = `
       <div class="grupo-campo">
-        <label>Razão Social / Nome</label>
-        <input type="text" id="emp-nome" placeholder="Ex.: Indústria Alfa Ltda." value="${emp.nome||''}">
+        <label id="emp-nome-label" for="emp-nome">${textoNome.rotulo}</label>
+        <input type="text" id="emp-nome" placeholder="${textoNome.placeholder}" value="${emp.nome||''}">
+      </div>
+      <div class="grupo-campo">
+        <label for="emp-tipo-insc">Tipo de inscrição</label>
+        <select id="emp-tipo-insc">
+          ${Inscricao.tipos().map(t => `<option value="${t.value}" ${t.value === insc.tipo ? 'selected' : ''}>${t.rotulo}</option>`).join('')}
+        </select>
       </div>
       <div class="linha-campos">
         <div class="grupo-campo">
-          <label>CNPJ</label>
+          <label id="emp-insc-label" for="emp-inscricao">${meta.rotuloCurto}</label>
           <div style="display:flex;gap:var(--s2)">
-            <input type="text" id="emp-cnpj" placeholder="00.000.000/0000-00" maxlength="18" value="${emp.cnpj||''}" style="flex:1">
+            <input type="text" id="emp-inscricao" placeholder="${meta.placeholder}" maxlength="${meta.tamanhoMaximo}"
+                   inputmode="${meta.inputMode}" autocomplete="off" autocapitalize="characters" spellcheck="false"
+                   value="${_esc(insc.formatado)}" style="flex:1">
             <button class="btn btn-secundario btn-sm" id="btn-buscar-cnpj"
                     onclick="ModuloCadastro._buscarCNPJ()"
                     title="Buscar dados da empresa pelo CNPJ"
-                    style="white-space:nowrap;align-self:flex-end">
+                    style="white-space:nowrap;align-self:flex-end${meta.buscaAutomatica ? '' : ';display:none'}"
+                    ${meta.buscaAutomatica ? '' : 'disabled'}>
               🔍 Buscar
             </button>
           </div>
+          <div class="campo-descricao" id="emp-insc-msg" role="status" aria-live="polite"></div>
         </div>
         <div class="grupo-campo">
           <label>Estado (UF)</label>
@@ -411,30 +514,64 @@ const ModuloCadastro = (() => {
         <button class="btn btn-secundario" onclick="ModuloCadastro.fecharModal('modal-empresa')">Cancelar</button>
       </div>
     `;
-    document.getElementById('emp-cnpj').addEventListener('input', function() {
-      let v = this.value.replace(/\D/g,'').slice(0,14);
-      v = v.replace(/^(\d{2})(\d)/,'$1.$2').replace(/^(\d{2})\.(\d{3})(\d)/,'$1.$2.$3')
-           .replace(/\.(\d{3})(\d)/,'.$1/$2').replace(/(\d{4})(\d)/,'$1-$2');
-      this.value = v;
+    document.getElementById('emp-tipo-insc').addEventListener('change', _aoTrocarTipoInscricao);
+    const campoInsc = document.getElementById('emp-inscricao');
+    campoInsc.addEventListener('input', function() {
+      /* máscara progressiva do tipo escolhido (letras preservadas no CNPJ alfanumérico) */
+      const formatado = Inscricao.formatar(_tipoInscricaoAtual(), this.value);
+      if (formatado !== this.value) this.value = formatado;
+      document.getElementById('emp-insc-msg').textContent = '';
     });
+    campoInsc.addEventListener('blur', _mostrarMensagemInscricao);
+    _mostrarMensagemInscricao();   /* mostra pendência de dado legado, se houver */
     document.getElementById('modal-empresa').classList.remove('oculto');
   }
 
   function salvarEmpresa(id) {
     const get = el => document.getElementById(el)?.value?.trim() || '';
+    const nome = get('emp-nome');
+    if (!nome) { App.mostrarToast('Informe o nome do cliente','erro'); return; }
+
+    /* Tudo é validado ANTES de alterar o objeto do cliente. */
+    const tipo     = _tipoInscricaoAtual();
+    const valor    = get('emp-inscricao');
+    const v        = Inscricao.validar(tipo, valor);
+    const alterada = _inscricaoAlterada(tipo, valor);
+
+    /* Erro bloqueante vale só para inscrição NOVA ou ALTERADA;
+       legado inválido e inalterado continua podendo ser salvo. */
+    if (v.bloqueante && alterada) {
+      App.mostrarToast(v.mensagem, 'erro');
+      _mostrarMensagemInscricao();
+      document.getElementById('emp-inscricao')?.focus();
+      return;
+    }
+
+    /* Duplicidade: só AVISA (confirmação nativa, como no restante do módulo). */
+    if (alterada && v.numero) {
+      const chave  = Inscricao.chave(Inscricao.aplicar({}, tipo, valor));
+      const outros = Storage.listarEmpresas().filter(e => e.id !== id && Inscricao.chave(e) === chave);
+      if (outros.length) {
+        const quem = `"${outros[0].nome || 'sem nome'}"${outros.length > 1 ? ` e mais ${outros.length - 1}` : ''}`;
+        if (!confirm(`Já existe outro cliente cadastrado com esta inscrição (${quem}). Deseja continuar?`)) return;
+      }
+    }
+
     const emp = Storage.buscarEmpresa(id) || { id };
-    emp.nome                 = get('emp-nome');
-    emp.cnpj                 = get('emp-cnpj');
+    emp.nome                 = nome;
     emp.estado               = get('emp-estado');
     emp.endereco             = get('emp-endereco');
     emp.cidade               = get('emp-cidade');
     emp.responsavelTecnico   = get('emp-responsavel');
     emp.registroProfissional = get('emp-registro');
     emp.cargo                = get('emp-cargo');
-    if (!emp.nome) { App.mostrarToast('Informe o nome do cliente','erro'); return; }
+    /* Modelo novo (tipoInscricao/numeroInscricao/cnpj) só ao SALVAR. Legado não
+       normalizável e inalterado (v.numero === null) permanece exatamente como está. */
+    if (v.numero !== null) Inscricao.aplicar(emp, tipo, valor);
     Storage.salvarEmpresa(emp);
     fecharModal('modal-empresa');
-    App.mostrarToast('Cliente salvo','sucesso');
+    const avisar = v.nivel === 'aviso' && alterada;
+    App.mostrarToast(avisar ? `Cliente salvo. Atenção: ${v.mensagem}` : 'Cliente salvo', avisar ? 'aviso' : 'sucesso');
     if (_isNovaEmpresa) {
       _isNovaEmpresa = false;
       App.abrirEmpresa(emp.id);   /* novo cliente → entra direto no ambiente */
@@ -590,13 +727,35 @@ const ModuloCadastro = (() => {
      BUSCA AUTOMÁTICA DE CNPJ (BrasilAPI)
   ══════════════════════════════════════════════════════════ */
 
-  async function _buscarCNPJ() {
-    const input = document.getElementById('emp-cnpj');
-    const btn   = document.getElementById('btn-buscar-cnpj');
-    const cnpj  = (input?.value || '').replace(/\D/g, '');
+  /* Mensagem de falha da consulta. A consulta é só uma conveniência: falha
+     nunca significa CNPJ inválido, e para CNPJ alfanumérico a cobertura da
+     BrasilAPI não é garantida (o usuário preenche manualmente). */
+  function _mensagemFalhaBusca(status, cnpj) {
+    const alfa = /[A-Z]/.test(cnpj);
+    if (status === 404) return alfa ? 'CNPJ alfanumérico sem dados na consulta automática. Preencha os dados manualmente.' : 'CNPJ não encontrado na Receita Federal';
+    if (status === 400 && alfa) return 'A consulta automática não aceitou este CNPJ alfanumérico. Preencha os dados manualmente.';
+    return 'Erro na consulta';
+  }
 
+  async function _buscarCNPJ() {
+    /* Só o CNPJ tem consulta automática (capacidade informada por Inscricao.tipos). */
+    if (!_metaTipo(_tipoInscricaoAtual()).buscaAutomatica) return;
+
+    const input = document.getElementById('emp-inscricao');
+    const btn   = document.getElementById('btn-buscar-cnpj');
+    const cnpj  = Inscricao.normalizar('cnpj', input?.value);   /* preserva letras do CNPJ alfanumérico */
+
+    if (cnpj === null) {
+      App.mostrarToast('O CNPJ contém caracteres inválidos', 'aviso');
+      return;
+    }
     if (cnpj.length !== 14) {
       App.mostrarToast('Digite o CNPJ completo antes de buscar', 'aviso');
+      return;
+    }
+    const validacao = Inscricao.validar('cnpj', cnpj);
+    if (!validacao.ok) {
+      App.mostrarToast(`CNPJ inválido: ${validacao.mensagem}`, 'aviso');
       return;
     }
 
@@ -605,8 +764,15 @@ const ModuloCadastro = (() => {
 
     try {
       const res  = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpj}`);
-      if (!res.ok) throw new Error(res.status === 404 ? 'CNPJ não encontrado na Receita Federal' : 'Erro na consulta');
+      if (!res.ok) {
+        const falha = new Error(_mensagemFalhaBusca(res.status, cnpj));
+        falha.aviso = /[A-Z]/.test(cnpj);   /* alfanumérico: orientação, não erro */
+        throw falha;
+      }
       const d = await res.json();
+
+      /* Resposta atrasada: ignora se o usuário trocou o tipo ou alterou o CNPJ durante a consulta */
+      if (_tipoInscricaoAtual() !== 'cnpj' || Inscricao.normalizar('cnpj', document.getElementById('emp-inscricao')?.value) !== cnpj) return;
 
       const set = (id, val) => { const el = document.getElementById(id); if (el && val) el.value = val; };
 
@@ -626,9 +792,10 @@ const ModuloCadastro = (() => {
 
       App.mostrarToast('Dados preenchidos automaticamente ✔', 'sucesso');
     } catch (err) {
-      App.mostrarToast(err.message || 'Não foi possível consultar o CNPJ', 'erro');
+      App.mostrarToast(err.message || 'Não foi possível consultar o CNPJ', err.aviso ? 'aviso' : 'erro');
     } finally {
-      btn.disabled    = false;
+      /* se o tipo mudou durante a consulta, o botão permanece desabilitado */
+      btn.disabled    = !_metaTipo(_tipoInscricaoAtual()).buscaAutomatica;
       btn.textContent = '🔍 Buscar';
     }
   }
