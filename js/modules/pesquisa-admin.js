@@ -522,7 +522,9 @@ const ModuloPesquisaAdmin = (() => {
     const empId = c.empresaId || App.obterProjetoAtual()?.empresaId;
     const emp   = empId ? Storage.buscarEmpresa(empId) : null;
     const nome  = c.empresaNome || emp?.nome || '';
-    const cnpj  = emp?.cnpj || '';
+    /* PORTÃO DE PRIVACIDADE (Inscricao.publico): a mensagem de WhatsApp só pode mostrar
+       CNPJ com DV válido — CPF/CNO/CAEPF/CEI e CNPJ inválido/não normalizável viram ''. */
+    const cnpj  = Inscricao.publico(emp);
 
     const clienteInfo = [nome, cnpj ? `CNPJ: ${cnpj}` : ''].filter(Boolean).join(' — ');
     const msg = encodeURIComponent(

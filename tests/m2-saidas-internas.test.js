@@ -113,7 +113,12 @@ test('guarda estática: o payload PÚBLICO de _criarTokenProjeto não ganhou ide
   const bloco = codigo.match(/await ref\.set\(\{[\s\S]*?\n    \}\);/);
   assert.ok(bloco, 'bloco ref.set não encontrado');
   assert.doesNotMatch(bloco[0], /inscri/i);
-  assert.match(bloco[0], /empresaCnpj:\s+emp\?\.cnpj\s+\|\|\s+''/, 'empresaCnpj público permanece como antes');
+  /* Desde o GATE 3.M4.1, empresaCnpj vem de Inscricao.publico(emp) (portão de privacidade),
+     não mais de emp?.cnpj cru — decisão de política aprovada, coberta integralmente em
+     tests/m4-1-firestore-publico.test.js. Aqui só resta confirmar que o bloco usa a variável
+     (não volta a inlinar emp?.cnpj) e que nenhum outro campo de identificação foi ganho. */
+  assert.match(bloco[0], /empresaCnpj,/, 'empresaCnpj deve vir da variável calculada (Inscricao.publico), não inline');
+  assert.doesNotMatch(bloco[0], /empresaCnpj:\s*emp\?\.cnpj/, 'não pode voltar a ler emp?.cnpj cru');
   /* Inscricao.exibir só aparece no objeto LOCAL */
   const usos = codigo.match(/Inscricao\.exibir/g) || [];
   assert.equal(usos.length, 1);
@@ -139,8 +144,11 @@ test('guarda estática: cache-busting coerente (inscricao/app/projeto/consulta-a
   /* projeto.js foi bumpado na M2 (260706 → 260921) e de novo na M3A; aqui basta exigir que
      saiu da versão do HEAD (o valor exato atual é verificado em m3a-aet-projeto.test.js). */
   assert.notEqual(v(idx, 'js/modules/projeto.js'), '260706', 'projeto.js deve ter sido bumpado desde o HEAD');
-  assert.equal(v(idx, 'js/consulta-aep.js'), '2');
-  assert.equal(v(cons, 'js/consulta-aep.js'), '2', 'consulta.html deve carregar a mesma versão de consulta-aep.js');
+  /* consulta-aep.js foi bumpado na M2 (1 → 2) e de novo no M4.1; aqui basta exigir que os dois
+     HTMLs continuam coerentes entre si (o valor exato atual é verificado em
+     tests/m4-1-firestore-publico.test.js). */
+  assert.notEqual(v(idx, 'js/consulta-aep.js'), '1', 'consulta-aep.js deve ter sido bumpado desde o HEAD');
+  assert.equal(v(cons, 'js/consulta-aep.js'), v(idx, 'js/consulta-aep.js'), 'consulta.html deve carregar a mesma versão de consulta-aep.js que index.html');
   /* consulta.html continua sem carregar o helper de inscrição */
   assert.doesNotMatch(cons, /inscricao\.js/);
 });

@@ -146,11 +146,17 @@ const ConsultaAEP = (() => {
     const respostasAntigas = snapExist.exists ? (snapExist.data().respostas || {}) : {};
     const totalItens = funcoes.reduce((s, f) => s + f.itens.length, 0);
 
+    /* PORTÃO DE PRIVACIDADE (Inscricao.publico): só CNPJ com DV válido vai a coleção
+       pública — CPF/CNO/CAEPF/CEI e CNPJ inválido/não normalizável viram ''. Calculado
+       uma única vez e reaproveitado nos dois destinos públicos abaixo (doc individual
+       e item de ergogro_grupos_aep.projetos[]). NUNCA usar emp?.cnpj cru aqui. */
+    const empresaCnpj = Inscricao.publico(emp);
+
     await ref.set({
       token, projetoId, perfil,
       perfilLabel:  _PERFIL_LABEL[perfil],
       empresaNome:  emp?.nome  || '',
-      empresaCnpj:  emp?.cnpj  || '',
+      empresaCnpj,
       funcoes, totalItens,
       status:       'pendente',
       criadaEm:     snapExist.exists ? snapExist.data().criadaEm : new Date().toISOString(),
@@ -161,11 +167,12 @@ const ConsultaAEP = (() => {
 
     /* SEPARAÇÃO PÚBLICO x LOCAL — não misturar:
        publico = único objeto que abrirConsultaGrupo grava no doc de grupo (Firestore
-                 público). Não acrescentar identificação nova aqui.
+                 público). empresaCnpj aqui já passou pelo portão acima — não acrescentar
+                 identificação nova.
        local   = somente memória, para o modal administrativo (Inscricao.exibir, qualquer
                  tipo de inscrição). NUNCA persistir nem enviar a coleção pública. */
     return {
-      publico: { projetoId, token, empresaNome: emp?.nome || '', empresaCnpj: emp?.cnpj || '', funcoes, totalItens },
+      publico: { projetoId, token, empresaNome: emp?.nome || '', empresaCnpj, funcoes, totalItens },
       local:   { inscricao: Inscricao.exibir(emp) },
     };
   }
@@ -226,7 +233,9 @@ const ConsultaAEP = (() => {
       const funcoes = _montarFuncoes(av.projetoId, perfil);
       const proj    = Storage.buscarProjeto(av.projetoId);
       const emp     = proj ? Storage.buscarEmpresa(proj.empresaId) : null;
-      _mostrarModalLink(perfil, link, funcoes.length, emp?.nome || '', emp?.cnpj || '');
+      /* PORTÃO DE PRIVACIDADE (Inscricao.publico): a mensagem de WhatsApp só pode mostrar
+         CNPJ com DV válido — CPF/CNO/CAEPF/CEI e CNPJ inválido/não normalizável viram ''. */
+      _mostrarModalLink(perfil, link, funcoes.length, emp?.nome || '', Inscricao.publico(emp));
     } catch (err) {
       App.mostrarToast('Erro ao gerar consulta: ' + err.message, 'erro');
     } finally {
