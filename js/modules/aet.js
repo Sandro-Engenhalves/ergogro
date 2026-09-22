@@ -382,6 +382,7 @@ const ModuloAET = (() => {
     const set = Storage.buscarSetor(av.setorId)     || {};
     const fun = Storage.buscarFuncao(av.funcaoId)   || {};
     const proj = Storage.buscarProjeto(av.projetoId) || {};
+    const insc = Inscricao.exibir(emp);   /* CNPJ/CPF/CNO/CAEPF/CEI conforme o cadastro */
 
     const statusOpts = ['Em andamento','Concluída','Suspensa','Aguardando dados'];
     const motivoOpts = ['Solicitação patronal','Indicação AEP','Denúncia / reclamação','Revisão periódica','Acidente de trabalho','Doença ocupacional','Exigência legal','Outro'];
@@ -393,11 +394,11 @@ const ModuloAET = (() => {
         <div class="form-grid-2">
           <div class="form-grupo">
             <label class="form-label">Empresa</label>
-            <input class="form-input" value="${emp.nomeFantasia || emp.razaoSocial || ''}" disabled>
+            <input class="form-input" value="${emp.nome || ''}" disabled>
           </div>
           <div class="form-grupo">
-            <label class="form-label">CNPJ</label>
-            <input class="form-input" value="${emp.cnpj || ''}" disabled>
+            <label class="form-label">${insc.rotulo}</label>
+            <input class="form-input" value="${insc.valor}" disabled>
           </div>
           <div class="form-grupo">
             <label class="form-label">Setor</label>
@@ -1534,6 +1535,7 @@ const ModuloAET = (() => {
     const emp   = Storage.buscarEmpresa(av.empresaId) || {};
     const set   = Storage.buscarSetor(av.setorId)     || {};
     const fun   = Storage.buscarFuncao(av.funcaoId)   || {};
+    const insc  = Inscricao.exibir(emp);   /* rótulo e valor da inscrição (CNPJ/CPF/CNO/CAEPF/CEI) */
 
     const hoje  = new Date().toLocaleDateString('pt-BR', { day:'2-digit', month:'long', year:'numeric' });
 
@@ -1566,9 +1568,9 @@ const ModuloAET = (() => {
           <div class="rel-capa">
             <div class="rel-capa-titulo">ANÁLISE ERGONÔMICA DO TRABALHO</div>
             <div class="rel-capa-sub">Norma Regulamentadora NR 17</div>
-            <div class="rel-capa-empresa">${emp.razaoSocial || emp.nomeFantasia || 'Empresa não identificada'}</div>
+            <div class="rel-capa-empresa">${emp.nome || 'Empresa não identificada'}</div>
             <div class="rel-capa-detalhe">Setor: ${set.nome || '—'} | Função: ${fun.nome || '—'}</div>
-            <div class="rel-capa-detalhe">CNPJ: ${emp.cnpj || '—'}</div>
+            <div class="rel-capa-detalhe">${insc.rotulo}: ${insc.valor || '—'}</div>
             <div class="rel-capa-detalhe">Data: ${hoje}</div>
             ${d.responsavel ? `<div class="rel-capa-resp">Responsável técnico: ${d.responsavel}</div>` : ''}
           </div>
@@ -1576,7 +1578,7 @@ const ModuloAET = (() => {
           <div class="rel-secao">
             <h2 class="rel-h2">1. Identificação</h2>
             <table class="rel-tabela">
-              <tr><td><strong>Empresa</strong></td><td>${emp.razaoSocial || emp.nomeFantasia || '—'}</td><td><strong>CNPJ</strong></td><td>${emp.cnpj || '—'}</td></tr>
+              <tr><td><strong>Empresa</strong></td><td>${emp.nome || '—'}</td><td><strong>${insc.rotulo}</strong></td><td>${insc.valor || '—'}</td></tr>
               <tr><td><strong>Setor</strong></td><td>${set.nome || '—'}</td><td><strong>Função</strong></td><td>${fun.nome || '—'}</td></tr>
               <tr><td><strong>Nº trabalhadores</strong></td><td>${d.nTrabalhadores || '—'}</td><td><strong>Status</strong></td><td>${d.status || '—'}</td></tr>
               <tr><td><strong>Motivo</strong></td><td colspan="3">${d.motivo || '—'}</td></tr>

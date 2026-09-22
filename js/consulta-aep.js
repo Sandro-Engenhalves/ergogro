@@ -159,7 +159,15 @@ const ConsultaAEP = (() => {
       respostas:    respostasAntigas,
     });
 
-    return { projetoId, token, empresaNome: emp?.nome || '', empresaCnpj: emp?.cnpj || '', funcoes, totalItens };
+    /* SEPARAÇÃO PÚBLICO x LOCAL — não misturar:
+       publico = único objeto que abrirConsultaGrupo grava no doc de grupo (Firestore
+                 público). Não acrescentar identificação nova aqui.
+       local   = somente memória, para o modal administrativo (Inscricao.exibir, qualquer
+                 tipo de inscrição). NUNCA persistir nem enviar a coleção pública. */
+    return {
+      publico: { projetoId, token, empresaNome: emp?.nome || '', empresaCnpj: emp?.cnpj || '', funcoes, totalItens },
+      local:   { inscricao: Inscricao.exibir(emp) },
+    };
   }
 
   /* Cria ou atualiza o doc do projeto no Firestore preservando respostas existentes.
@@ -352,15 +360,17 @@ const ConsultaAEP = (() => {
 
     App.mostrarToast('Gerando links… aguarde', 'info');
     try {
-      const projetos = [];
+      const itens = [];   /* { publico, local } — ver _criarTokenProjeto */
       for (const pid of projetoIds) {
         const r = await _criarTokenProjeto(pid, perfil);
-        if (r) projetos.push(r);
+        if (r) itens.push(r);
       }
-      if (!projetos.length) {
+      if (!itens.length) {
         App.mostrarToast('Nenhum projeto selecionado tem avaliações cadastradas', 'aviso');
         return;
       }
+      /* Só o dado PÚBLICO vai ao Firestore; o dado local fica apenas para o modal. */
+      const projetos = itens.map(r => r.publico);
 
       const grupoToken = _tokenGrupo(projetoIds, perfil);
       await firebase.firestore().collection(_COL_GRUPOS).doc(grupoToken).set({
@@ -373,17 +383,19 @@ const ConsultaAEP = (() => {
       });
 
       const link = `${_urlBase()}consulta.html?grupo=${grupoToken}`;
-      _mostrarModalGrupo(perfil, link, projetos);
+      _mostrarModalGrupo(perfil, link, itens);
     } catch (err) {
       App.mostrarToast('Erro ao gerar grupo: ' + err.message, 'erro');
     }
   }
 
-  /* Modal com link do grupo + lista de empresas incluídas */
-  function _mostrarModalGrupo(perfil, link, projetos) {
+  /* Modal com link do grupo + lista de empresas incluídas.
+     itens = [{ publico, local }]: a identificação vem de local.inscricao (Inscricao.exibir),
+     não de publico.empresaCnpj. */
+  function _mostrarModalGrupo(perfil, link, itens) {
     document.getElementById('modal-grupo-aep')?.remove();
     const label  = _PERFIL_LABEL[perfil];
-    const total  = projetos.length;
+    const total  = itens.length;
     const waMsg  = encodeURIComponent(
       `Olá! Preciso da sua colaboração para a Avaliação Ergonômica de ${total} empresa${total > 1 ? 's' : ''}.\n` +
       `Este link único cobre todas as empresas — basta acessar uma única vez:\n${link}`
@@ -412,11 +424,11 @@ const ConsultaAEP = (() => {
           <div style="border:1px solid var(--borda);border-radius:var(--r2);
                       padding:var(--s2) var(--s3);margin-bottom:var(--s4);
                       max-height:140px;overflow-y:auto">
-            ${projetos.map((p, i) => `
+            ${itens.map(({ publico: p, local }, i) => `
               <div style="font-size:var(--txt-xs);color:var(--texto-sec);padding:3px 0;
-                          ${i < projetos.length - 1 ? 'border-bottom:1px solid var(--borda)' : ''}">
+                          ${i < itens.length - 1 ? 'border-bottom:1px solid var(--borda)' : ''}">
                 <strong>${i + 1}.</strong> ${p.empresaNome}
-                ${p.empresaCnpj ? `<span style="opacity:.7"> — ${p.empresaCnpj}</span>` : ''}
+                ${local.inscricao.texto ? `<span style="opacity:.7"> — ${local.inscricao.texto}</span>` : ''}
               </div>
             `).join('')}
           </div>

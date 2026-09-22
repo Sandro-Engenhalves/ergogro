@@ -185,6 +185,11 @@ const ModuloProjeto = (() => {
     const respVal  = proj.responsavelTecnico   || perfil.responsavelTecnico   || '';
     const regVal   = proj.registroProfissional || perfil.registroProfissional || '';
     const cargoVal = proj.cargoResponsavel     || perfil.cargoResponsavel     || '';
+    /* Linha de identificação: "CPF: 000… · Cidade/UF". Partes vazias somem (sem "·" órfão). */
+    const linhaEmpresa = [
+      Inscricao.exibir(emp).texto,
+      emp?.cidade ? emp.cidade + (emp.estado ? '/' + emp.estado : '') : '',
+    ].filter(Boolean).join(' · ');
 
     return `
       <div class="container">
@@ -198,7 +203,7 @@ const ModuloProjeto = (() => {
           ${emp ? `
             <div style="font-size:var(--txt-base);font-weight:600">${emp.nome}</div>
             <div style="font-size:var(--txt-sm);color:var(--texto-sec);margin-top:var(--s1)">
-              ${emp.cnpj||''} ${emp.cidade ? '· '+emp.cidade+(emp.estado?'/'+emp.estado:'') : ''}
+              ${linhaEmpresa}
             </div>
           ` : `<div class="aviso-tecnico aviso" style="margin:0">
             <span>⚠️</span><span>Nenhuma empresa vinculada.</span>
@@ -1403,6 +1408,7 @@ Retorne APENAS o texto da conclusão, sem introdução, sem formatação especia
   function _htmlRelatorio(afpDados, soAEP = false) {
     const proj    = App.obterProjetoAtual();
     const emp     = Storage.buscarEmpresa(proj.empresaId);
+    const insc    = Inscricao.exibir(emp);   /* rótulo e valor da inscrição (CNPJ/CPF/CNO/CAEPF/CEI) */
     const setores = Storage.listarSetores(proj.id);
     const avs     = Storage.listarPorProjeto(proj.id);
     _nrProjetoAtual = `LAUDO-${(emp?.nome||proj.nome||'ERG').replace(/\s+/g,'').slice(0,4).toUpperCase()}-${new Date().getFullYear()}`;
@@ -1721,7 +1727,7 @@ Retorne APENAS o texto da conclusão, sem introdução, sem formatação especia
           </div>
           <table class="rpt-capa-tabela" style="margin-bottom:8mm">
             <tr><td class="rpt-capa-td-label">Empresa / Cliente</td><td>${emp?.nome || '—'}</td></tr>
-            <tr><td class="rpt-capa-td-label">CNPJ</td><td>${emp?.cnpj || '—'}</td></tr>
+            <tr><td class="rpt-capa-td-label">${insc.rotulo}</td><td>${insc.valor || '—'}</td></tr>
             <tr><td class="rpt-capa-td-label">Cidade / Estado</td><td>${[emp?.cidade, emp?.estado].filter(Boolean).join('/') || '—'}</td></tr>
             <tr><td class="rpt-capa-td-label">Data de Emissão</td><td>${_dataEmissao}</td></tr>
             <tr><td class="rpt-capa-td-label">Responsável Técnico</td><td>${proj.responsavelTecnico || '—'}</td></tr>
@@ -1824,7 +1830,7 @@ Retorne APENAS o texto da conclusão, sem introdução, sem formatação especia
             <table class="tabela-simples">
               <tbody>
                 <tr><td style="font-weight:600;width:40%">Empresa / Cliente</td><td style="text-align:left">${emp?.nome || '—'}</td></tr>
-                <tr><td style="font-weight:600">CNPJ</td><td style="text-align:left">${emp?.cnpj || '—'}</td></tr>
+                <tr><td style="font-weight:600">${insc.rotulo}</td><td style="text-align:left">${insc.valor || '—'}</td></tr>
                 <tr><td style="font-weight:600">Endereço</td><td style="text-align:left">${emp?.endereco || '—'}</td></tr>
                 <tr><td style="font-weight:600">Cidade / Estado</td><td style="text-align:left">${[emp?.cidade, emp?.estado].filter(Boolean).join(' / ') || '—'}</td></tr>
                 <tr><td style="font-weight:600">Projeto / Dossiê</td><td style="text-align:left">${proj.nome || '—'}</td></tr>

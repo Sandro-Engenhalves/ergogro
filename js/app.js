@@ -577,13 +577,14 @@ const App = (() => {
     const emp     = _empresaAtual;
     const projetos = Storage.listarProjetos().filter(p => p.empresaId === emp.id);
     const avs      = projetos.reduce((n, p) => n + Storage.listarPorProjeto(p.id).length, 0);
+    const insc     = Inscricao.exibir(emp);   /* CNPJ/CPF/CNO/CAEPF/CEI conforme o cadastro */
 
     el.innerHTML = `
       <div class="container" style="padding-top:var(--s4)">
 
         <!-- Info rápida da empresa -->
         <div class="card" style="margin-bottom:var(--s4)">
-          ${emp.cnpj ? `<div style="font-size:var(--txt-sm);color:var(--texto-sec)">CNPJ: ${emp.cnpj}</div>` : ''}
+          ${insc.texto ? `<div style="font-size:var(--txt-sm);color:var(--texto-sec)">${insc.texto}</div>` : ''}
           ${emp.cidade ? `<div style="font-size:var(--txt-sm);color:var(--texto-sec)">📍 ${emp.cidade}${emp.estado ? ' / ' + emp.estado : ''}</div>` : ''}
           <div style="display:flex;gap:var(--s4);margin-top:var(--s2)">
             <span style="font-size:var(--txt-sm)"><strong>${projetos.length}</strong> projeto(s)</span>
@@ -1042,12 +1043,14 @@ const App = (() => {
       porEmpresa[p.empresaId].lista.push(p);
     });
 
-    const empresasHTML = Object.values(porEmpresa).map(({ emp, lista }) => `
+    const empresasHTML = Object.values(porEmpresa).map(({ emp, lista }) => {
+      const insc = Inscricao.exibir(emp);   /* modal administrativo: rótulo + valor de qualquer tipo */
+      return `
       <div style="margin-bottom:var(--s4)">
         <div style="font-size:var(--txt-xs);font-weight:700;color:var(--texto-sec);
                     margin-bottom:var(--s2);letter-spacing:.04em">
           ${emp?.nome || 'Empresa'}
-          ${emp?.cnpj ? `<span style="font-weight:400;opacity:.7"> — ${emp.cnpj}</span>` : ''}
+          ${insc.texto ? `<span style="font-weight:400;opacity:.7"> — ${insc.texto}</span>` : ''}
         </div>
         ${lista.map(p => {
           const avs = Storage.listarPorProjeto(p.id).length;
@@ -1068,7 +1071,8 @@ const App = (() => {
           `;
         }).join('')}
       </div>
-    `).join('');
+    `;
+    }).join('');
 
     document.body.insertAdjacentHTML('beforeend', `
       <div id="modal-links-grupo" class="modal-overlay">

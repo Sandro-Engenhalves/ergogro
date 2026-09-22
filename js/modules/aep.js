@@ -1573,6 +1573,12 @@ Retorne APENAS o texto da justificativa, sem introdução, sem formatação espe
     const _responsavel = av.empresa?.responsavelTecnico || '';
     const _registro    = av.empresa?.registroProfissional || '';
 
+    /* Inscrição do cliente (CNPJ/CPF/CNO/CAEPF/CEI): o snapshot av.empresa só guarda `cnpj`
+       (sem tipoInscricao/numeroInscricao), então a identificação vem da empresa ATUAL por
+       av.empresaId; sem ela (empresaId ausente ou empresa não encontrada) cai no snapshot legado.
+       Só a inscrição usa a empresa atual — nome, data e responsável seguem no snapshot av.empresa. */
+    const insc = Inscricao.exibir((av.empresaId && Storage.buscarEmpresa(av.empresaId)) || av.empresa || {});
+
     /* Resumo por bloco para a tabela */
     const blocoResumoHTML = ORDEM_BLOCOS.map(chave => {
       const bloco = BLOCOS[chave];
@@ -1801,7 +1807,7 @@ Retorne APENAS o texto da justificativa, sem introdução, sem formatação espe
             <table class="tabela-simples">
               <tbody>
                 <tr><td style="font-weight:600;width:40%">Empresa / Cliente</td><td>${av.empresa?.nome || '—'}</td></tr>
-                <tr><td style="font-weight:600">CNPJ</td><td>${av.empresa?.cnpj || '—'}</td></tr>
+                <tr><td style="font-weight:600">${insc.rotulo}</td><td>${insc.valor || '—'}</td></tr>
                 <tr><td style="font-weight:600">Setor Avaliado</td><td>${av.setor || '—'}</td></tr>
                 <tr><td style="font-weight:600">Função Avaliada</td><td>${av.funcao || '—'}</td></tr>
                 <tr><td style="font-weight:600">Nº de Trabalhadores</td><td>${av.numTrabalhadores || '—'}</td></tr>

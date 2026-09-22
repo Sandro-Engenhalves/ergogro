@@ -324,5 +324,26 @@ const Inscricao = (() => {
     return validar('cnpj', o.numero).nivel === 'valido' ? _mascarar('cnpj', o.numero) : '';
   }
 
-  return Object.freeze({ tipos, normalizar, formatar, validar, rotulo, obter, aplicar, campos, chave, publico });
+  /* ─────────────────────────────────────────────────────────
+     API — EXIBIÇÃO INTERNA (telas, relatórios, impressão)
+  ───────────────────────────────────────────────────────── */
+
+  /* Apresentação da inscrição para superfícies INTERNAS. Só compõe obter() e
+     rotulo(): não normaliza, não mascara e não valida por conta própria.
+     Devolve { tipo, rotulo, valor, texto, vazio }:
+       rotulo : 'CNPJ' | 'CPF' | 'CNO' | 'CAEPF' | 'CEI' (curto)
+       valor  : número formatado; '' se vazio
+       texto  : 'CPF: 529.982.247-25'; '' se vazio (o chamador decide se mostra '—')
+       vazio  : true quando não há inscrição informada
+     Legado sem tipoInscricao é lido como CNPJ (via obter). Dado legado inválido ou
+     não normalizável NÃO é ocultado: valor traz o texto original (como obter().formatado).
+     NÃO serve para superfícies públicas/externas — para elas use publico(). */
+  function exibir(emp) {
+    const o = obter(emp);
+    const r = rotulo(o.tipo, true);
+    const valor = o.vazio ? '' : o.formatado;
+    return { tipo: o.tipo, rotulo: r, valor, texto: o.vazio ? '' : `${r}: ${valor}`, vazio: o.vazio };
+  }
+
+  return Object.freeze({ tipos, normalizar, formatar, validar, rotulo, obter, aplicar, campos, chave, publico, exibir });
 })();
