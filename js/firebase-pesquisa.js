@@ -78,6 +78,64 @@ function _db_() {
   return _db;
 }
 
+/* S3F1.5A.7 — App Firebase NOMEADO, exclusivo do fluxo FMI autenticado
+   do trabalhador. pesquisa.html e index.html compartilham o mesmo
+   projeto/config e a mesma origem — sem isolamento, uma sessao Auth
+   por Custom Token (FMI) ficaria persistida no MESMO armazenamento que
+   a sessao Google do administrativo (js/firebase-auth.js, app default),
+   podendo "vazar" de uma pagina para a outra no mesmo navegador (achado
+   registrado no GATE S3F1.5A.4/S3F1.5A.6).
+
+   A chave de persistencia do Firebase Auth (IndexedDB/localStorage)
+   inclui o NOME do app, nao so o apiKey/projectId — por isso um app
+   nomeado (diferente do app default "[DEFAULT]" usado pelo
+   administrativo) ja basta para isolar completamente o armazenamento
+   das duas sessoes, mesmo com a mesma config e a mesma origem. Alem
+   disso, a sessao FMI usa persistencia NONE (a identidade nao depende
+   da sessao Auth sobrevivendo a nada — e sempre reconstruida via
+   callable a partir de campanhaId+CPF, GATE S3F1.5A.7 secao 3), entao
+   nem chega a escrever em disco.
+
+   NUNCA usar firebase.auth()/firebase.firestore()/firebase.functions()
+   (app default) para o fluxo do trabalhador — isso e reservado ao
+   administrativo (js/firebase-auth.js, js/modules/pesquisa-admin.js). */
+const NOME_APP_FMI = 'ergogro-fmi';
+let _appFmi = null;
+let _authFmi = null;
+let _dbFmi = null;
+let _functionsFmi = null;
+
+function _appFmi_() {
+  if (!firebaseConfigurado()) throw new Error('Firebase não configurado. Preencha FIREBASE_CONFIG em js/firebase-pesquisa.js');
+  if (typeof firebase === 'undefined') throw new Error('Firebase não configurado. Preencha FIREBASE_CONFIG em js/firebase-pesquisa.js');
+  if (!_appFmi) {
+    const existente = firebase.apps.find(a => a.name === NOME_APP_FMI);
+    _appFmi = existente || firebase.initializeApp(FIREBASE_CONFIG, NOME_APP_FMI);
+  }
+  return _appFmi;
+}
+
+/* Persistencia NONE definida uma unica vez, antes de qualquer
+   signInWithCustomToken — setPersistence() so afeta autenticacoes
+   futuras na mesma instancia. */
+let _persistenciaFmiDefinida = false;
+async function _authFmi_() {
+  if (!_authFmi) _authFmi = _appFmi_().auth();
+  if (!_persistenciaFmiDefinida) {
+    await _authFmi.setPersistence(firebase.auth.Auth.Persistence.NONE);
+    _persistenciaFmiDefinida = true;
+  }
+  return _authFmi;
+}
+function _dbFmi_() {
+  if (!_dbFmi) _dbFmi = _appFmi_().firestore();
+  return _dbFmi;
+}
+function _functionsFmi_() {
+  if (!_functionsFmi) _functionsFmi = _appFmi_().functions();
+  return _functionsFmi;
+}
+
 /* ─────────────────────────────────────────────────────────
    HASH DE CPF (SHA-256 + salt)
    CPF nunca é armazenado em texto puro.
@@ -210,6 +268,14 @@ async function importarCPFs(campanhaId, linhas) {
 }
 
 
+/* NAO USADA MAIS PELO FLUXO REAL DO TRABALHADOR (S3F1.5A.3) — o caminho
+   novo (localizarOuCriarRespostaFmi + autenticarComCustomToken +
+   buscarRespostaPorId, mais abaixo) substitui verificarCPF/
+   buscarRespostaPorHash/criarOuCarregarResposta em js/pesquisa.js.
+   Mantidas aqui por não terem sido mapeadas com nenhum outro consumidor
+   no restante do código (nem administrativo, nem testes) — ver
+   relatório do GATE S3F1.5A.3, seção N/R. Removê-las pertence a uma
+   limpeza futura, fora do escopo desta microetapa. */
 /* Verifica se CPF está autorizado e retorna dados de controle */
 async function verificarCPF(campanhaId, cpf) {
   if (!validarCPF(cpf)) return { autorizado: false, motivo: 'cpf_invalido' };
@@ -270,15 +336,59 @@ async function criarOuCarregarResposta(campanhaId, cpfHash, setor) {
   return { id: ref.id, ...nova };
 }
 
+/* ─────────────────────────────────────────────────────────
+   FLUXO FMI AUTENTICADO (S3F1.5A.3)
+   CPF → callable localizarOuCriarResposta (HMAC/UID server-side,
+   S3F1.4/S3F1.5A.1) → Custom Token → signInWithCustomToken → get direto
+   da resposta por ID. Substitui verificarCPF/buscarRespostaPorHash/
+   criarOuCarregarResposta no caminho real do trabalhador. Não calcula
+   cpfHash, não faz create direto, não incrementa totalRespostas — tudo
+   isso agora é responsabilidade exclusiva do backend.
+───────────────────────────────────────────────────────── */
+
+/* Payload estrito {campanhaId, cpf} — igual ao contrato validado pela
+   Function (campo extra é rejeitado como invalid-argument). Repassa
+   HttpsError do backend (err.code/err.message) sem tratamento aqui —
+   quem trata é o chamador (psContinuar), que mapeia para mensagem
+   amigável. */
+async function localizarOuCriarRespostaFmi(campanhaId, cpf) {
+  const chamar = _functionsFmi_().httpsCallable('localizarOuCriarResposta');
+  const res = await chamar({ campanhaId, cpf });
+  return res.data; /* { ok, etapa, respostaId, customToken, setor } */
+}
+
+/* Autentica o Custom Token emitido pela callable, na instancia Auth do
+   app FMI NOMEADO (S3F1.5A.7) — nunca no app default (esse e do
+   administrativo). A partir daqui, request.auth.uid (Firestore Rules)
+   passa a ser o uid FMI estavel daquela campanha+CPF — e isso que
+   autoriza o get()/update() direto por ID feitos a seguir. */
+async function autenticarComCustomToken(customToken) {
+  const auth = await _authFmi_();
+  const cred = await auth.signInWithCustomToken(customToken);
+  return cred.user.uid;
+}
+
+/* Leitura direta por ID — nunca list/query. A propriedade (uid do
+   token == uid do documento) é garantida pelas Firestore Rules
+   (isDonoDaResposta(), S3F1.5A.2); esta função não reimplementa
+   nenhuma autorização própria baseada em cpfHash. Usa o Firestore do
+   app FMI (S3F1.5A.7) — precisa ser a MESMA app cujo Auth autenticou o
+   Custom Token, senao request.auth chegaria vazio nas Rules. */
+async function buscarRespostaPorId(respostaId) {
+  const doc = await _dbFmi_().collection('ergogro_respostas').doc(respostaId).get();
+  if (!doc.exists) return null;
+  return { id: doc.id, ...doc.data() };
+}
+
 async function salvarRascunho(respostaId, respostasAtuais) {
-  await _db_().collection('ergogro_respostas').doc(respostaId).update({
+  await _dbFmi_().collection('ergogro_respostas').doc(respostaId).update({
     respostas:    respostasAtuais,
     atualizadaEm: firebase.firestore.FieldValue.serverTimestamp(),
   });
 }
 
 async function finalizarResposta(respostaId, respostasFinais) {
-  await _db_().collection('ergogro_respostas').doc(respostaId).update({
+  await _dbFmi_().collection('ergogro_respostas').doc(respostaId).update({
     respostas:     respostasFinais,
     status:        'finalizada',
     finalizadaEm:  firebase.firestore.FieldValue.serverTimestamp(),

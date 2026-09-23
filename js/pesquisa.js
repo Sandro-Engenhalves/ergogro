@@ -9,9 +9,9 @@
   const _estado = {
     campanhaId:  null,
     campanha:    null,
-    cpfHash:     null,
     setor:       '',
     respostaId:  null,
+    status:      null,  /* 'rascunho' | 'finalizada' — vem do backend (S3F1.5A.3) */
     respostas:   {},    /* {questaoId: valor} */
     indice:      0,     /* pergunta atual (0-based) */
     todas:       [],    /* lista plana de todas as perguntas */
@@ -361,46 +361,62 @@
      AÇÕES GLOBAIS (chamadas pelo HTML via onclick)
   ══════════════════════════════════════════════════════════ */
 
-  /* Valida CPF e carrega/cria resposta */
+  /* Mapeia HttpsError da callable localizarOuCriarResposta (S3F1.5A.1)
+     para mensagem amigável — nunca expõe err.message bruto (que é
+     controlado pelo backend, mas por princípio de defesa em profundidade
+     não repassamos texto interno direto ao trabalhador). */
+  function _mensagemErroFmi(e) {
+    const msgs = {
+      'functions/invalid-argument':  'CPF inválido. Verifique os números e tente novamente.',
+      'functions/not-found':         'Pesquisa não encontrada.',
+      'functions/permission-denied': 'Este CPF não está na lista de participantes desta pesquisa.',
+    };
+    return msgs[e && e.code] || 'Erro ao verificar. Verifique sua conexão e tente novamente.';
+  }
+
+  /* Valida CPF, autentica via Custom Token FMI e carrega a resposta
+     (S3F1.5A.3 — fluxo real: CPF → callable → respostaId/customToken/
+     setor → signInWithCustomToken → get direto por ID). Não usa mais
+     verificarCPF/criarOuCarregarResposta (query por cpfHash, create
+     direto client-side) nem calcula cpfHash no cliente. */
   window.psContinuar = async function () {
     const input = document.getElementById('ps-cpf');
     if (!input) return;
     const cpf = input.value.replace(/\D/g, '');
     if (cpf.length !== 11) return;
 
+    /* Checagem local de formato — só UX (feedback instantâneo sem rede);
+       o backend revalida o dígito verificador de qualquer forma e é a
+       única fonte de verdade sobre autorização. */
+    if (!validarCPF(cpf)) {
+      return _renderizarEntradaCPF('CPF inválido. Verifique os números e tente novamente.');
+    }
+
     _renderizarValidando();
 
     try {
-      const resultado = await verificarCPF(_estado.campanhaId, cpf);
+      const { respostaId, customToken, setor } = await localizarOuCriarRespostaFmi(_estado.campanhaId, cpf);
 
-      if (!resultado.autorizado) {
-        const msgs = {
-          cpf_invalido:            'CPF inválido. Verifique os números e tente novamente.',
-          campanha_nao_encontrada: 'Pesquisa não encontrada.',
-          encerrada:               'Esta pesquisa já foi encerrada.',
-          nao_autorizado:          'Este CPF não está na lista de participantes desta pesquisa.',
-        };
-        return _renderizarEntradaCPF(msgs[resultado.motivo] || 'Acesso não permitido.');
+      /* Autenticação ANTES de qualquer acesso a ergogro_respostas — as
+         Rules exigem request.auth.uid == resource.data.uid (S3F1.5A.2). */
+      await autenticarComCustomToken(customToken);
+
+      const resp = await buscarRespostaPorId(respostaId);
+      if (!resp) {
+        return _renderizarEntradaCPF('Erro ao carregar sua pesquisa. Tente novamente.');
       }
 
-      _estado.cpfHash = resultado.hash;
-      _estado.setor   = resultado.setor || '';
-
-      /* Carrega ou cria resposta */
-      const resp = await criarOuCarregarResposta(
-        _estado.campanhaId,
-        _estado.cpfHash,
-        _estado.setor
-      );
-      _estado.respostaId = resp.id;
+      _estado.respostaId = respostaId;
+      _estado.setor      = setor || '';
+      _estado.status     = resp.status || 'rascunho';
       _estado.respostas  = resp.respostas || {};
 
-      const jaRespondeu = resp.status === 'finalizada';
+      const jaRespondeu = _estado.status === 'finalizada';
       _renderizarInstrucao(jaRespondeu);
 
     } catch (e) {
       console.error(e);
-      _renderizarEntradaCPF('Erro ao verificar. Verifique sua conexão e tente novamente.');
+      _renderizarEntradaCPF(_mensagemErroFmi(e));
     }
   };
 
@@ -451,6 +467,15 @@
   };
 
   /* Envio final */
+  /* S3F1.5A.3 — proteção contra refinalização indevida: as Rules FMI
+     (S3F1.5A.2) só permitem a transição rascunho -> finalizada; uma
+     segunda finalização (finalizadaEm mudando sem o status realmente
+     transicionar) é corretamente negada. _estado.status (carregado do
+     backend em psContinuar) diz se a resposta JÁ está finalizada. Se
+     estiver, usamos o MESMO caminho já comprovado pelos testes de Rules
+     para "alterar respostas após enviar" — salvarRascunho() (só
+     respostas + atualizadaEm, sem tocar status/finalizadaEm) — em vez
+     de fabricar uma nova transição de status. */
   window.psEnviar = async function () {
     if (!_estado.respostaId) return;
 
@@ -458,7 +483,12 @@
     if (btn) { btn.disabled = true; btn.textContent = 'Enviando...'; }
 
     try {
-      await finalizarResposta(_estado.respostaId, { ..._estado.respostas });
+      if (_estado.status === 'finalizada') {
+        await salvarRascunho(_estado.respostaId, { ..._estado.respostas });
+      } else {
+        await finalizarResposta(_estado.respostaId, { ..._estado.respostas });
+        _estado.status = 'finalizada';
+      }
       _renderizarConfirmacao();
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (e) {

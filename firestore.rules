@@ -19,6 +19,70 @@ service cloud.firestore {
              .data.adminEmail == request.auth.token.email;
     }
 
+    // ── Helpers GATE 4.S2-R (primeira camada — pesquisa/consulta públicas) ──
+    // ergogro_campanhas: update público restrito ao incremento atômico de
+    // totalRespostas em exatamente +1 (nenhum outro campo pode mudar junto).
+    function _totalRespostasIncrementoValido() {
+      return resource.data.totalRespostas is int
+        && request.resource.data.totalRespostas is int
+        && request.resource.data.totalRespostas == resource.data.totalRespostas + 1
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['totalRespostas']);
+    }
+
+    // ── S3F1.5A.2 — Propriedade FMI por UID ──────────────────────────
+    // Identidade do respondente FMI = request.auth.uid (Custom Token emitido
+    // pela callable localizarOuCriarResposta via Admin SDK, S3F1.4/S3F1.5A.1).
+    // NAO usa cpfHash/setor/e-mail/prefixo do uid como prova de posse — so a
+    // igualdade exata request.auth.uid == resource.data.uid. Documento
+    // legado sem "uid" (fluxo pre-FMI) NUNCA satisfaz esta funcao: checar
+    // "resource.data.uid is string" antes de comparar avalia para false com
+    // seguranca quando o campo nao existe (nao lanca erro de campo ausente).
+    function isDonoDaResposta() {
+      return request.auth != null
+        && resource.data.uid is string
+        && resource.data.uid == request.auth.uid;
+    }
+
+    // ergogro_respostas: update do FMI dono — cobre salvarRascunho() (respostas +
+    // atualizadaEm) e finalizarResposta() (+ status/finalizadaEm), agora
+    // condicionado a isDonoDaResposta() em vez de ser publico. campanhaId/
+    // uid/cpfHash/setor/iniciadaEm sao imutaveis; unica transicao de status
+    // permitida e rascunho -> finalizada.
+    function _respostaUpdateFmiValida() {
+      let diffKeys = request.resource.data.diff(resource.data).affectedKeys();
+      let statusMudou = 'status' in diffKeys;
+      return isDonoDaResposta()
+        && request.resource.data.uid        == resource.data.uid
+        && request.resource.data.campanhaId == resource.data.campanhaId
+        && request.resource.data.cpfHash    == resource.data.cpfHash
+        && request.resource.data.setor      == resource.data.setor
+        && request.resource.data.iniciadaEm == resource.data.iniciadaEm
+        && diffKeys.hasOnly(['respostas','status','finalizadaEm','atualizadaEm'])
+        && request.resource.data.respostas is map
+        && (!statusMudou || (
+             resource.data.status == 'rascunho'
+             && request.resource.data.status == 'finalizada'
+           ))
+        && (('finalizadaEm' in diffKeys) == statusMudou)
+        && (!('finalizadaEm' in diffKeys) || request.resource.data.finalizadaEm == request.time)
+        && (!('atualizadaEm'  in diffKeys) || request.resource.data.atualizadaEm  == request.time);
+    }
+
+    // ergogro_consultas_aep: update público — espelha exatamente os 4 campos
+    // gravados pelo modo respondente em js/consulta-aep.js (_submeter,
+    // _submeterMulti, _submeterProjetoGrupo). respondidaEm é string ISO
+    // client-side (new Date().toISOString()) — NÃO usa serverTimestamp.
+    function _consultaUpdateValida() {
+      let diffKeys = request.resource.data.diff(resource.data).affectedKeys();
+      return resource.data.status == 'pendente'
+        && diffKeys.hasOnly(['respostas','status','respondidaEm','respondidoPor'])
+        && diffKeys.hasAll(['respostas','status','respondidaEm','respondidoPor'])
+        && request.resource.data.status == 'respondida'
+        && request.resource.data.respostas is map
+        && request.resource.data.respondidaEm  is string
+        && request.resource.data.respondidoPor is string;
+    }
+
     // ── Config de acesso ───────────────────────────────────
     // Qualquer autenticado pode ler (para verificar própria auth).
     // Criação: permitida uma vez, quando o doc ainda não existe.
@@ -31,15 +95,62 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
-    // ── Pesquisa psicossocial anônima ──────────────────────
-    // Públicas: trabalhadores respondem via QR Code sem login.
-    match /ergogro_campanhas/{id} { allow read, write: if true; }
-    match /ergogro_respostas/{id} { allow read, write: if true; }
+    // ── Pesquisa psicossocial anônima — GATE 4.S2-R (endurecido) ───────────
+    // Trabalhadores respondem via QR Code/link, sem login (request.auth == null).
+    // Primeira camada: elimina list/delete/create públicos e restringe update
+    // público aos campos estritamente necessários a cada fluxo real.
+    match /ergogro_campanhas/{id} {
+      allow get:    if true;
+      allow list:   if isAutorizado();
+      allow create: if isAutorizado();
+      allow delete: if isAutorizado();
+      allow update: if isAutorizado() || _totalRespostasIncrementoValido();
+    }
 
-    // ── Consulta AEP (link para respondente externo) ───────
-    // Públicas: respondentes externos acessam sem login via link.
-    match /ergogro_consultas_aep/{id} { allow read, write: if true; }
-    match /ergogro_grupos_aep/{id}    { allow read, write: if true; }
+    // NÃO RESOLVIDO nesta camada (herança do GATE 4.S2-R, ainda válida): a
+    // query real de buscarRespostaPorHash() (campanhaId==X && cpfHash==Y,
+    // limit 1) não pode ser distinguida por Rules de uma listagem
+    // irrestrita — Rules não têm acesso às cláusulas where() de uma query
+    // (request.query só expõe limit/offset/orderBy). Por isso list público
+    // permanece NEGADO — o fluxo FMI nunca precisa de list: recebe
+    // respostaId diretamente da callable e usa get() (ver isDonoDaResposta()).
+    //
+    // MUDANÇA DE CONTRATO (GATE S3F1.5A.2 — ver relatório, seção I): create/
+    // update públicos do GATE 4.S2-R original (_respostaCreateValida/
+    // _respostaUpdateValida) foram RETIRADOS desta coleção. A criação real
+    // agora é EXCLUSIVAMENTE server-side via Admin SDK (callable
+    // localizarOuCriarResposta, que ignora Rules por design do Firebase) —
+    // não há mais necessidade de um caminho de create público. Manter
+    // update público coexistindo com isDonoDaResposta() permitiria que
+    // qualquer requisição SEM autenticação escrevesse em qualquer resposta
+    // cujo schema combinasse, tornando a propriedade por UID inefetiva —
+    // por isso o caminho público de update também foi retirado, não apenas
+    // complementado.
+    match /ergogro_respostas/{id} {
+      allow get:    if isAutorizado() || isDonoDaResposta();
+      allow list:   if isAutorizado();
+      allow create: if isAutorizado();
+      allow update: if isAutorizado() || _respostaUpdateFmiValida();
+      allow delete: if isAutorizado();
+    }
+
+    // ── Consulta AEP (link para respondente externo) ────────────────────
+    // Respondentes externos acessam sem login via link (token/document ID).
+    match /ergogro_consultas_aep/{id} {
+      allow get:    if true;
+      allow list:   if isAutorizado();
+      allow create: if isAutorizado();
+      allow delete: if isAutorizado();
+      allow update: if isAutorizado() || _consultaUpdateValida();
+    }
+
+    match /ergogro_grupos_aep/{id} {
+      allow get:    if true;
+      allow list:   if isAutorizado();
+      allow create: if isAutorizado();
+      allow update: if isAutorizado();
+      allow delete: if isAdmin();
+    }
 
     // ── Dados de laudos (equipe compartilhada) ─────────────
     // Qualquer usuário autorizado pode ler e escrever.
