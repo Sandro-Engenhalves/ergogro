@@ -118,7 +118,7 @@ test('guarda estática: nome, data, responsável e registro continuam vindo do s
 
 test('guarda estática: cache-busting de aep.js e nenhuma outra página o carrega', () => {
   const idx = ler('index.html');
-  assert.equal((idx.match(/js\/modules\/aep\.js\?v=(\w+)/) || [])[1], '12');
+  assert.equal((idx.match(/js\/modules\/aep\.js\?v=(\w+)/) || [])[1], '13');
   for (const html of ['consulta.html', 'pesquisa.html']) assert.doesNotMatch(ler(html), /modules\/aep\.js/);
 });
 

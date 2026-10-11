@@ -140,7 +140,7 @@ test('guarda estática: cache-busting coerente (inscricao/app/projeto/consulta-a
   const idx = ler('index.html'), cons = ler('consulta.html');
   const v = (html, arq) => (html.match(new RegExp(`${arq.replace(/[.]/g, '\\.')}\\?v=([\\w]+)`)) || [])[1];
   assert.equal(v(idx, 'js/inscricao.js'), '2');
-  assert.equal(v(idx, 'js/app.js'), '13');
+  assert.equal(v(idx, 'js/app.js'), '14');
   /* projeto.js foi bumpado na M2 (260706 → 260921) e de novo na M3A; aqui basta exigir que
      saiu da versão do HEAD (o valor exato atual é verificado em m3a-aet-projeto.test.js). */
   assert.notEqual(v(idx, 'js/modules/projeto.js'), '260706', 'projeto.js deve ter sido bumpado desde o HEAD');
@@ -249,7 +249,7 @@ function htmlVisaoGeral(emp) {
      })`, ctx);
   return fabrica(
     { obterProjetoAtual: () => ({ empresaId: 'e1', nome: 'Proj' }) },
-    { buscarEmpresa: () => emp },
+    { buscarEmpresa: () => emp, listarAcoesSistemicas: () => [] },
     () => ({})
   )();
 }

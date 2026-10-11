@@ -99,7 +99,7 @@ test('guarda estática: cache-busting de aet.js e projeto.js (novo bump, distint
   /* aet.js foi bumpado na M3A (7 → 8) e de novo no M3C; aqui basta exigir que saiu da versão do HEAD
      (o valor exato atual é verificado em m3c-aet-nome.test.js). */
   assert.notEqual(v('js/modules/aet.js'), '7', 'aet.js deve ter sido bumpado desde o HEAD');
-  assert.equal(v('js/modules/projeto.js'), '260921b');
+  assert.equal(v('js/modules/projeto.js'), '261011a');
   assert.notEqual(v('js/modules/projeto.js'), '260921', 'não reutilizar a versão da M2');
   /* nenhuma outra página carrega esses módulos */
   for (const html of ['consulta.html', 'pesquisa.html']) assert.doesNotMatch(ler(html), /aet\.js|projeto\.js/);
@@ -198,7 +198,7 @@ function relatorioProjeto(emp) {
   const proj = { id: 'p1', empresaId: 'e1', tipo: 'aep', nome: 'Projeto X' };
   const mod = carregar(ARQ.projeto, ['_htmlRelatorio'], {
     App:        { obterProjetoAtual: () => proj },
-    Storage:    { buscarEmpresa: () => emp, listarSetores: () => [], listarPorProjeto: () => [], listarFuncoes: () => [] },
+    Storage:    { buscarEmpresa: () => emp, listarSetores: () => [], listarPorProjeto: () => [], listarFuncoes: () => [], listarAcoesSistemicas: () => [] },
     ModuloAEP:  { calcularRiscoGeral: () => ({}) },
     document:   { getElementById: () => null, addEventListener() {} },
     window:     { addEventListener() {} },

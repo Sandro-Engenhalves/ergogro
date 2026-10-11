@@ -258,7 +258,8 @@ const App = (() => {
     return lista.map(p => {
       const emp       = Storage.buscarEmpresa(p.empresaId);
       const avs       = Storage.listarPorProjeto(p.id);
-      const acoesPend = avs.reduce((n, a) => n + (a.planoAcao?.filter(x => x.status==='pendente').length || 0), 0);
+      const acoesPend = avs.reduce((n, a) => n + (a.planoAcao?.filter(x => x.status==='pendente').length || 0), 0)
+        + (p.planoAcaoSistemico || []).filter(x => x.status==='pendente').length; /* sistêmicas: contadas uma vez */
       return `
         <div class="item-projeto" onclick="App.abrirProjeto('${p.id}')">
           <div class="item-projeto-icon">📁</div>

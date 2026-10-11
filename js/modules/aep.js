@@ -2014,19 +2014,42 @@ Retorne APENAS o texto da justificativa, sem introdução, sem formatação espe
         </div>
 
         <!-- 11. Plano de Ação -->
-        ${av.planoAcao?.length > 0 ? (() => {
+        ${(av.planoAcao?.length > 0 || _acoesSistemicasDoProjeto(av).length > 0) ? (() => {
           const PRIO_COR  = { alta: '#f44336', media: '#ff9800', baixa: '#4caf50' };
           const PRIO_L    = { alta: 'Alta', media: 'Média', baixa: 'Baixa' };
           const STATUS_L  = { pendente: 'Pendente', em_andamento: 'Em andamento', concluido: 'Concluído' };
           const MEDIDA_L  = { engenharia: 'Engenharia', administrativa: 'Administrativa', organizacional: 'Organizacional', epi: 'EPI/EPC' };
+          /* Sistêmicas do projeto: aplicáveis a esta função, listadas à parte (não entram na contagem específica) */
+          const acoesSis = _acoesSistemicasDoProjeto(av);
+          const planoEsp = av.planoAcao || [];
           return `
           <div class="relatorio-secao">
-            <h3>11. Plano de Ação (${av.planoAcao.length} ação(ões))</h3>
-            <div style="overflow-x:auto">
+            <h3>11. Plano de Ação (${planoEsp.length} ação(ões))</h3>
+            ${acoesSis.length > 0 ? `
+            <div style="font-size:var(--txt-xs);font-weight:700;margin:var(--s2) 0">SISTÊMICA — TODAS AS FUNÇÕES (${acoesSis.length}) · aplicáveis também a esta função</div>
+            <div style="overflow-x:auto;margin-bottom:var(--s3)">
               <table class="tabela-simples">
                 <thead><tr><th>#</th><th>Ação / Recomendação</th><th>Tipo de Medida</th><th>Prioridade</th><th>Responsável</th><th>Prazo</th><th>Status</th></tr></thead>
                 <tbody>
-                  ${av.planoAcao.map((a, i) => `
+                  ${acoesSis.map((a, i) => `
+                    <tr>
+                      <td>S${i+1}</td>
+                      <td style="font-size:var(--txt-xs)">${a.descricao || '—'}</td>
+                      <td style="font-size:var(--txt-xs)">${MEDIDA_L[a.medida] || '—'}</td>
+                      <td><span style="font-weight:700;color:${PRIO_COR[a.prioridade]||'#888'};font-size:var(--txt-xs)">${PRIO_L[a.prioridade]||a.prioridade||'—'}</span></td>
+                      <td style="font-size:var(--txt-xs)">${a.responsavel || '—'}</td>
+                      <td style="font-size:var(--txt-xs)">${_formatarData(a.prazo)}</td>
+                      <td style="font-size:var(--txt-xs)">${STATUS_L[a.status]||a.status||'—'}</td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>` : ''}
+            ${planoEsp.length > 0 ? `<div style="overflow-x:auto">
+              <table class="tabela-simples">
+                <thead><tr><th>#</th><th>Ação / Recomendação</th><th>Tipo de Medida</th><th>Prioridade</th><th>Responsável</th><th>Prazo</th><th>Status</th></tr></thead>
+                <tbody>
+                  ${planoEsp.map((a, i) => `
                     <tr>
                       <td>${i+1}</td>
                       <td style="font-size:var(--txt-xs)">${a.descricao || '—'}</td>
@@ -2039,7 +2062,7 @@ Retorne APENAS o texto da justificativa, sem introdução, sem formatação espe
                   `).join('')}
                 </tbody>
               </table>
-            </div>
+            </div>` : ''}
           </div>`;
         })() : ''}
 
@@ -2189,6 +2212,12 @@ Retorne APENAS o texto da justificativa, sem introdução, sem formatação espe
       <span style="color:var(--texto-sec);font-size:var(--txt-sm);width:160px;flex-shrink:0">${label}</span>
       <span style="font-size:var(--txt-sm);font-weight:500">${valor}</span>
     </div>`;
+  }
+
+  /* Ações sistêmicas (todas as funções) do projeto desta avaliação — somente leitura */
+  function _acoesSistemicasDoProjeto(av) {
+    try { return (av && av.projetoId && Storage.listarAcoesSistemicas?.(av.projetoId)) || []; }
+    catch { return []; }
   }
 
   function _formatarData(iso) {

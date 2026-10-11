@@ -39,6 +39,27 @@ const ModuloPlano = (() => {
       });
     });
 
+    /* Ações sistêmicas (todas as funções): UMA entrada por ação, nível projeto.
+       Não pertencem a um tipo de avaliação, então somem quando há filtro por tipo. */
+    projetos.forEach(proj => {
+      const emp = Storage.buscarEmpresa(proj.empresaId);
+      Storage.listarAcoesSistemicas(proj.id).forEach(acao => {
+        todas.push({
+          ...acao,
+          _avId:      '',
+          _sistemica: true,
+          _projetoId: proj.id,
+          _empresaId: proj.empresaId || '',
+          _tipo:      'sistemico',
+          _projeto:   proj.nome || '',
+          _empresa:   emp?.nome || '',
+          _setor:     '',
+          _funcao:    '',
+          _tipoLabel: 'SISTÊMICA — TODAS AS FUNÇÕES'
+        });
+      });
+    });
+
     /* Aplica filtros */
     let filtradas = todas;
     if (filtroEmpresaId) filtradas = filtradas.filter(a => a._empresaId === filtroEmpresaId);
@@ -85,7 +106,7 @@ const ModuloPlano = (() => {
             <div style="margin-top:var(--s3);display:flex;gap:var(--s2);flex-wrap:wrap">
               ${['pendente','em_andamento','concluido'].map(s => `
                 <button class="btn btn-sm ${acao.status===s?'btn-primario':'btn-secundario'}"
-                        onclick="ModuloPlano.alterarStatusGeral('${acao._avId}','${acao.id}','${s}')">
+                        onclick="ModuloPlano.alterarStatusGeral('${acao._sistemica ? '@sistemica' : acao._avId}','${acao.id}','${s}','${acao._projetoId}')">
                   ${STATUS_L[s]}
                 </button>
               `).join('')}
@@ -114,6 +135,7 @@ const ModuloPlano = (() => {
               <option value="aep"          ${filtroTipo==='aep'?'selected':''}>AEP</option>
               <option value="psicossocial" ${filtroTipo==='psicossocial'?'selected':''}>Psicossocial</option>
               <option value="aet"          ${filtroTipo==='aet'?'selected':''}>AET</option>
+              <option value="sistemico"    ${filtroTipo==='sistemico'?'selected':''}>Sistêmicas</option>
             </select>
           </div>
         </div>
@@ -181,7 +203,16 @@ const ModuloPlano = (() => {
         `).join('');
   }
 
-  function alterarStatusGeral(avId, acaoId, novoStatus) {
+  function alterarStatusGeral(avId, acaoId, novoStatus, projetoId) {
+    if (avId === '@sistemica') {
+      /* Ação sistêmica: vive em proj.planoAcaoSistemico[] */
+      const proj  = Storage.buscarProjeto(projetoId);
+      const acaoS = proj?.planoAcaoSistemico?.find(a => a.id === acaoId);
+      if (acaoS) { acaoS.status = novoStatus; Storage.salvarProjeto(proj); }
+      App.mostrarToast('Status atualizado','sucesso');
+      renderizarGeral();
+      return;
+    }
     const av = Storage.buscar(avId);
     if (!av) return;
     const acao = av.planoAcao?.find(a => a.id === acaoId);

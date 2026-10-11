@@ -198,6 +198,19 @@ const Storage = (() => {
     return proj;
   }
 
+  /* ── Ações sistêmicas (abrangência: todas as funções do estabelecimento) ──
+     Ficam UMA única vez em proj.planoAcaoSistemico[] (nível projeto), sem
+     vínculo com função/avaliação. Registros antigos sem `abrangencia`
+     são sempre interpretados como 'funcao' (ação específica). */
+  function abrangenciaAcao(acao) {
+    return acao && acao.abrangencia === 'estabelecimento' ? 'estabelecimento' : 'funcao';
+  }
+
+  function listarAcoesSistemicas(projetoId) {
+    const proj = projetoId ? buscarProjeto(projetoId) : null;
+    return (proj?.planoAcaoSistemico || []).filter(a => abrangenciaAcao(a) === 'estabelecimento');
+  }
+
   function excluirProjeto(id) {
     /* Remove em cascata: setores, funcoes (excluirSetor já chama _cloudDel) */
     listarSetores(id).forEach(s => excluirSetor(s.id));
@@ -721,7 +734,9 @@ const Storage = (() => {
       psicossocial: lista.filter(a => a.tipo === 'psicossocial').length,
       aet:          lista.filter(a => a.tipo === 'aet').length,
       concluidas:   lista.filter(a => a.status === 'concluida').length,
+      /* Ações específicas (por avaliação) + sistêmicas (uma vez por projeto) */
       acoesPendentes: lista.reduce((n, a) => n + (a.planoAcao?.filter(x => x.status === 'pendente').length || 0), 0)
+        + _ler(CHAVE_PROJETOS).reduce((n, p) => n + (p.planoAcaoSistemico || []).filter(x => x.status === 'pendente').length, 0)
     };
   }
 
@@ -793,6 +808,7 @@ const Storage = (() => {
     listarEmpresas, buscarEmpresa, salvarEmpresa, excluirEmpresa, criarEmpresa,
     /* Projetos */
     listarProjetos, buscarProjeto, salvarProjeto, excluirProjeto, criarProjeto,
+    abrangenciaAcao, listarAcoesSistemicas,
     /* Setores do projeto */
     listarSetores, buscarSetor, salvarSetor, excluirSetor, criarSetor,
     /* Funções do projeto */

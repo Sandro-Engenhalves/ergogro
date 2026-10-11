@@ -984,6 +984,9 @@ Retorne APENAS o texto da conclusão, sem introdução, sem formatação especia
      SEÇÃO: PLANO DE AÇÃO (consolidado do projeto)
   ══════════════════════════════════════════════════════════ */
 
+  const SIS_AV_ID  = '@sistemica';                       /* marcador de ação sem avaliação */
+  const SIS_ROTULO = 'SISTÊMICA — TODAS AS FUNÇÕES';
+
   function _htmlPlano() {
     const proj = App.obterProjetoAtual();
     const avs  = Storage.listarPorProjeto(proj.id);
@@ -998,6 +1001,12 @@ Retorne APENAS o texto da conclusão, sem introdução, sem formatação especia
           _setor: setor?.nome || '', _funcao: funcao?.nome || '' });
       });
     });
+
+    /* Ações sistêmicas (todas as funções do estabelecimento) — nível projeto,
+       aparecem UMA vez no plano consolidado, sem vínculo com função/avaliação */
+    const acoesSis = Storage.listarAcoesSistemicas(proj.id)
+      .map(a => ({ ...a, _avId: SIS_AV_ID, _tipo: 'sistemico', _setor: '', _funcao: '' }));
+    todasAcoes.unshift(...acoesSis);
 
     /* Ações psicossociais (nível projeto) */
     const acoesPsi = proj.planoAcaoPsicossocial || [];
@@ -1033,7 +1042,9 @@ Retorne APENAS o texto da conclusão, sem introdução, sem formatação especia
             </div>
             <div class="item-plano-meta" style="flex-wrap:wrap;gap:4px">
               <span class="status-chip status-${acao.status}">${STATUS_L[acao.status]||acao.status}</span>
-              <span class="badge-tipo badge-tipo-${acao._tipo}">${TIPO_LABEL[acao._tipo]||acao._tipo}</span>
+              ${acao._avId === SIS_AV_ID
+                ? `<span class="badge-tipo" style="background:rgba(255,152,0,.18);color:#ffb74d;border:1px solid #ffb74d;font-weight:700">${SIS_ROTULO}</span>`
+                : `<span class="badge-tipo badge-tipo-${acao._tipo}">${TIPO_LABEL[acao._tipo]||acao._tipo}</span>`}
               ${acao.origem ? `<span style="font-size:10px;opacity:.7">${ORIGEM_L[acao.origem]||acao.origem}</span>` : ''}
               ${acao._setor ? `<span>📍 ${acao._setor}</span>` : ''}
               ${acao._funcao ? `<span>👷 ${acao._funcao}</span>` : ''}
@@ -1175,6 +1186,17 @@ Retorne APENAS o texto da conclusão, sem introdução, sem formatação especia
         <!-- Nova ação manual -->
         <div class="card" style="margin-top:var(--s4)">
           <div class="card-titulo" style="margin-bottom:var(--s3)">➕ Nova Ação Manual</div>
+          <div class="grupo-campo">
+            <label>Abrangência da ação *</label>
+            <select id="nova-acao-abrang" onchange="ModuloProjeto.alternarAbrangenciaAcao(this.value)">
+              <option value="funcao" selected>Função específica</option>
+              <option value="estabelecimento">Todas as funções do estabelecimento</option>
+            </select>
+            <div id="nova-acao-aviso-sis" style="display:none;font-size:var(--txt-xs);color:var(--texto-sec);margin-top:4px">
+              Ação sistêmica: registrada uma única vez no estabelecimento e aplicável a todas as funções.
+            </div>
+          </div>
+          <div id="nova-acao-vinculo">
           ${avs.length > 1 ? `<div class="grupo-campo">
             <label>Vincular à função / avaliação</label>
             <select id="nova-acao-avid">
@@ -1187,6 +1209,7 @@ Retorne APENAS o texto da conclusão, sem introdução, sem formatação especia
               }).join('')}
             </select>
           </div>` : (avs.length === 1 ? `<input type="hidden" id="nova-acao-avid" value="${avs[0].id}">` : '')}
+          </div>
           <div class="grupo-campo">
             <label>Descrição da ação</label>
             <textarea id="nova-acao-descricao" rows="2" placeholder="Descreva a ação corretiva ou preventiva..."></textarea>
@@ -1236,7 +1259,37 @@ Retorne APENAS o texto da conclusão, sem introdução, sem formatação especia
     `;
   }
 
+  /* Ações sistêmicas: usam o marcador SIS_AV_ID no lugar do id da avaliação
+     e vivem em proj.planoAcaoSistemico[] (nunca em av.planoAcao). */
+  function _projAtualFresco() {
+    const atual = App.obterProjetoAtual();
+    return (atual && Storage.buscarProjeto(atual.id)) || atual || null;
+  }
+
+  function _alterarAcaoSis(acaoId, fn) {
+    const proj = _projAtualFresco();
+    if (!proj) return false;
+    const lista = proj.planoAcaoSistemico || [];
+    const acao  = lista.find(a => a.id === acaoId);
+    if (!acao) return false;
+    fn(acao, lista, proj);
+    Storage.salvarProjeto(proj);
+    const atual = App.obterProjetoAtual();
+    if (atual && atual !== proj) atual.planoAcaoSistemico = proj.planoAcaoSistemico;
+    return true;
+  }
+
+  /* Mostra/oculta o seletor de função conforme a abrangência escolhida */
+  function alternarAbrangenciaAcao(valor) {
+    const sis = valor === 'estabelecimento';
+    const vinc = document.getElementById('nova-acao-vinculo');
+    if (vinc) vinc.style.display = sis ? 'none' : '';
+    const aviso = document.getElementById('nova-acao-aviso-sis');
+    if (aviso) aviso.style.display = sis ? '' : 'none';
+  }
+
   function salvarCampoAcao(avId, acaoId, campo, valor) {
+    if (avId === SIS_AV_ID) { _alterarAcaoSis(acaoId, a => { a[campo] = valor; }); return; }
     const av = Storage.buscar(avId);
     if (!av) return;
     const acao = (av.planoAcao || []).find(a => a.id === acaoId);
@@ -1249,6 +1302,14 @@ Retorne APENAS o texto da conclusão, sem introdução, sem formatação especia
   }
 
   function excluirAcao(avId, acaoId) {
+    if (avId === SIS_AV_ID) {
+      if (_alterarAcaoSis(acaoId, (a, lista, proj) => { proj.planoAcaoSistemico = lista.filter(x => x.id !== acaoId); })) {
+        document.getElementById(`item-acao-${acaoId}`)?.remove();
+        App.mostrarToast('Ação sistêmica removida', 'sucesso');
+        _renderizarConteudo('plano'); /* atualiza contadores */
+      }
+      return;
+    }
     const av = Storage.buscar(avId);
     if (!av) return;
     av.planoAcao = (av.planoAcao || []).filter(a => a.id !== acaoId);
@@ -1266,13 +1327,9 @@ Retorne APENAS o texto da conclusão, sem introdução, sem formatação especia
     const descricao = document.getElementById('nova-acao-descricao')?.value?.trim();
     if (!descricao) { App.mostrarToast('Preencha a descrição da ação', 'aviso'); return; }
 
-    const avs = Storage.listarPorProjeto(proj.id);
-    if (!avs.length) { App.mostrarToast('Projeto sem avaliações — crie uma avaliação primeiro', 'aviso'); return; }
-    const avId = document.getElementById('nova-acao-avid')?.value;
-    const av   = (avId ? Storage.buscar(avId) : null) || avs[0];
+    const abrangencia = document.getElementById('nova-acao-abrang')?.value === 'estabelecimento' ? 'estabelecimento' : 'funcao';
 
-    if (!av.planoAcao) av.planoAcao = [];
-    av.planoAcao.push({
+    const nova = {
       id:          Storage.gerarId('acao'),
       descricao,
       prioridade:  document.getElementById('nova-acao-prio')?.value  || 'media',
@@ -1281,14 +1338,42 @@ Retorne APENAS o texto da conclusão, sem introdução, sem formatação especia
       medida:      document.getElementById('nova-acao-medida')?.value || '',
       status:      'pendente',
       origem:      'manual',
+      abrangencia,
       criadaEm:    new Date().toISOString(),
-    });
+    };
+
+    if (abrangencia === 'estabelecimento') {
+      /* Sistêmica: um único registro no projeto, sem vínculo com função/avaliação */
+      const projFresco = _projAtualFresco();
+      if (!projFresco.planoAcaoSistemico) projFresco.planoAcaoSistemico = [];
+      projFresco.planoAcaoSistemico.push(nova);
+      Storage.salvarProjeto(projFresco);
+      if (proj !== projFresco) proj.planoAcaoSistemico = projFresco.planoAcaoSistemico;
+      App.mostrarToast('Ação sistêmica adicionada ao plano', 'sucesso');
+      _renderizarConteudo('plano');
+      return;
+    }
+
+    const avs = Storage.listarPorProjeto(proj.id);
+    if (!avs.length) { App.mostrarToast('Projeto sem avaliações — crie uma avaliação primeiro', 'aviso'); return; }
+    const avId = document.getElementById('nova-acao-avid')?.value;
+    const av   = (avId ? Storage.buscar(avId) : null) || avs[0];
+
+    if (!av.planoAcao) av.planoAcao = [];
+    av.planoAcao.push(nova);
     Storage.salvar(av);
     App.mostrarToast('Ação adicionada ao plano', 'sucesso');
     _renderizarConteudo('plano');
   }
 
   function alterarStatusAcao(avId, acaoId, novoStatus) {
+    if (avId === SIS_AV_ID) {
+      if (_alterarAcaoSis(acaoId, a => { a.status = novoStatus; })) {
+        App.mostrarToast('Status atualizado', 'sucesso');
+        trocarSecao('plano');
+      }
+      return;
+    }
     const av = Storage.buscar(avId);
     if (!av) return;
     const acao = av.planoAcao?.find(a => a.id === acaoId);
@@ -1426,7 +1511,8 @@ Retorne APENAS o texto da conclusão, sem introdução, sem formatação especia
     const totalAlt   = avs.reduce((n, a) => n + (ModuloAEP?.calcularRiscoGeral(a)?.alto  || 0), 0);
     const totalMed   = avs.reduce((n, a) => n + (ModuloAEP?.calcularRiscoGeral(a)?.medio || 0), 0);
     const totalBx    = avs.reduce((n, a) => n + (ModuloAEP?.calcularRiscoGeral(a)?.baixo || 0), 0);
-    const totalAcoes = avs.reduce((n, a) => n + (a.planoAcao?.length || 0), 0);
+    const acoesSisRel = Storage.listarAcoesSistemicas(proj.id); /* sistêmicas: contadas uma vez */
+    const totalAcoes = avs.reduce((n, a) => n + (a.planoAcao?.length || 0), 0) + acoesSisRel.length;
     const totalTrab  = setores.reduce((n, s) =>
       n + Storage.listarFuncoes(s.id).reduce((m, f) => m + (parseInt(f.numTrabalhadores) || 0), 0), 0);
 
@@ -2044,6 +2130,17 @@ Retorne APENAS o texto da conclusão, sem introdução, sem formatação especia
                   const STATUS_L = { pendente: 'Pendente', em_andamento: 'Em andamento', concluido: 'Concluído' };
                   const MEDIDA_L = { engenharia: 'Engenharia', administrativa: 'Admin.', organizacional: 'Org.', epi: 'EPI/EPC' };
                   let n = 0;
+                  /* Sistêmicas primeiro: uma linha por ação, abrangência explícita */
+                  const linhasSis = acoesSisRel.map(acao => `<tr>
+                      <td style="text-align:center">${++n}</td>
+                      <td style="font-size:var(--txt-xs);text-align:left">${acao.descricao||'—'}</td>
+                      <td style="font-size:var(--txt-xs);text-align:left;font-weight:700">${SIS_ROTULO}</td>
+                      <td style="font-size:var(--txt-xs)">${MEDIDA_L[acao.medida]||'—'}</td>
+                      <td style="font-weight:700;color:${PRIO_COR[acao.prioridade]||'#888'};font-size:var(--txt-xs)">${PRIO_L[acao.prioridade]||acao.prioridade||'—'}</td>
+                      <td style="font-size:var(--txt-xs)">${acao.responsavel||'—'}</td>
+                      <td style="font-size:var(--txt-xs)">${_fd(acao.prazo)}</td>
+                      <td style="font-size:var(--txt-xs)">${STATUS_L[acao.status]||acao.status||'—'}</td>
+                    </tr>`).join('');
                   const linhasAv = avs.flatMap(av => {
                     const s = av.setorId  ? Storage.buscarSetor(av.setorId)   : null;
                     const f = av.funcaoId ? Storage.buscarFuncao(av.funcaoId) : null;
@@ -2071,7 +2168,7 @@ Retorne APENAS o texto da conclusão, sem introdução, sem formatação especia
                     <td style="font-size:var(--txt-xs)">${_fd(acao.prazo)}</td>
                     <td style="font-size:var(--txt-xs)">${STATUS_L[acao.status]||acao.status||'—'}</td>
                   </tr>`).join('');
-                  const todasLinhas = linhasAv + linhasPsi;
+                  const todasLinhas = linhasSis + linhasAv + linhasPsi;
                   return todasLinhas || `<tr><td colspan="8" style="text-align:center;color:#888;font-style:italic">Nenhuma ação cadastrada.</td></tr>`;
                 })()}
               </tbody>
@@ -2280,7 +2377,7 @@ Retorne APENAS o texto da conclusão, sem introdução, sem formatação especia
   return {
     renderizar, trocarSecao,
     salvarVisaoGeral, gerarObjetivoIA, gerarConclusaoIA, onConclusaoChange, onNecessitaAETChange, salvarConclusao, imprimir, exportarProjeto,
-    salvarCampoAcao, excluirAcao, adicionarAcaoManual,
+    salvarCampoAcao, excluirAcao, adicionarAcaoManual, alternarAbrangenciaAcao,
     gerarAcoesPsicossocial, alterarStatusAcaoPsi, salvarCampoAcaoPsi, excluirAcaoPsi,
     abrirFormSetor, salvarSetor, excluirSetor,
     abrirFormFuncao, salvarFuncao, excluirFuncao,
