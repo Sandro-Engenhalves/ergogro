@@ -2528,5 +2528,7 @@ Retorne APENAS o texto da conclusão, sem introdução, sem formatação especia
     imprimirComCache,
     verPendentes,
     exportarPendentesCSV,
+    /* Banco de recomendações por dimensão — reutilizado pela Consolidação Psicossocial */
+    obterRecomendacoes: () => RECOMENDACOES,
   };
 })();

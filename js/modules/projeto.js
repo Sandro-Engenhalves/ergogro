@@ -1011,6 +1011,8 @@ Retorne APENAS o texto da conclusão, sem introdução, sem formatação especia
     /* Ações psicossociais (nível projeto) */
     const acoesPsi = proj.planoAcaoPsicossocial || [];
     const aprovadosPsiCount = (proj.consolidacaoPsicossocial?.riscosConsolidados || []).filter(r => r.decisao === 'aprovado').length;
+    /* Condições aprovadas que já têm ao menos uma ação (cada condição pode ter várias) */
+    const psiComAcao = new Set(acoesPsi.map(a => a.origemId)).size;
 
     /* Não retorna cedo — sempre mostra o formulário de nova ação */
 
@@ -1124,9 +1126,9 @@ Retorne APENAS o texto da conclusão, sem introdução, sem formatação especia
         ${aprovadosPsiCount > 0 ? `
         <div class="card" style="margin-bottom:var(--s4)">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--s3)">
-            <div class="card-titulo" style="margin:0">🧠 Ações Psicossociais (${acoesPsi.length}/${aprovadosPsiCount} geradas)</div>
+            <div class="card-titulo" style="margin:0">🧠 Ações Psicossociais (${acoesPsi.length} ação(ões) · ${psiComAcao}/${aprovadosPsiCount} condições)</div>
             <button class="btn btn-secundario btn-sm" onclick="ModuloProjeto.gerarAcoesPsicossocial()">
-              ${acoesPsi.length < aprovadosPsiCount ? '⚡ Gerar do Psicossocial' : '🔄 Atualizar do Psicossocial'}
+              ${psiComAcao < aprovadosPsiCount ? '⚡ Gerar do Psicossocial' : '🔄 Atualizar do Psicossocial'}
             </button>
           </div>
           ${acoesPsi.length === 0 ? `
@@ -1396,29 +1398,61 @@ Retorne APENAS o texto da conclusão, sem introdução, sem formatação especia
     if (!aprovados.length) { App.mostrarToast('Nenhum risco psicossocial aprovado na Consolidação', 'aviso'); return; }
     if (!proj.planoAcaoPsicossocial) proj.planoAcaoPsicossocial = [];
     let n = 0;
+    const plano = proj.planoAcaoPsicossocial;
     aprovados.forEach(r => {
       const estrategia = r.estrategia?.trim() || '';
       const acaoPlano  = r.acaoPlano?.trim() || '';
-      const descricao  = acaoPlano || estrategia || `Implementar medidas de controle: ${r.titulo}`;
-      const existing   = proj.planoAcaoPsicossocial.find(a => a.origemId === r.id);
-      if (existing) {
-        /* Atualiza descrição se acaoPlano ou estratégia foram preenchidos depois */
-        if (acaoPlano) existing.descricao = acaoPlano;
-        else if (estrategia) existing.descricao = estrategia;
-        return;
+      const recIds     = r.recomendacoesIds || [];
+
+      /* Ação principal da condição (frase da Consolidação). Só cai no texto genérico
+         quando não há nenhuma recomendação marcada, para não duplicar o plano. */
+      if (acaoPlano || estrategia || !recIds.length) {
+        const descricao = acaoPlano || estrategia || `Implementar medidas de controle: ${r.titulo}`;
+        const existing  = plano.find(a => a.origemId === r.id && !a.recId);
+        if (existing) {
+          /* Atualiza descrição se acaoPlano ou estratégia foram preenchidos depois,
+             exceto se o usuário editou o texto direto no Plano (preserva a edição) */
+          if (!existing.editadaManual) {
+            if (acaoPlano) existing.descricao = acaoPlano;
+            else if (estrategia) existing.descricao = estrategia;
+          }
+        } else {
+          plano.push({
+            id:         Storage.gerarId('psi'),
+            origemId:   r.id,
+            risco:      r.titulo,
+            hierarquia: r.hierarquia || '',
+            descricao,
+            prioridade: 'media',
+            prazo:      '',
+            responsavel:'',
+            status:     'pendente',
+            criadaEm:   new Date().toISOString(),
+          });
+          n++;
+        }
       }
-      proj.planoAcaoPsicossocial.push({
-        id:         Storage.gerarId('psi'),
-        origemId:   r.id,
-        risco:      r.titulo,
-        descricao,
-        prioridade: 'media',
-        prazo:      '',
-        responsavel:'',
-        status:     'pendente',
-        criadaEm:   new Date().toISOString(),
+
+      /* Uma ação por recomendação marcada (não recria nem sobrescreve edições do usuário) */
+      recIds.forEach(recId => {
+        if (plano.some(a => a.origemId === r.id && a.recId === recId)) return;
+        const texto = ModuloConsolidacao.textoRecomendacao(recId);
+        if (!texto) return;
+        plano.push({
+          id:         Storage.gerarId('psi'),
+          origemId:   r.id,
+          recId,
+          risco:      r.titulo,
+          hierarquia: r.hierarquia || '',
+          descricao:  texto,
+          prioridade: 'media',
+          prazo:      '',
+          responsavel:'',
+          status:     'pendente',
+          criadaEm:   new Date().toISOString(),
+        });
+        n++;
       });
-      n++;
     });
     Storage.salvarProjeto(proj);
     if (n) {
@@ -1442,7 +1476,12 @@ Retorne APENAS o texto da conclusão, sem introdução, sem formatação especia
     const proj = App.obterProjetoAtual();
     if (!proj) return;
     const acao = (proj.planoAcaoPsicossocial || []).find(a => a.id === acaoId);
-    if (acao) { acao[campo] = valor; Storage.salvarProjeto(proj); }
+    if (acao) {
+      acao[campo] = valor;
+      /* Marca edição manual da descrição para "Atualizar do Psicossocial" não sobrescrever */
+      if (campo === 'descricao') acao.editadaManual = true;
+      Storage.salvarProjeto(proj);
+    }
   }
 
   function excluirAcaoPsi(acaoId) {

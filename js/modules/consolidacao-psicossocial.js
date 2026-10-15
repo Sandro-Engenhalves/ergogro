@@ -23,6 +23,8 @@ const ModuloConsolidacao = (() => {
      - fundamentoLegal : base normativa
      - dimensoesAfp : IDs das dimensões COPSOQ-III relacionadas
      - itensAep     : IDs dos itens AEP que corroboram
+     - recomendacoes: IDs (r01–r22) do banco de recomendações da pesquisa
+                      (ModuloPesquisaAdmin) sugeridas quando a condição é aprovada
      - limiarAfp    : score AFP que ativa a proposta automática
   ══════════════════════════════════════════════════════════ */
   const CATALOGO = [
@@ -34,6 +36,7 @@ const ModuloConsolidacao = (() => {
       fundamentoLegal: 'NR-17 (Portaria MTP 1.467/2023) — organização do trabalho',
       dimensoesAfp: ['demandas'],
       itensAep: ['org_01', 'org_02', 'org_05'],
+      recomendacoes: ['r01', 'r02', 'r03', 'r04', 'r14', 'r15'],
       limiarAfp: 66, /* propõe se score ≤ 66 (intermediário ou desfavorável) */
     },
     {
@@ -44,6 +47,7 @@ const ModuloConsolidacao = (() => {
       fundamentoLegal: 'NR-17 (Portaria MTP 1.467/2023) — organização do trabalho',
       dimensoesAfp: ['organizacao'],
       itensAep: ['org_03', 'org_04'],
+      recomendacoes: ['r05', 'r06', 'r07'],
       limiarAfp: 66,
     },
     {
@@ -54,6 +58,7 @@ const ModuloConsolidacao = (() => {
       fundamentoLegal: 'NR-17 (Portaria MTP 1.467/2023) — relacionamento interpessoal e comunicação',
       dimensoesAfp: ['relacoes', 'valores'],
       itensAep: ['psi_01', 'psi_02', 'psi_03'],
+      recomendacoes: ['r09', 'r10', 'r11', 'r17'],
       limiarAfp: 55,
     },
     {
@@ -64,6 +69,7 @@ const ModuloConsolidacao = (() => {
       fundamentoLegal: 'NR-17 (Portaria MTP 1.467/2023) — relacionamento interpessoal',
       dimensoesAfp: ['relacoes', 'valores'],
       itensAep: ['psi_06', 'psi_05'],
+      recomendacoes: ['r09', 'r12', 'r18', 'r11'],
       limiarAfp: 45, /* só propõe se bem abaixo — mais sensível */
     },
     {
@@ -74,6 +80,7 @@ const ModuloConsolidacao = (() => {
       fundamentoLegal: 'NR-17 (Portaria MTP 1.467/2023) — organização do trabalho',
       dimensoesAfp: ['interface', 'saude'],
       itensAep: ['psi_04', 'psi_05'],
+      recomendacoes: ['r19', 'r21', 'r22'],
       limiarAfp: 50,
     },
     {
@@ -84,6 +91,7 @@ const ModuloConsolidacao = (() => {
       fundamentoLegal: 'NR-17 (Portaria MTP 1.467/2023) — organização do trabalho e comunicação',
       dimensoesAfp: ['organizacao', 'valores'],
       itensAep: ['psi_02', 'org_03'],
+      recomendacoes: ['r08', 'r06', 'r13', 'r16'],
       limiarAfp: 50,
     },
   ];
@@ -110,6 +118,20 @@ const ModuloConsolidacao = (() => {
   };
 
   let _afpDados = null;
+  /* IDs (r01–r22) marcados na pesquisa AFP (seção 7.4) da campanha usada na consolidação.
+     Servem só para pré-marcar o checklist; a decisão final é do profissional. */
+  let _recsPesquisa = [];
+
+  /* Busca o texto de uma recomendação (r01–r22) no banco da pesquisa.
+     Retorna '' se o banco não estiver disponível ou o ID não existir. */
+  function textoRecomendacao(recId) {
+    if (typeof ModuloPesquisaAdmin === 'undefined' || !ModuloPesquisaAdmin.obterRecomendacoes) return '';
+    for (const lista of Object.values(ModuloPesquisaAdmin.obterRecomendacoes())) {
+      const rec = lista.find(r => r.id === recId);
+      if (rec) return rec.texto;
+    }
+    return '';
+  }
 
   /* ══════════════════════════════════════════════════════════
      RENDERIZAÇÃO PRINCIPAL
@@ -123,15 +145,19 @@ const ModuloConsolidacao = (() => {
     const proj   = App.obterProjetoAtual();
     const temAFP = proj && ['aep_afp','aet','integrado','psicossocial'].includes(proj.tipo);
     _afpDados = null;
+    _recsPesquisa = [];
     if (temAFP && typeof listarCampanhas === 'function') {
       try {
         const campanhas = await listarCampanhas(proj.id);
+        /* Recomendações da pesquisa (7.4): independem de haver respostas. Usa a campanha
+           mais recente (listarCampanhas já vem em ordem decrescente) que tenha alguma marcada. */
+        const campRecs = campanhas.find(c => (c.interpretacaoTecnica?.recomendacoesIds || []).length > 0);
+        _recsPesquisa  = campRecs?.interpretacaoTecnica.recomendacoesIds || [];
         const comResp   = campanhas.filter(c => c.totalRespostas > 0)
           .sort((a,b) => (b.criadoEm||'') > (a.criadoEm||'') ? 1 : -1);
         if (comResp.length > 0) {
           const c = comResp[0];
-          _afpDados = { relatorio: await calcularRelatorio(c.id, c.minRespostasSetor||5) };
-        }
+          _afpDados = { relatorio: await calcularRelatorio(c.id, c.minRespostasSetor||5) };        }
       } catch(e) { console.warn('Consolidação AFP:', e.message); }
     }
     el.innerHTML = _htmlConsolidacao();
@@ -403,6 +429,7 @@ const ModuloConsolidacao = (() => {
                   </option>`).join('')}
               </select>
             </div>
+            ${_htmlRecomendacoes(prop, salvo)}
             <div class="grupo-campo">
               <label style="font-size:var(--txt-xs)">
                 Ação para o Plano
@@ -440,6 +467,43 @@ const ModuloConsolidacao = (() => {
         </div>
       </div>
     `;
+  }
+
+  /* ── Recomendações sugeridas para a condição aprovada ─────────
+     Cada marcada vira uma ação no Plano ("Gerar do Psicossocial"). */
+  function _htmlRecomendacoes(prop, salvo) {
+    const itens = (prop.recomendacoes || [])
+      .map(id => ({ id, texto: textoRecomendacao(id) }))
+      .filter(r => r.texto);
+    if (!itens.length) return '';
+
+    /* Enquanto o profissional não salvou a escolha (recomendacoesIds ausente),
+       pré-marca o que já foi selecionado na pesquisa AFP (7.4). Depois de salvo,
+       vale sempre a escolha salva — inclusive "nenhuma". */
+    const jaSalvo   = Array.isArray(salvo.recomendacoesIds);
+    const marcadas  = jaSalvo
+      ? salvo.recomendacoesIds
+      : itens.map(r => r.id).filter(id => _recsPesquisa.includes(id));
+    const preMarcou = !jaSalvo && marcadas.length > 0;
+    return `
+      <div class="grupo-campo">
+        <label style="font-size:var(--txt-xs)">
+          Recomendações para o Plano
+          <span style="color:var(--texto-sec);font-weight:400"> — cada marcada vira uma ação</span>
+        </label>
+        ${preMarcou ? `
+        <div style="font-size:10px;color:var(--texto-sec);margin-bottom:var(--s2)">
+          ✓ Pré-marcadas a partir da pesquisa AFP (7.4). Revise e clique em Salvar Consolidação para confirmar.
+        </div>` : ''}
+        <div style="display:flex;flex-direction:column;gap:var(--s2)">
+          ${itens.map(r => `
+            <label style="display:flex;align-items:flex-start;gap:var(--s2);font-size:var(--txt-xs);font-weight:400;cursor:pointer;text-transform:none;letter-spacing:normal;color:var(--texto);line-height:1.4">
+              <input type="checkbox" name="cons-rec-${prop.id}" value="${r.id}"
+                     style="margin-top:2px;flex-shrink:0" ${marcadas.includes(r.id) ? 'checked' : ''}>
+              <span>${r.texto}</span>
+            </label>`).join('')}
+        </div>
+      </div>`;
   }
 
   /* ══════════════════════════════════════════════════════════
@@ -526,6 +590,9 @@ const ModuloConsolidacao = (() => {
       if (h)  salvo.hierarquia = h.value;
       if (e)  salvo.estrategia = e.value.trim();
       if (ap) salvo.acaoPlano  = ap.value.trim();
+      /* Recomendações: só atualiza se o checklist está na tela (condição aprovada) */
+      const recs = document.querySelectorAll(`input[name="cons-rec-${cond.id}"]`);
+      if (recs.length) salvo.recomendacoesIds = [...recs].filter(c => c.checked).map(c => c.value);
     });
     cons.atualizadaEm = new Date().toISOString();
 
@@ -619,5 +686,5 @@ Retorne APENAS um JSON válido, sem markdown, com exatamente dois campos:
     }
   }
 
-  return { renderizar, decidir, salvar, obterAprovados, gerarEstrategiaIA };
+  return { renderizar, decidir, salvar, obterAprovados, gerarEstrategiaIA, textoRecomendacao };
 })();
