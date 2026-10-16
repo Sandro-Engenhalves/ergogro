@@ -1754,6 +1754,8 @@ Retorne APENAS o texto da conclusão, sem introdução, sem formatação especia
             @bottom-center { content: none; }
           }
           * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+          /* Evita glifos com espessura irregular no PDF (hinting/sintese de negrito) */
+          html, body, * { text-rendering: geometricPrecision; -webkit-font-smoothing: antialiased; font-synthesis: none; }
           #app-header, #nav-principal, .subnav-abas,
           .nao-imprimir, .btn, #toast { display: none !important; }
           body { background:#fff !important; color:#000 !important; font-family:Arial,Helvetica,sans-serif !important; font-size:9pt !important; line-height:1.4 !important; margin:0 !important; }

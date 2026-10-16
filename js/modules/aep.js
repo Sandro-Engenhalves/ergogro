@@ -1613,6 +1613,8 @@ Retorne APENAS o texto da justificativa, sem introdução, sem formatação espe
           @page { size: A4 portrait; margin: 18mm 12mm 14mm; }
           @page :first { margin: 0 12mm; }
           * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+          /* Evita glifos com espessura irregular no PDF (hinting/sintese de negrito) */
+          html, body, * { text-rendering: geometricPrecision; -webkit-font-smoothing: antialiased; font-synthesis: none; }
           #app-header, #nav-principal, .subnav-abas,
           .nao-imprimir, .btn, #toast { display: none !important; }
           body {
