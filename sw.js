@@ -8,7 +8,7 @@
    - APIs:         sempre rede (Firestore, Auth, Anthropic)
    ============================================================ */
 
-const CACHE_NOME = 'ergogro-sw-v1';
+const CACHE_NOME = 'ergogro-sw-v2';
 
 /* Scripts externos com URL fixa — pré-carregados na instalação */
 const PRECACHE = [

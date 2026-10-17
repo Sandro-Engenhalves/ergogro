@@ -1200,6 +1200,14 @@ const ModuloAEP = (() => {
           </div>
         </div>
 
+        <div class="card">
+          <div class="card-titulo" style="margin-bottom:var(--s2)">Plano de Ação desta função</div>
+          <p style="font-size:var(--txt-xs);color:var(--texto-sec);margin-bottom:var(--s2)">
+            O texto das ações vem das Recomendações Técnicas (edite-as acima e salve). Aqui você define responsável, prazo e tipo de medida.
+          </p>
+          <div id="an-plano-lista">${_htmlPlanoFuncao(av)}</div>
+        </div>
+
         <button class="btn-bloco" onclick="ModuloAEP.salvarAnalise()">
           💾 Salvar Análise e Conclusão
         </button>
@@ -1252,12 +1260,140 @@ const ModuloAEP = (() => {
     av.aep.analise.responsavelAcompanhamento = get('an-responsavel');
     av.relatorio.necessitaAET     = av.aep.analise.indicaAET;
     av.relatorio.justificativaAET = av.aep.analise.justificativaAET;
+    /* Mantém o Plano de Ação (bloco PGR) alinhado ao texto das recomendações */
+    _sincronizarPlanoComRecomendacoes(av, false);
   }
 
   function salvarAnalise() {
     _salvarAnalise();
     const av = App.obterAvaliacaoAtual();
     if (av) try { Storage.salvar(av); App.mostrarToast('Análise salva', 'sucesso'); } catch(e) {}
+    _atualizarPlanoFuncao();
+  }
+
+  /* ══════════════════════════════════════════════════════════
+     PLANO DE AÇÃO DA FUNÇÃO — sincronia com as recomendações
+     O texto do campo "Recomendações Técnicas" é a fonte única:
+     ao editá-lo, as ações de origem 'aep_motor' acompanham.
+  ══════════════════════════════════════════════════════════ */
+
+  const _PRIO_MAP_REC = { imediata: 'alta', alta: 'alta', media: 'media' };
+  const _DIAS_REC     = { imediata: 30, alta: 90, media: 180 };
+
+  /* Converte o texto do campo em [{ texto, grupo }] respeitando os cabeçalhos de prioridade */
+  function _parseRecomendacoes(texto) {
+    const itens = [];
+    let grupo = 'media';
+    String(texto || '').split(/\r?\n/).forEach(linha => {
+      const l = linha.trim();
+      if (!l) return;
+      const cab = l.replace(/:$/, '').toUpperCase();
+      if (cab === 'AÇÃO IMEDIATA' || cab === 'ACAO IMEDIATA')            { grupo = 'imediata'; return; }
+      if (cab === 'PRIORIDADE ALTA')                                      { grupo = 'alta';     return; }
+      if (cab === 'PRIORIDADE MÉDIA' || cab === 'PRIORIDADE MEDIA')       { grupo = 'media';    return; }
+      const t = l.replace(/^[•\-*]\s*/, '').trim();
+      if (t) itens.push({ texto: t, grupo });
+    });
+    return itens;
+  }
+
+  /* Reconcilia av.planoAcao (origem aep_motor) com a lista de recomendações.
+     criar=false: só atualiza se o plano já foi gerado. Retorna true se alterou algo. */
+  function _reconciliarPlano(av, itens, criar) {
+    if (!av.planoAcao) av.planoAcao = [];
+    const existentes = av.planoAcao.filter(a => a.origem === 'aep_motor');
+    if (!criar && !existentes.length) return false;
+    if (!itens.length) return false; /* campo vazio não apaga o plano */
+
+    const grupoDe  = a => _PRIO_MAP_REC[a.grupoRec] || a.prioridade;
+    const usadas   = new Set();
+    const pareados = new Map(); /* item -> ação existente */
+    let mudou = false;
+
+    /* 1) texto idêntico */
+    itens.forEach(it => {
+      const a = existentes.find(x => !usadas.has(x.id) && x.descricao === it.texto);
+      if (a) { usadas.add(a.id); pareados.set(it, a); }
+    });
+    /* 2) texto editado: pareia por prioridade, na ordem */
+    itens.forEach(it => {
+      if (pareados.has(it)) return;
+      const a = existentes.find(x => !usadas.has(x.id) && grupoDe(x) === _PRIO_MAP_REC[it.grupo]);
+      if (a) { usadas.add(a.id); pareados.set(it, a); a.descricao = it.texto; mudou = true; }
+    });
+
+    const hoje = new Date();
+    const resp = av.aep?.analise?.responsavelAcompanhamento || '';
+    itens.forEach(it => {
+      const a = pareados.get(it);
+      if (a) { if (!a.grupoRec) a.grupoRec = it.grupo; return; }
+      const d = new Date(hoje); d.setDate(d.getDate() + (_DIAS_REC[it.grupo] || 90));
+      av.planoAcao.push({
+        id:          Storage.gerarId('acao'),
+        descricao:   it.texto,
+        prioridade:  _PRIO_MAP_REC[it.grupo] || 'media',
+        grupoRec:    it.grupo,
+        prazo:       d.toISOString().slice(0, 10),
+        responsavel: resp,
+        medida:      '',
+        status:      'pendente',
+        origem:      'aep_motor',
+        criadaEm:    new Date().toISOString(),
+      });
+      mudou = true;
+    });
+
+    /* 3) recomendação removida do texto: some do plano só se a ação não foi trabalhada */
+    const remover = existentes.filter(a => !usadas.has(a.id) && a.status === 'pendente' && !a.responsavel && !a.medida);
+    if (remover.length) {
+      const ids = new Set(remover.map(a => a.id));
+      av.planoAcao = av.planoAcao.filter(a => !ids.has(a.id));
+      mudou = true;
+    }
+    return mudou;
+  }
+
+  function _sincronizarPlanoComRecomendacoes(av, criar) {
+    return _reconciliarPlano(av, _parseRecomendacoes(av.aep?.analise?.recomendacoes), criar);
+  }
+
+  /* Card "Plano de Ação desta função": responsável, medida e prazo por ação */
+  function _htmlPlanoFuncao(av) {
+    const itens = av?.planoAcao || [];
+    if (!itens.length) {
+      return `<p style="font-size:var(--txt-sm);color:var(--texto-sec)">Nenhuma ação ainda. Use "Gerar Plano de Ação a partir das Recomendações" abaixo.</p>`;
+    }
+    const esc = s => String(s || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+    const medidas = [['', '— Tipo de medida —'], ['engenharia', 'Engenharia'], ['administrativa', 'Administrativa'], ['organizacional', 'Organizacional'], ['epi', 'EPI/EPC']];
+    return itens.map(a => `
+      <div style="padding:var(--s3) 0;border-top:1px solid var(--borda)">
+        <div style="font-size:var(--txt-sm);margin-bottom:var(--s2)">${a.descricao || '—'}</div>
+        <div class="linha-campos">
+          <div class="grupo-campo"><label>Responsável</label>
+            <input type="text" value="${esc(a.responsavel)}" placeholder="Nome ou setor"
+                   onchange="ModuloAEP.salvarCampoPlano('${a.id}','responsavel',this.value.trim())"></div>
+          <div class="grupo-campo"><label>Prazo</label>
+            <input type="date" value="${esc(a.prazo)}"
+                   onchange="ModuloAEP.salvarCampoPlano('${a.id}','prazo',this.value)"></div>
+        </div>
+        <div class="grupo-campo"><label>Tipo de medida</label>
+          <select onchange="ModuloAEP.salvarCampoPlano('${a.id}','medida',this.value)">
+            ${medidas.map(([v, l]) => `<option value="${v}" ${a.medida === v ? 'selected' : ''}>${l}</option>`).join('')}
+          </select></div>
+      </div>`).join('');
+  }
+
+  function _atualizarPlanoFuncao() {
+    const el = document.getElementById('an-plano-lista');
+    if (el) el.innerHTML = _htmlPlanoFuncao(App.obterAvaliacaoAtual());
+  }
+
+  function salvarCampoPlano(id, campo, valor) {
+    const av = App.obterAvaliacaoAtual();
+    const acao = av?.planoAcao?.find(a => a.id === id);
+    if (!acao) return;
+    acao[campo] = valor;
+    try { Storage.salvar(av); } catch (e) { App.mostrarToast('Erro ao salvar: ' + e.message, 'erro'); }
   }
 
   function recalcularScore() {
@@ -1341,44 +1477,27 @@ const ModuloAEP = (() => {
     /* Garante que a análise está salva antes de gerar o plano */
     salvarAnalise();
 
-    const recs = MOTOR_AEP.gerarRecomendacoes(av);
-    if (!recs.length) {
+    /* Fonte: texto editado no campo Recomendações; se vazio, usa o motor automático */
+    let itens = _parseRecomendacoes(av.aep?.analise?.recomendacoes);
+    if (!itens.length) {
+      itens = MOTOR_AEP.gerarRecomendacoes(av).map(r => ({ texto: r.texto, grupo: r.prioridade }));
+    }
+    if (!itens.length) {
       App.mostrarToast('Nenhuma recomendação — preencha o checklist e as exposições primeiro', 'info');
       return;
     }
 
-    if (!av.planoAcao) av.planoAcao = [];
-
-    /* Prazo automático por prioridade */
-    const hoje    = new Date();
-    const addDias = n => { const d = new Date(hoje); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); };
-    const diasMap = { imediata: 30, alta: 90, media: 180 };
-    const prioMap = { imediata: 'alta', alta: 'alta', media: 'media' };
-
-    let adicionadas = 0;
-    recs.forEach(rec => {
-      const jaExiste = av.planoAcao.some(a => a.descricao === rec.texto && a.origem === 'aep_motor');
-      if (jaExiste) return;
-      av.planoAcao.push({
-        id:          Storage.gerarId('acao'),
-        descricao:   rec.texto,
-        prioridade:  prioMap[rec.prioridade] || 'media',
-        prazo:       addDias(diasMap[rec.prioridade] || 90),
-        responsavel: '',
-        medida:      '',
-        status:      'pendente',
-        origem:      'aep_motor',
-        criadaEm:    new Date().toISOString(),
-      });
-      adicionadas++;
-    });
+    const antes   = (av.planoAcao || []).length;
+    const mudou   = _reconciliarPlano(av, itens, true);
+    const adicionadas = (av.planoAcao || []).length - antes;
 
     try {
       Storage.salvar(av);
-      const msg = adicionadas > 0
-        ? `${adicionadas} ação(ões) adicionada(s) ao Plano — acesse a aba Plano para editar responsáveis e prazos`
-        : 'Todas as recomendações já estão no Plano de Ação';
-      App.mostrarToast(msg, adicionadas > 0 ? 'sucesso' : 'info');
+      _atualizarPlanoFuncao();
+      const msg = mudou
+        ? `Plano de Ação atualizado (${adicionadas > 0 ? adicionadas + ' nova(s)' : 'textos sincronizados'}) — defina responsáveis e prazos no card acima`
+        : 'O Plano de Ação já está igual às recomendações';
+      App.mostrarToast(msg, mudou ? 'sucesso' : 'info');
     } catch (e) {
       App.mostrarToast('Erro ao salvar: ' + e.message, 'erro');
     }
@@ -2236,7 +2355,7 @@ Retorne APENAS o texto da justificativa, sem introdução, sem formatação espe
     salvarPosto, onExpChange,
     /* análise */
     salvarSecaoAtual: () => { _salvarSecaoAtual(); },
-    onAETChange, salvarAnalise, recalcularScore, aplicarNivelSugerido, usarRecomendacoesAuto, gerarAnaliseCompleta, gerarJustificativaAETIA, gerarPlanoDeAcao,
+    onAETChange, salvarAnalise, recalcularScore, aplicarNivelSugerido, usarRecomendacoesAuto, gerarAnaliseCompleta, gerarJustificativaAETIA, gerarPlanoDeAcao, salvarCampoPlano,
     /* relatório */
     imprimirRelatorio, exportarJSON,
     /* cálculos (usados por outros módulos) */
