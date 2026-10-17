@@ -329,7 +329,7 @@ const ModuloAEP = (() => {
 
         bloco.itens.forEach(item => {
           const r = respostas[item.id];
-          if (r?.resposta !== 'nao') return;
+          if (!_ehRisco(item, r?.resposta)) return;
           const nr = r.risco || 'baixo';
           if (maxRisco === null || nivelOrd[nr] > nivelOrd[maxRisco]) maxRisco = nr;
         });
@@ -884,7 +884,7 @@ const ModuloAEP = (() => {
           <div class="item-texto">${item.texto}</div>
           <div class="opcoes-resposta">
             ${['sim','nao','na'].map(v => `
-              <div class="radio-btn opcao-${v === 'na' ? 'na' : v}">
+              <div class="radio-btn opcao-${v === 'na' ? 'na' : (item.riscoQuandoSim ? (v === 'sim' ? 'nao' : 'sim') : v)}">
                 <input type="radio" name="r_${item.id}" id="${v}_${item.id}" value="${v}"
                   ${resp.resposta === v ? 'checked' : ''}
                   onchange="ModuloAEP.onRespostaChange('${chave}','${item.id}','${v}')">
@@ -1588,7 +1588,8 @@ Retorne APENAS o texto da justificativa, sem introdução, sem formatação espe
         bloco.itens.forEach(item => {
           const rt = resp[item.id];
           if (rt?.resposta) resp2++;
-          if (rt?.resposta === 'nao') {
+          /* respeita itens de polaridade invertida (riscoQuandoSim) */
+          if (_ehRisco(item, rt?.resposta)) {
             nc++;
             if (rt.risco === 'alto') alt++;
             else if (rt.risco === 'medio') med++;
