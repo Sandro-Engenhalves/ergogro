@@ -1566,7 +1566,10 @@ Retorne APENAS o texto da conclusão, sem introdução, sem formatação especia
     const secResAFP   = temDadosAFP ? _n++ : null;
     const aprovadosPsi   = (proj.consolidacaoPsicossocial?.riscosConsolidados || []).filter(r => r.decisao === 'aprovado');
     const acoesPsi       = proj.planoAcaoPsicossocial || [];
-    const secRiscoPsi    = aprovadosPsi.length > 0 ? _n++ : null;
+    /* Condições marcadas como "Monitorar" na Consolidação: entram como subseção do laudo,
+       pois não geram ação no Plano mas precisam constar como decisão técnica registrada */
+    const monitoradosPsi = (proj.consolidacaoPsicossocial?.riscosConsolidados || []).filter(r => r.decisao === 'monitorar');
+    const secRiscoPsi    = (aprovadosPsi.length > 0 || monitoradosPsi.length > 0) ? _n++ : null;
     const temOrientacoes = aprovadosPsi.some(r => r.estrategia || r.textoGRO);
     const secOrientacoes = temOrientacoes ? _n++ : null;
     const secPlano       = _n++;
@@ -1879,6 +1882,7 @@ Retorne APENAS o texto da conclusão, sem introdução, sem formatação especia
             if (secResAEP) rows += _si(secResAEP, 'Resultados — Avaliações Ergonômicas (AEP)', 6, 'rpt-secao-aep');
             if (secResAFP)   rows += _si(secResAFP, 'Resultados — Avaliações Psicossociais (AFP)', secResAEP ? 7 : 6, 'rpt-secao-afp');
             if (secRiscoPsi)    rows += _si(secRiscoPsi, 'Riscos Psicossociais Identificados', (secResAEP||secResAFP) ? 8 : 7, 'rpt-secao-afp');
+            if (secRiscoPsi && monitoradosPsi.length) rows += _si(secRiscoPsi + '.1', 'Condições em Monitoramento', (secResAEP||secResAFP) ? 8 : 7, 'rpt-secao-afp');
             if (secOrientacoes) rows += _si(secOrientacoes, 'Orientações de Controle Psicossocial', (secResAEP||secResAFP) ? 9 : 8, 'rpt-secao-afp');
             const _pgPlano = (secResAEP||secResAFP||secRiscoPsi) ? 10 : 6;
             const _pgConc  = _pgPlano + 1;
@@ -2095,6 +2099,11 @@ Retorne APENAS o texto da conclusão, sem introdução, sem formatação especia
         ${secRiscoPsi ? `
         <div class="relatorio-secao rpt-secao-afp">
           <h3>${secRiscoPsi}. Riscos Psicossociais Identificados</h3>
+          ${aprovadosPsi.length === 0 ? `
+          <p style="font-size:var(--txt-xs);margin-bottom:var(--s3)">
+            Nenhuma condição foi aprovada para inclusão no GRO/PGR nesta avaliação. As condições com indícios que demandam vigilância periódica estão descritas na subseção ${secRiscoPsi}.1.
+          </p>` : ''}
+          ${aprovadosPsi.length > 0 ? `
           <div style="overflow-x:auto">
             <table class="tabela-simples">
               <thead>
@@ -2112,14 +2121,38 @@ Retorne APENAS o texto da conclusão, sem introdução, sem formatação especia
                 </tr>`).join('')}
               </tbody>
             </table>
-          </div>
+          </div>` : ''}
           ${proj.consolidacaoPsicossocial?.justificativaTecnica ? `
           <div style="margin-top:var(--s3);font-size:var(--txt-xs)">
             <strong>Justificativa Técnica:</strong> ${proj.consolidacaoPsicossocial.justificativaTecnica}
           </div>` : ''}
+          ${aprovadosPsi.length > 0 ? `
           <p style="font-size:var(--txt-xs);color:var(--texto-sec);margin-top:var(--s2)">
             Condições identificadas com base na correlação entre AEP (Checklist NR-17) e AFP (COPSOQ-III), aprovadas pelo profissional responsável. Base: NR-17 (Portaria MTP 1.467/2023) e NR-01/GRO-PGR. Ver Seção ${secOrientacoes||'—'} para orientações detalhadas de controle.
+          </p>` : ''}
+
+          ${monitoradosPsi.length > 0 ? `
+          <!-- Subseção: Condições em Monitoramento -->
+          <h4 style="margin-top:var(--s4);margin-bottom:var(--s2);font-size:var(--txt-sm)">${secRiscoPsi}.1. Condições em Monitoramento</h4>
+          <p style="font-size:var(--txt-xs);margin-bottom:var(--s3);text-align:justify">
+            As condições abaixo apresentaram indícios na AFP (COPSOQ-III) e/ou na AEP, porém, a critério do profissional responsável, não foram classificadas como risco a ser incluído no GRO/PGR neste momento. Ficam sob vigilância periódica, conforme o critério de monitoramento indicado, devendo ser reavaliadas e, se confirmadas, convertidas em ações no Plano. Os resultados são apresentados em nível de grupo/setor, sem individualização.
           </p>
+          <div style="overflow-x:auto">
+            <table class="tabela-simples">
+              <thead>
+                <tr>
+                  <th style="width:35%">Condição</th>
+                  <th style="width:65%">Critério de Monitoramento</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${monitoradosPsi.map(r => `<tr>
+                  <td style="font-weight:600;font-size:var(--txt-xs);text-align:left">${r.titulo || '—'}</td>
+                  <td style="font-size:var(--txt-xs);text-align:left;white-space:pre-wrap">${r.estrategia?.trim() || 'Critério não informado — definir periodicidade de reavaliação.'}</td>
+                </tr>`).join('')}
+              </tbody>
+            </table>
+          </div>` : ''}
         </div>` : ''}
 
         <!-- Orientações de Controle Psicossocial -->
