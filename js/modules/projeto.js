@@ -1785,7 +1785,7 @@ Retorne APENAS o texto da conclusão, sem introdução, sem formatação especia
           .so-imprimir { display:block !important; }
           .nao-imprimir { display:none !important; }
           /* O cabeçalho inicia a página 3 (quebra no início dele, não no fim do sumário) */
-          .rpt-header { break-before:page; page-break-before:always; break-inside:avoid; page-break-inside:avoid; display:flex !important; height:14mm; background:#fff; border-bottom:2px solid #0D47A1; padding:0; align-items:center; justify-content:space-between; margin-bottom:8pt; }
+          .rpt-header { break-before:page; page-break-before:always; break-inside:avoid; page-break-inside:avoid; display:flex !important; min-height:14mm; background:#fff; border-bottom:2px solid #0D47A1; padding:0; align-items:center; justify-content:space-between; margin-bottom:8pt; }
           .rpt-header-logo { display:flex; align-items:center; gap:6pt; }
           .rpt-header-info { font-size:7pt; color:#555; text-align:right; line-height:1.5; }
           .rpt-footer { display:block !important; border-top:1px solid #0D47A1; margin-top:6pt; padding-top:6pt; font-size:7.5pt; color:#444; text-align:center; line-height:1.6; page-break-before:avoid !important; page-break-inside:avoid !important; break-inside:avoid !important; }
