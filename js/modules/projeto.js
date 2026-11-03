@@ -1123,14 +1123,19 @@ Retorne APENAS o texto da conclusão, sem introdução, sem formatação especia
         </div>
 
         <!-- Ações Psicossociais -->
-        ${aprovadosPsiCount > 0 ? `
+        ${(aprovadosPsiCount > 0 || acoesPsi.length > 0) ? `
         <div class="card" style="margin-bottom:var(--s4)">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--s3)">
             <div class="card-titulo" style="margin:0">🧠 Ações Psicossociais (${acoesPsi.length} ação(ões) · ${psiComAcao}/${aprovadosPsiCount} condições)</div>
+            ${aprovadosPsiCount > 0 ? `
             <button class="btn btn-secundario btn-sm" onclick="ModuloProjeto.gerarAcoesPsicossocial()">
               ${psiComAcao < aprovadosPsiCount ? '⚡ Gerar do Psicossocial' : '🔄 Atualizar do Psicossocial'}
-            </button>
+            </button>` : ''}
           </div>
+          ${aprovadosPsiCount === 0 ? `
+          <p style="font-size:var(--txt-xs);color:var(--aviso);margin-bottom:var(--s3)">
+            Não há condições psicossociais aprovadas na Consolidação, mas estas ações continuam no plano e no relatório. Exclua com 🗑️ se não se aplicam.
+          </p>` : ''}
           ${acoesPsi.length === 0 ? `
           <p style="font-size:var(--txt-xs);color:var(--texto-sec)">
             Você tem ${aprovadosPsiCount} risco(s) psicossocial(is) aprovado(s) na Consolidação.
