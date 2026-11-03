@@ -1773,8 +1773,7 @@ Retorne APENAS o texto da conclusão, sem introdução, sem formatação especia
           .rpt-capa-tabela td { padding:4pt 8pt; border:none !important; border-bottom:1px solid #e0e0e0 !important; background:transparent !important; color:#222; }
           .rpt-capa-td-label { font-weight:700; color:#0D47A1 !important; width:44%; }
           .rpt-capa-barra-rodape { background:#0D47A1; color:#fff; padding:8pt 16pt; font-size:8pt; text-align:center; line-height:1.6; }
-          /* Sumário ocupa exatamente uma página; overflow oculto evita vazar fragmento do cabeçalho seguinte */
-          .rpt-sumario { page-break-after:always; break-after:page; padding:0; margin:0; max-height:260mm; overflow:hidden; }
+          .rpt-sumario { padding:0; margin:0; }
           .rpt-sumario-titulo { display:block !important; font-size:14pt; font-weight:900; color:#fff !important; background:#0D47A1 !important; padding:8pt 12pt !important; text-transform:uppercase; letter-spacing:3pt; margin:0 0 10mm !important; }
           .rpt-sumario-item { display:flex !important; align-items:baseline !important; padding:5pt 14pt !important; font-size:10pt; color:#111; border:none !important; background:transparent !important; }
           .rpt-sumario-item:nth-child(even) { background:#f5f7fa !important; }
@@ -1785,7 +1784,8 @@ Retorne APENAS o texto da conclusão, sem introdução, sem formatação especia
           .rpt-sumario-sep { height:2pt; background:#0D47A1 !important; border:none !important; margin:4pt 0 !important; display:block !important; }
           .so-imprimir { display:block !important; }
           .nao-imprimir { display:none !important; }
-          .rpt-header { break-inside:avoid; page-break-inside:avoid; break-before:avoid; display:flex !important; height:14mm; background:#fff; border-bottom:2px solid #0D47A1; padding:0; align-items:center; justify-content:space-between; margin-bottom:8pt; }
+          /* O cabeçalho inicia a página 3 (quebra no início dele, não no fim do sumário) */
+          .rpt-header { break-before:page; page-break-before:always; break-inside:avoid; page-break-inside:avoid; display:flex !important; height:14mm; background:#fff; border-bottom:2px solid #0D47A1; padding:0; align-items:center; justify-content:space-between; margin-bottom:8pt; }
           .rpt-header-logo { display:flex; align-items:center; gap:6pt; }
           .rpt-header-info { font-size:7pt; color:#555; text-align:right; line-height:1.5; }
           .rpt-footer { display:block !important; border-top:1px solid #0D47A1; margin-top:6pt; padding-top:6pt; font-size:7.5pt; color:#444; text-align:center; line-height:1.6; page-break-before:avoid !important; page-break-inside:avoid !important; break-inside:avoid !important; }
