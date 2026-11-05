@@ -217,6 +217,50 @@ const ModuloAEP = (() => {
     ec_cognitivo: 'Revisar interface homem-máquina; reduzir interrupções; implementar pausas cognitivas e reorganizar fluxo de trabalho'
   };
 
+  /* ── Inventário de riscos ergonômicos ────────────────────── */
+  /* Possíveis danos à saúde por exposição (texto de apoio — editável pelo avaliador) */
+  const _DANOS_EXPOSICAO = {
+    ef_pescoco:   'Cervicalgia, tensão muscular cervical, cefaleia tensional',
+    ef_ombros:    'Tendinites e bursites de ombro, síndrome do manguito rotador',
+    ef_tronco:    'Lombalgia, hérnia discal, sobrecarga da coluna vertebral',
+    ef_estatica:  'Fadiga muscular, dores lombares e cervicais, alterações circulatórias',
+    ef_repeticao: 'LER/DORT: tendinites, tenossinovites, síndrome do túnel do carpo',
+    ef_cargas:    'Lombalgia, lesões musculoesqueléticas, hérnia discal',
+    ef_esforco:   'Lesões tendinosas, fadiga muscular, dor em mãos e antebraços',
+    ef_vib_maos:  'Síndrome da vibração mão-braço, alterações vasculares e neurológicas',
+    ef_vib_corpo: 'Lombalgia, desconforto e alterações da coluna por vibração',
+    ef_pe:        'Varizes, dor em membros inferiores e lombar, fadiga',
+    eo_turno:     'Distúrbios do sono, fadiga crônica, alterações metabólicas e de convívio social',
+    eo_ritmo:     'Estresse ocupacional, fadiga, adoção de posturas e procedimentos de risco',
+    ec_cognitivo: 'Fadiga mental, estresse, erros de execução, sobrecarga cognitiva'
+  };
+  const _DANOS_DOMINIO = {
+    organizacional: 'Fadiga, sobrecarga de trabalho, estresse ocupacional, erros e acidentes',
+    psicossocial:   'Estresse ocupacional, sofrimento psíquico, queda de engajamento, absenteísmo'
+  };
+  const _CATEGORIA_RISCO = {
+    fisica: 'Físico / biomecânico', organizacional: 'Organizacional',
+    cognitiva: 'Cognitivo', psicossocial: 'Psicossocial'
+  };
+  const _SEV_LABEL  = { 1: 'Leve', 2: 'Moderada', 3: 'Grave' };
+  const _PROB_LABEL = { 1: 'Baixa', 2: 'Média', 3: 'Alta' };
+
+  /* Matriz severidade × probabilidade → nível (produto 1–9) */
+  function _nivelMatriz(sev, prob) {
+    const p = (Number(sev) || 0) * (Number(prob) || 0);
+    if (!p) return '';
+    if (p <= 2) return 'baixo';
+    if (p <= 4) return 'medio';
+    if (p <= 6) return 'alto';
+    return 'critico';
+  }
+
+  /* Escapa texto para uso em HTML/atributos (campos livres do avaliador) */
+  function _escHtml(s) {
+    return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
   /* ── Motor de criticidade (score 0–100) ──────────────────── */
   const MOTOR_AEP = {
     PESOS: { fisica: 0.15, organizacional: 0.55, cognitiva: 0.00, psicossocial: 0.30 },
@@ -316,6 +360,60 @@ const ModuloAEP = (() => {
 
     corNivel(nivel) {
       return { baixo: '#4caf50', medio: '#ff9800', alto: '#f44336', critico: '#b71c1c' }[nivel] || '#888';
+    },
+
+    /* Sugere riscos a partir das exposições do posto e das não conformidades do checklist.
+       `origem` identifica a fonte (exposição ou bloco) para não duplicar em novas sugestões. */
+    gerarRiscosSugeridos(av) {
+      const riscos = [];
+
+      /* 1) Exposições presentes → riscos físicos / organizacionais / cognitivos */
+      const exps = av?.aep?.posto?.exposicoesEstruturadas || [];
+      exps.forEach(e => {
+        if (e.presente !== 'sim') return;
+        const def = EXPOSICOES.find(x => x.id === e.id);
+        if (!def) return;
+        const intN = { baixa: 1, moderada: 2, alta: 3 }[e.intensidade] || 2;
+        const exposN = ({ ocasional: 1, intermitente: 2, continua: 3 }[e.frequencia] || 2)
+                     + ({ '<1h': 0, '1h-3h': 1, '3h-6h': 2, '>6h': 3 }[e.duracao] || 1);
+        const prob = exposN >= 5 ? 3 : exposN >= 3 ? 2 : 1;
+        const partes = [];
+        if (e.intensidade) partes.push('intensidade ' + e.intensidade);
+        if (e.frequencia)  partes.push('frequência ' + e.frequencia);
+        if (e.duracao)     partes.push('duração ' + e.duracao);
+        riscos.push({
+          origem: 'exp:' + def.id,
+          fator: def.label,
+          categoria: def.dominio,
+          descricao: partes.length ? 'Exposição observada no posto — ' + partes.join(', ') : 'Exposição observada no posto',
+          danos: _DANOS_EXPOSICAO[def.id] || '',
+          severidade: intN,
+          probabilidade: prob
+        });
+      });
+
+      /* 2) Não conformidades do checklist → um risco por bloco */
+      const porBloco = {};
+      obterNaoConformes(av).forEach(nc => {
+        (porBloco[nc.blocoChave] = porBloco[nc.blocoChave] || []).push(nc);
+      });
+      ORDEM_BLOCOS.forEach(chave => {
+        const ncs = porBloco[chave];
+        if (!ncs) return;
+        const sevN = ncs.some(n => n.risco === 'alto') ? 3 : ncs.some(n => n.risco === 'medio') ? 2 : 1;
+        const dom = MOTOR_AEP.BLOCO_DOMINIO[chave] || 'organizacional';
+        riscos.push({
+          origem: 'bloco:' + chave,
+          fator: BLOCOS[chave].titulo,
+          categoria: dom,
+          descricao: ncs.length + ' não conformidade(s) no checklist (' + ncs.length + ' de ' + BLOCOS[chave].itens.length + ' itens)',
+          danos: _DANOS_DOMINIO[dom] || '',
+          severidade: sevN,
+          probabilidade: ncs.length >= 2 ? 3 : 2
+        });
+      });
+
+      return riscos;
     },
 
     gerarRecomendacoes(av) {
@@ -1022,6 +1120,116 @@ const ModuloAEP = (() => {
     `).join('');
   }
 
+  /* ── Riscos ergonômicos identificados (lista editável) ─────── */
+  const _NIVEL_RISCO_TXT = { baixo: '🟢 Baixo', medio: '🟡 Médio', alto: '🔴 Alto', critico: '🚨 Crítico' };
+
+  function _htmlRiscosLista(riscos) {
+    if (!riscos.length) {
+      return `<p style="font-size:var(--txt-sm);color:var(--texto-sec);padding:var(--s2) 0">
+        Nenhum risco registrado. Use "Sugerir" ou "Adicionar risco".
+      </p>`;
+    }
+    const opts = (mapa, sel) => Object.entries(mapa)
+      .map(([v, l]) => `<option value="${v}" ${String(sel) === v ? 'selected' : ''}>${l}</option>`).join('');
+    return riscos.map((r, i) => {
+      const nivel = _nivelMatriz(r.severidade, r.probabilidade);
+      return `
+      <div class="risco-item" data-origem="${_escHtml(r.origem || '')}"
+           style="border:1px solid var(--borda);border-radius:var(--raio);padding:var(--s3);margin-bottom:var(--s3)">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:var(--s2);margin-bottom:var(--s2)">
+          <span style="font-size:var(--txt-xs);font-weight:700;color:var(--texto-sec)">RISCO ${i + 1}</span>
+          <span style="display:flex;align-items:center;gap:var(--s2)">
+            <span class="risco-nivel" style="font-size:var(--txt-sm);font-weight:700">${_NIVEL_RISCO_TXT[nivel] || '—'}</span>
+            <button onclick="ModuloAEP.removerRisco(${i})" title="Remover risco"
+                    style="background:none;border:none;color:#f44336;cursor:pointer;font-size:1.1rem">🗑️</button>
+          </span>
+        </div>
+        <div class="grupo-campo">
+          <label>Fator de risco / perigo</label>
+          <input type="text" class="rk-fator" value="${_escHtml(r.fator)}" placeholder="Ex.: Postura forçada de tronco ao posicionar lâminas">
+        </div>
+        <div class="grupo-campo">
+          <label>Categoria</label>
+          <select class="rk-categoria">${opts(_CATEGORIA_RISCO, r.categoria)}</select>
+        </div>
+        <div class="grupo-campo">
+          <label>Descrição / situação observada</label>
+          <textarea class="rk-descricao" rows="2" placeholder="Onde e como o risco ocorre no posto">${_escHtml(r.descricao)}</textarea>
+        </div>
+        <div class="grupo-campo">
+          <label>Possíveis danos à saúde</label>
+          <textarea class="rk-danos" rows="2" placeholder="Ex.: lombalgia, tendinite...">${_escHtml(r.danos)}</textarea>
+        </div>
+        <div class="linha-campos">
+          <div class="grupo-campo">
+            <label>Severidade</label>
+            <select class="rk-sev" onchange="ModuloAEP.onRiscoNivelChange(this)">
+              <option value="">—</option>${opts(_SEV_LABEL, r.severidade)}
+            </select>
+          </div>
+          <div class="grupo-campo">
+            <label>Probabilidade</label>
+            <select class="rk-prob" onchange="ModuloAEP.onRiscoNivelChange(this)">
+              <option value="">—</option>${opts(_PROB_LABEL, r.probabilidade)}
+            </select>
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  /* Lê os riscos digitados na tela (preserva campos ainda não salvos) */
+  function _coletarRiscosDOM() {
+    return Array.from(document.querySelectorAll('#riscos-lista .risco-item')).map(el => {
+      const v = sel => (el.querySelector(sel)?.value || '').trim();
+      return {
+        origem: el.dataset.origem || '',
+        fator: v('.rk-fator'), categoria: v('.rk-categoria'),
+        descricao: v('.rk-descricao'), danos: v('.rk-danos'),
+        severidade: Number(v('.rk-sev')) || 0, probabilidade: Number(v('.rk-prob')) || 0
+      };
+    });
+  }
+
+  function _renderRiscos(riscos) {
+    const el = document.getElementById('riscos-lista');
+    if (el) el.innerHTML = _htmlRiscosLista(riscos);
+  }
+
+  function onRiscoNivelChange(selectEl) {
+    const item = selectEl.closest('.risco-item');
+    if (!item) return;
+    const nivel = _nivelMatriz(item.querySelector('.rk-sev')?.value, item.querySelector('.rk-prob')?.value);
+    const alvo = item.querySelector('.risco-nivel');
+    if (alvo) alvo.textContent = _NIVEL_RISCO_TXT[nivel] || '—';
+  }
+
+  function adicionarRisco() {
+    const riscos = _coletarRiscosDOM();
+    riscos.push({ origem: '', fator: '', categoria: 'fisica', descricao: '', danos: '', severidade: 0, probabilidade: 0 });
+    _renderRiscos(riscos);
+  }
+
+  function removerRisco(idx) {
+    const riscos = _coletarRiscosDOM();
+    riscos.splice(idx, 1);
+    _renderRiscos(riscos);
+  }
+
+  function sugerirRiscos() {
+    const av = App.obterAvaliacaoAtual();
+    if (!av) return;
+    const atuais = _coletarRiscosDOM();
+    const jaTem = new Set(atuais.map(r => r.origem).filter(Boolean));
+    const novos = MOTOR_AEP.gerarRiscosSugeridos(av).filter(r => !jaTem.has(r.origem));
+    if (!novos.length) {
+      App.mostrarToast('Nenhum risco novo a sugerir — preencha o checklist e as exposições', 'info');
+      return;
+    }
+    _renderRiscos(atuais.concat(novos));
+    App.mostrarToast(novos.length + ' risco(s) sugerido(s) — revise e ajuste', 'sucesso');
+  }
+
   function _htmlAnalise() {
     const av  = App.obterAvaliacaoAtual();
     const a   = av?.aep?.analise || {};
@@ -1107,6 +1315,24 @@ const ModuloAEP = (() => {
             </button>
           </div>
           <div id="recs-auto-lista">${_htmlRecsList(recs)}</div>
+        </div>
+
+        <!-- Riscos ergonômicos identificados -->
+        <div class="card">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:var(--s2);flex-wrap:wrap;margin-bottom:var(--s2)">
+            <div class="card-titulo" style="margin:0">Riscos Ergonômicos Identificados</div>
+            <button onclick="ModuloAEP.sugerirRiscos()"
+                    style="font-size:var(--txt-xs);padding:4px 10px;border-radius:var(--r2);border:1px solid var(--borda);background:var(--fundo);color:var(--texto-sec);cursor:pointer">
+              ✨ Sugerir do checklist e exposições
+            </button>
+          </div>
+          <p style="font-size:var(--txt-xs);color:var(--texto-sec);margin-bottom:var(--s3)">
+            Liste os perigos/fatores de risco encontrados no posto, os possíveis danos e classifique
+            por severidade × probabilidade. As sugestões são ponto de partida — o avaliador confirma e ajusta.
+          </p>
+          <div id="riscos-lista">${_htmlRiscosLista(a.riscos || [])}</div>
+          <button class="btn btn-secundario" onclick="ModuloAEP.adicionarRisco()"
+                  style="font-size:var(--txt-sm);margin-top:var(--s3)">➕ Adicionar risco</button>
         </div>
 
         <!-- Análise técnica manual -->
@@ -1249,6 +1475,12 @@ const ModuloAEP = (() => {
     if (!av.aep.analise) av.aep.analise = {};
     if (!av.relatorio) av.relatorio = { conclusao: '', necessitaAET: false, justificativaAET: '' };
     const get = id => (document.getElementById(id) || {}).value?.trim() || '';
+    /* Riscos identificados: grava só se a lista está na tela; descarta linhas totalmente vazias */
+    if (document.getElementById('riscos-lista')) {
+      av.aep.analise.riscos = _coletarRiscosDOM()
+        .filter(r => r.fator || r.descricao || r.danos)
+        .map(r => ({ ...r, nivel: _nivelMatriz(r.severidade, r.probabilidade) }));
+    }
     av.aep.analise.analiseTecnica            = get('an-analise');
     av.aep.analise.nivelRiscoGeral           = get('an-nivel-risco');
     av.aep.analise.justificativaRisco        = get('an-justificativa');
@@ -1532,6 +1764,9 @@ const ModuloAEP = (() => {
 
       /* Recomendações automáticas (reutiliza lógica existente) */
       usarRecomendacoesAuto();
+
+      /* Riscos identificados: sugere só se o avaliador ainda não registrou nenhum */
+      if (!_coletarRiscosDOM().length) sugerirRiscos();
 
       /* Contexto para a IA */
       const contexto = _construirContextoAnalise(av, score, nivel);
@@ -1870,11 +2105,12 @@ Retorne APENAS o texto da justificativa, sem introdução, sem formatação espe
           <div class="rpt-sumario-item sumario-sub"><span class="rpt-sumario-num">6.2</span><span class="rpt-sumario-nome">Não Conformidades</span><span class="rpt-sumario-pontilhado"></span><span class="rpt-sumario-pag">6</span></div>
           <div class="rpt-sumario-item"><span class="rpt-sumario-num">7.</span><span class="rpt-sumario-nome">Score de Criticidade</span><span class="rpt-sumario-pontilhado"></span><span class="rpt-sumario-pag">6</span></div>
           <div class="rpt-sumario-sep"></div>
-          <div class="rpt-sumario-item"><span class="rpt-sumario-num">8.</span><span class="rpt-sumario-nome">Análise Técnica</span><span class="rpt-sumario-pontilhado"></span><span class="rpt-sumario-pag">7</span></div>
-          <div class="rpt-sumario-item"><span class="rpt-sumario-num">9.</span><span class="rpt-sumario-nome">Recomendações Técnicas</span><span class="rpt-sumario-pontilhado"></span><span class="rpt-sumario-pag">7</span></div>
-          <div class="rpt-sumario-item"><span class="rpt-sumario-num">10.</span><span class="rpt-sumario-nome">Indicação Técnica (AET)</span><span class="rpt-sumario-pontilhado"></span><span class="rpt-sumario-pag">8</span></div>
-          <div class="rpt-sumario-item"><span class="rpt-sumario-num">11.</span><span class="rpt-sumario-nome">Plano de Ação</span><span class="rpt-sumario-pontilhado"></span><span class="rpt-sumario-pag">8</span></div>
-          <div class="rpt-sumario-item"><span class="rpt-sumario-num">12.</span><span class="rpt-sumario-nome">Conclusão e Assinatura</span><span class="rpt-sumario-pontilhado"></span><span class="rpt-sumario-pag">9</span></div>
+          <div class="rpt-sumario-item"><span class="rpt-sumario-num">8.</span><span class="rpt-sumario-nome">Riscos Ergonômicos Identificados</span><span class="rpt-sumario-pontilhado"></span><span class="rpt-sumario-pag">7</span></div>
+          <div class="rpt-sumario-item"><span class="rpt-sumario-num">9.</span><span class="rpt-sumario-nome">Análise Técnica</span><span class="rpt-sumario-pontilhado"></span><span class="rpt-sumario-pag">8</span></div>
+          <div class="rpt-sumario-item"><span class="rpt-sumario-num">10.</span><span class="rpt-sumario-nome">Recomendações Técnicas</span><span class="rpt-sumario-pontilhado"></span><span class="rpt-sumario-pag">8</span></div>
+          <div class="rpt-sumario-item"><span class="rpt-sumario-num">11.</span><span class="rpt-sumario-nome">Indicação Técnica (AET)</span><span class="rpt-sumario-pontilhado"></span><span class="rpt-sumario-pag">9</span></div>
+          <div class="rpt-sumario-item"><span class="rpt-sumario-num">12.</span><span class="rpt-sumario-nome">Plano de Ação</span><span class="rpt-sumario-pontilhado"></span><span class="rpt-sumario-pag">9</span></div>
+          <div class="rpt-sumario-item"><span class="rpt-sumario-num">13.</span><span class="rpt-sumario-nome">Conclusão e Assinatura</span><span class="rpt-sumario-pontilhado"></span><span class="rpt-sumario-pag">10</span></div>
         </div>
       </div>
 
@@ -2093,10 +2329,39 @@ Retorne APENAS o texto da justificativa, sem introdução, sem formatação espe
           </div>
         </div>
 
-        <!-- 8. Análise Técnica -->
+        <!-- 8. Riscos Ergonômicos Identificados -->
+        ${(analise.riscos || []).length ? `
+        <div class="relatorio-secao">
+          <h3>8. Riscos Ergonômicos Identificados (${analise.riscos.length})</h3>
+          <div style="overflow-x:auto">
+            <table class="tabela-simples">
+              <thead><tr><th>#</th><th>Fator de risco</th><th>Categoria</th><th>Situação observada</th><th>Possíveis danos</th><th>Sev.</th><th>Prob.</th><th>Nível</th></tr></thead>
+              <tbody>
+                ${analise.riscos.map((r, i) => {
+                  const nv = r.nivel || _nivelMatriz(r.severidade, r.probabilidade);
+                  return `<tr>
+                    <td style="font-size:var(--txt-xs)">${i + 1}</td>
+                    <td style="font-size:var(--txt-xs);font-weight:600">${_escHtml(r.fator) || '—'}</td>
+                    <td style="font-size:var(--txt-xs)">${_CATEGORIA_RISCO[r.categoria] || '—'}</td>
+                    <td style="font-size:var(--txt-xs)">${_escHtml(r.descricao) || '—'}</td>
+                    <td style="font-size:var(--txt-xs)">${_escHtml(r.danos) || '—'}</td>
+                    <td style="font-size:var(--txt-xs)">${_SEV_LABEL[r.severidade] || '—'}</td>
+                    <td style="font-size:var(--txt-xs)">${_PROB_LABEL[r.probabilidade] || '—'}</td>
+                    <td>${nv ? `<span class="badge badge-${nv === 'critico' ? 'alto' : nv}">${NIVEL_PRINT[nv]}</span>` : '—'}</td>
+                  </tr>`;
+                }).join('')}
+              </tbody>
+            </table>
+          </div>
+          <p style="font-size:var(--txt-xs);color:var(--texto-sec);margin-top:var(--s2)">
+            Classificação pela matriz severidade × probabilidade (escala 1–3): produto 1–2 Baixo · 3–4 Médio · 6 Alto · 9 Crítico.
+          </p>
+        </div>` : ''}
+
+        <!-- 9. Análise Técnica -->
         ${analise.analiseTecnica ? `
         <div class="relatorio-secao">
-          <h3>8. Análise Técnica</h3>
+          <h3>9. Análise Técnica</h3>
           <div class="card">
             ${analise.nivelRiscoGeral ? `
               <div style="margin-bottom:var(--s3)">
@@ -2109,16 +2374,16 @@ Retorne APENAS o texto da justificativa, sem introdução, sem formatação espe
           </div>
         </div>` : ''}
 
-        <!-- 9. Recomendações -->
+        <!-- 10. Recomendações -->
         ${analise.recomendacoes ? `
         <div class="relatorio-secao">
-          <h3>9. Recomendações Técnicas</h3>
+          <h3>10. Recomendações Técnicas</h3>
           <div class="card"><p style="font-size:var(--txt-sm);white-space:pre-wrap">${analise.recomendacoes}</p></div>
         </div>` : ''}
 
-        <!-- 10. Indicação de AET -->
+        <!-- 11. Indicação de AET -->
         <div class="relatorio-secao">
-          <h3>10. Indicação Técnica</h3>
+          <h3>11. Indicação Técnica</h3>
           <div class="card">
             ${analise.indicaAET ? `
               <div class="aviso-tecnico aviso" style="margin:0">
@@ -2135,7 +2400,7 @@ Retorne APENAS o texto da justificativa, sem introdução, sem formatação espe
           </div>
         </div>
 
-        <!-- 11. Plano de Ação -->
+        <!-- 12. Plano de Ação -->
         ${(av.planoAcao?.length > 0 || _acoesSistemicasDoProjeto(av).length > 0) ? (() => {
           const PRIO_COR  = { alta: '#f44336', media: '#ff9800', baixa: '#4caf50' };
           const PRIO_L    = { alta: 'Alta', media: 'Média', baixa: 'Baixa' };
@@ -2146,7 +2411,7 @@ Retorne APENAS o texto da justificativa, sem introdução, sem formatação espe
           const planoEsp = av.planoAcao || [];
           return `
           <div class="relatorio-secao">
-            <h3>11. Plano de Ação (${planoEsp.length} ação(ões))</h3>
+            <h3>12. Plano de Ação (${planoEsp.length} ação(ões))</h3>
             ${acoesSis.length > 0 ? `
             <div style="font-size:var(--txt-xs);font-weight:700;margin:var(--s2) 0">SISTÊMICA — TODAS AS FUNÇÕES (${acoesSis.length}) · aplicáveis também a esta função</div>
             <div style="overflow-x:auto;margin-bottom:var(--s3)">
@@ -2188,9 +2453,9 @@ Retorne APENAS o texto da justificativa, sem introdução, sem formatação espe
           </div>`;
         })() : ''}
 
-        <!-- 12. Conclusão e Assinatura -->
+        <!-- 13. Conclusão e Assinatura -->
         <div class="relatorio-secao">
-          <h3>12. Conclusão e Assinatura</h3>
+          <h3>13. Conclusão e Assinatura</h3>
           <div class="card">
             <p style="font-size:var(--txt-sm)">
               A presente Avaliação Ergonômica Preliminar foi elaborada com base em inspeção in loco,
@@ -2355,6 +2620,7 @@ Retorne APENAS o texto da justificativa, sem introdução, sem formatação espe
     salvarPosto, onExpChange,
     /* análise */
     salvarSecaoAtual: () => { _salvarSecaoAtual(); },
+    sugerirRiscos, adicionarRisco, removerRisco, onRiscoNivelChange,
     onAETChange, salvarAnalise, recalcularScore, aplicarNivelSugerido, usarRecomendacoesAuto, gerarAnaliseCompleta, gerarJustificativaAETIA, gerarPlanoDeAcao, salvarCampoPlano,
     /* relatório */
     imprimirRelatorio, exportarJSON,
